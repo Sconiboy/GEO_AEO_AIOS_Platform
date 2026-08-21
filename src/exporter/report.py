@@ -1,8 +1,4 @@
-"""
-Auditable Report, Source Ledger, and Observation Record Exporter
-"""
-
-from typing import List
+from typing import List, TYPE_CHECKING
 from ..domain.enums import VerificationStatus, CaptureMethod
 from ..domain.gap_analysis import ForensicGapAnalysisRecord
 from ..domain.human_decision import HumanDecisionRecord
@@ -11,6 +7,9 @@ from ..domain.observation import AnswerObservation
 from ..domain.query_map import QueryMap
 from ..domain.reconciliation import ObservationReconciliation
 from ..domain.validators import validate_audit_run_ledger
+
+if TYPE_CHECKING:
+    from ..collector.comparative_reconciler import ComparativeEvidenceRecord
 
 
 class ReportExporter:
@@ -703,4 +702,61 @@ class ReportExporter:
             lines.append("---")
             lines.append("")
 
+        return "\n".join(lines)
+
+    @classmethod
+    def export_comparative_analysis_record(
+        cls,
+        record: "ComparativeEvidenceRecord",
+        query_map: QueryMap,
+    ) -> str:
+        """
+        Renders a Bounded Comparative Evidence Analysis Markdown document.
+        Does NOT state causal LLM ranking claims or commercial visibility ranks.
+        """
+        lines: List[str] = [
+            "> [!NOTE]",
+            "> **BOUNDED COMPARATIVE EVIDENCE ANALYSIS RECORD**",
+            "> Compares verified client evidence against verified competitor evidence for a target query observation.",
+            "> Contains no causal LLM-ranking claims or commercial visibility ranks.",
+            "",
+            f"# ⚖️ Bounded Comparative Evidence Analysis",
+            f"**Subject Entity**: `{query_map.entity_name}`  ",
+            f"**Target Query ID**: `{record.query_id}`  ",
+            f"**Bound Observation ID**: `{record.observation_id}`  ",
+            f"**Comparative Record ID**: `{record.comparative_id}`  ",
+            f"**Canonical Analysis Digest**: `{record.canonical_digest[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 🔍 Verified Evidence Comparison Matrix",
+            "",
+            "### 🟢 Client Evidence Summary",
+            f"- **Domain**: `{record.client_evidence.domain}` (Entity: `{record.client_evidence.entity_name}`)",
+            f"- **URL**: [{record.client_evidence.url}]({record.client_evidence.url})",
+            f"- **Status**: `{'OPENED_VERIFIED' if record.client_evidence.is_verified else 'UNVERIFIED'}`",
+            f"- **Snapshot Hash**: `{record.client_evidence.snapshot_sha256[:16] if record.client_evidence.snapshot_sha256 else 'N/A'}...`",
+            f"- **Extracted Excerpt**: *\"{record.client_evidence.opened_excerpt}\"*",
+            "",
+            "### 🔴 Competitor Evidence Summary",
+            f"- **Domain**: `{record.competitor_evidence.domain}` (Entity: `{record.competitor_evidence.entity_name}`)",
+            f"- **URL**: [{record.competitor_evidence.url}]({record.competitor_evidence.url})",
+            f"- **Status**: `{'OPENED_VERIFIED' if record.competitor_evidence.is_verified else 'UNVERIFIED'}`",
+            f"- **Snapshot Hash**: `{record.competitor_evidence.snapshot_sha256[:16] if record.competitor_evidence.snapshot_sha256 else 'N/A'}...`",
+            f"- **Extracted Excerpt**: *\"{record.competitor_evidence.opened_excerpt}\"*",
+            "",
+            "---",
+            "",
+            "## 📊 Factual Evidentiary Analysis",
+            f"{record.comparison_summary}",
+            "",
+            "---",
+            "",
+            "## ⚡ Action Hypothesis for Human Operator Review",
+            f"> [!IMPORTANT]",
+            f"> **ACTION HYPOTHESIS**: {record.action_hypothesis}",
+            "> *All action hypotheses create genuine, verifiable public evidence. Non-manipulative.*",
+            "",
+            "---",
+        ]
         return "\n".join(lines)

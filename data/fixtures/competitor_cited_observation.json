@@ -1,0 +1,44 @@
+{
+  "observation_id": "obs-rust-cite-001",
+  "query_id": "q-001",
+  "query_map_id": "qm-python-pub-001",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "query_map_sha256": "ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
+  "manifest_sha256": "71333fd91a308167fac7a2b457f62f07314687d2cf01b8cfedf92d49cc569d0c",
+  "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
+  "provider_name": "Ollama / Local Operator Console",
+  "model_identifier": "hermes-3-llama-3.1-8b",
+  "capture_timestamp": "2026-08-21T16:45:00Z",
+  "capture_method": "human_operator_console",
+  "capture_artifact": {
+    "artifact_id": "art-hermes3-rust-001",
+    "session_id": "sess-hermes3-rust-20260821-001",
+    "artifact_type": "raw_transcript_export",
+    "artifact_path_or_uri": "data/captures/rust_citation_q001_raw.txt",
+    "artifact_sha256": "76ddda69106129e98480054a4de4461aeea31375268e3692ba6e5a42c03ebdd7",
+    "raw_output_sha256": "3c397d49ce5bb9b1aef55a0886fe1d9671e24e1f03a37bc13d7a645bfd091b1c",
+    "operator_identity": "operator-benjamin",
+    "captured_at": "2026-08-21T16:45:00Z"
+  },
+  "raw_answer_text": "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20). In contrast, system languages like Rust prioritize memory safety without garbage collection through its ownership model, as documented in https://doc.rust-lang.org/book/ for the Rust programming language.",
+  "raw_answer_sha256": "3c397d49ce5bb9b1aef55a0886fe1d9671e24e1f03a37bc13d7a645bfd091b1c",
+  "extracted_statements": [
+    {
+      "statement_id": "stmt-001",
+      "text": "Python's core language design philosophy emphasizes code readability and simplicity.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": null,
+      "human_notes": "Extracted from Hermes 3 response citing PEP 20."
+    },
+    {
+      "statement_id": "stmt-002",
+      "text": "Rust prioritizes memory safety without garbage collection as documented in the Rust book.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": null,
+      "human_notes": "Extracted from Hermes 3 response citing Rust Book URL."
+    }
+  ],
+  "operator_notes": "Artifact-Backed Manual Capture citing Rust Book competitor URL.",
+  "locale": "en-US",
+  "region": "US"
+}
