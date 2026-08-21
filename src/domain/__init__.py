@@ -10,7 +10,7 @@ from .enums import (
     SourceType,
     VerificationStatus,
 )
-from .human_decision import HumanDecisionRecord, HumanStatementDecision
+from .human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
 from .observation import AnswerObservation, CaptureMethod, ExtractedStatement, ExtractionStatus
 from .query_map import (
@@ -45,4 +45,5 @@ __all__ = [
     "ExtractionStatus",
     "HumanStatementDecision",
     "HumanDecisionRecord",
+    "QuotedEvidencePassage",
 ]

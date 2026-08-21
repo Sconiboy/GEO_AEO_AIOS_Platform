@@ -1,17 +1,29 @@
 """
-Human Semantic Decision Domain Contracts (Sprint 6.4)
+Human Semantic Decision Domain Contracts (Sprint 6.4.1)
 Defines immutable, content-addressed decision records representing human auditor governance.
-Transitions statement proposals from NOT_ASSESSABLE to SUPPORTED/CONTRADICTED with full provenance.
+Enforces verbatim quote validation against opened evidence excerpts, quote-evidence pairing,
+declared reviewer identity, and timestamp digest binding.
 """
 
 import hashlib
-
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 from .enums import ReconciliationMethod, ReconciliationStatus
+
+
+class QuotedEvidencePassage(BaseModel):
+    """
+    Explicit binding between a cited evidence record and a verbatim quoted passage.
+    """
+
+    model_config = {"frozen": True}
+
+    evidence_id: str = Field(..., description="Cited EvidenceRecord ID from Source Ledger")
+    quoted_passage: str = Field(..., min_length=1, description="Verbatim passage extracted from evidence opened_excerpt")
+    snapshot_sha256: Optional[str] = Field(default=None, description="Durable snapshot SHA-256 reference digest")
 
 
 class HumanStatementDecision(BaseModel):
@@ -23,11 +35,10 @@ class HumanStatementDecision(BaseModel):
 
     decision_id: str = Field(..., description="Unique decision identifier, e.g. hdec-stmt-001")
     statement_id: str = Field(..., description="Target statement ID from AnswerObservation")
-    decision_status: ReconciliationStatus = Field(..., description="Human-adjudicated status (SUPPORTED, UNSUPPORTED, CONTRADICTED, NOT_ASSESSABLE)")
-    evaluated_evidence_ids: List[str] = Field(..., min_length=1, description="List of evidence IDs evaluated by human auditor")
-    quoted_passages: List[str] = Field(..., min_length=1, description="Exact verbatim passages cited from evidence")
+    decision_status: ReconciliationStatus = Field(..., description="Human-adjudicated status")
+    quoted_evidence: List[QuotedEvidencePassage] = Field(..., min_length=1, description="Explicit quote-evidence pairings")
     auditor_rationale: str = Field(..., min_length=10, description="Detailed technical rationale for human decision")
-    auditor_identity: str = Field(default="Lead Systems Architect & Auditor", description="Identity or role of human governor")
+    declared_reviewer_identity: str = Field(default="Lead Systems Architect & Auditor", description="Declared identity of reviewer")
     decision_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="UTC timestamp of human decision")
     reconciliation_method: ReconciliationMethod = Field(default=ReconciliationMethod.HUMAN_AUDITOR_REVIEW)
 
@@ -36,6 +47,7 @@ class HumanDecisionRecord(BaseModel):
     """
     Content-addressed, immutable record of human governance decisions over an AnswerObservation reconciliation.
     Binds exact observation ID, raw answer SHA-256, source ledger run ID, raw ledger SHA-256, query map SHA-256, and manifest SHA-256.
+    Includes decision timestamps, reconciliation methods, and quoted evidence bindings in canonical digest.
     """
 
     model_config = {"frozen": True}
@@ -63,7 +75,8 @@ class HumanDecisionRecord(BaseModel):
         decisions: List[HumanStatementDecision],
     ) -> str:
         """
-        Computes deterministic SHA-256 canonical digest over all 6 context bindings and decision payloads.
+        Computes deterministic SHA-256 canonical digest covering all context bindings,
+        timestamps, methods, declared reviewer identity, and paired quoted evidence.
         """
         payload = {
             "decision_record_id": decision_record_id,
@@ -78,10 +91,18 @@ class HumanDecisionRecord(BaseModel):
                     "decision_id": d.decision_id,
                     "statement_id": d.statement_id,
                     "decision_status": d.decision_status.value,
-                    "evaluated_evidence_ids": sorted(d.evaluated_evidence_ids),
-                    "quoted_passages": d.quoted_passages,
+                    "quoted_evidence": [
+                        {
+                            "evidence_id": q.evidence_id,
+                            "quoted_passage": q.quoted_passage,
+                            "snapshot_sha256": q.snapshot_sha256,
+                        }
+                        for q in sorted(d.quoted_evidence, key=lambda x: (x.evidence_id, x.quoted_passage))
+                    ],
                     "auditor_rationale": d.auditor_rationale,
-                    "auditor_identity": d.auditor_identity,
+                    "declared_reviewer_identity": d.declared_reviewer_identity,
+                    "decision_timestamp": d.decision_timestamp.isoformat(),
+                    "reconciliation_method": d.reconciliation_method.value,
                 }
                 for d in sorted(decisions, key=lambda x: x.statement_id)
             ],

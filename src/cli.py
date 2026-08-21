@@ -369,10 +369,11 @@ def run_cli_human_decision(
     """
     Executes a formal Human Auditor Adjudication operation.
     Transitions a statement proposal from NOT_ASSESSABLE to SUPPORTED/CONTRADICTED backed by explicit human decision.
-    Validates all 6 context bindings, computes canonical digest, persists HumanDecisionRecord JSON, and exports Markdown.
+    Validates all 6 context bindings, verifies verbatim quoted passages against opened evidence excerpts,
+    computes canonical digest, persists HumanDecisionRecord JSON, and exports Markdown.
     """
     from .domain.enums import ReconciliationStatus
-    from .domain.human_decision import HumanDecisionRecord, HumanStatementDecision
+    from .domain.human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 
     print(f"🏛️ Executing Human Auditor Semantic Adjudication for statement: {statement_id}")
     print(f"🎯 QueryMap: {query_map_path}")
@@ -412,13 +413,35 @@ def run_cli_human_decision(
         if not stmt_obj:
             raise ValueError(f"Statement ID '{statement_id}' does not exist in observation '{validated_obs.observation_id}'.")
 
-        # Validate evidence_ids existence in source ledger and status OPENED_VERIFIED
-        for eid in evidence_ids:
+        if len(evidence_ids) != len(quotes):
+            raise ValueError(f"Length mismatch: {len(evidence_ids)} evidence IDs provided for {len(quotes)} quotes.")
+
+        quoted_evidence_list: List[QuotedEvidencePassage] = []
+
+        # Validate each quote against opened_excerpt
+        for eid, quote in zip(evidence_ids, quotes):
             if eid not in source_ledger.evidence_ledger:
                 raise ValueError(f"Evidence ID '{eid}' does not exist in Source Ledger.")
             ev = source_ledger.evidence_ledger[eid]
             if ev.verification_status.value != "opened_verified":
                 raise ValueError(f"Evidence ID '{eid}' has status '{ev.verification_status.value}', not 'opened_verified'.")
+
+            # Verbatim normalized substring check against opened_excerpt
+            norm_quote = " ".join(quote.strip().split())
+            norm_excerpt = " ".join(ev.opened_excerpt.strip().split())
+            if norm_quote not in norm_excerpt:
+                raise ValueError(
+                    f"Fabricated quote rejected: Passage '{quote}' is not a verbatim substring of opened_excerpt for evidence record '{eid}'."
+                )
+
+            snap_hash = ev.verification_artifact.snapshot_sha256 if ev.verification_artifact else None
+            quoted_evidence_list.append(
+                QuotedEvidencePassage(
+                    evidence_id=eid,
+                    quoted_passage=quote,
+                    snapshot_sha256=snap_hash,
+                )
+            )
 
         status_enum = ReconciliationStatus(status_str.lower())
 
@@ -426,10 +449,9 @@ def run_cli_human_decision(
             decision_id=f"hdec-{statement_id}",
             statement_id=statement_id,
             decision_status=status_enum,
-            evaluated_evidence_ids=evidence_ids,
-            quoted_passages=quotes,
+            quoted_evidence=quoted_evidence_list,
             auditor_rationale=rationale,
-            auditor_identity=auditor_identity,
+            declared_reviewer_identity=auditor_identity,
         )
 
         rec_id = f"hdec-rec-{validated_obs.observation_id}"

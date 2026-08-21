@@ -174,17 +174,18 @@ class ReportExporter:
         for dec in decision_record.decisions:
             stmt_text = stmt_map.get(dec.statement_id, "Unknown Statement")
             badge = f"**`[{dec.decision_status.value.upper()}]`**"
-            ev_str = ", ".join([f"`{eid}`" for eid in dec.evaluated_evidence_ids])
 
             lines.append(f"### Statement `{dec.statement_id}`: \"{stmt_text}\"")
             lines.append(f"- **Final Adjudicated Decision**: {badge}")
-            lines.append(f"- **Evaluated Evidence IDs**: {ev_str}")
-            lines.append(f"- **Auditor Identity / Role**: `{dec.auditor_identity}`")
+            lines.append(f"- **Declared Reviewer Identity**: `{dec.declared_reviewer_identity}`")
             lines.append(f"- **Adjudication Timestamp**: `{dec.decision_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`")
+            lines.append(f"- **Reconciliation Method**: `{dec.reconciliation_method.value}`")
             lines.append(f"- **Auditor Technical Rationale**: {dec.auditor_rationale}")
-            lines.append(f"- **Quoted Supporting Passages**:")
-            for passage in dec.quoted_passages:
-                lines.append(f"  > *\"{passage}\"*")
+            lines.append(f"- **Verified Quoted Evidence Passages**:")
+            for qe in dec.quoted_evidence:
+                snap_str = f" (Snapshot: `{qe.snapshot_sha256[:12]}...`)" if qe.snapshot_sha256 else ""
+                lines.append(f"  - **Evidence ID**: `{qe.evidence_id}`{snap_str}")
+                lines.append(f"    > *\"{qe.quoted_passage}\"*")
             lines.append("")
 
         lines.append("---")

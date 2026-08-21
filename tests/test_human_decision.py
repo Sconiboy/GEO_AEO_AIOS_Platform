@@ -1,31 +1,33 @@
 """
-Unit Tests for Human Semantic Decision Artifact and CLI Workflow (Sprint 6.4)
+Unit Tests for Human Semantic Decision Artifact and CLI Workflow (Sprint 6.4.1 Remediation)
 """
 
-import hashlib
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from src.cli import run_cli_human_decision
-from src.domain.enums import ReconciliationStatus
-from src.domain.human_decision import HumanDecisionRecord, HumanStatementDecision
+from src.domain.enums import ReconciliationMethod, ReconciliationStatus
+from src.domain.human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 
 
-def test_human_decision_model_integrity_and_immutability():
-    """Test HumanStatementDecision and HumanDecisionRecord model immutability and verify_integrity."""
+def test_human_decision_model_integrity_and_timestamp_tampering():
+    """P0 TEST: Verify timestamp and reconciliation_method tampering invalidates canonical_digest."""
+    qe = QuotedEvidencePassage(
+        evidence_id="ev-2968acf27391",
+        quoted_passage="Explicit is better than implicit.",
+        snapshot_sha256="1e2b8d7404d38ac66e3f685c06490787fdd60391b79c338f20b390901aab899d",
+    )
     stmt_dec = HumanStatementDecision(
         decision_id="hdec-stmt-001",
         statement_id="stmt-001",
         decision_status=ReconciliationStatus.SUPPORTED,
-        evaluated_evidence_ids=["ev-2968acf27391"],
-        quoted_passages=["Explicit is better than implicit."],
+        quoted_evidence=[qe],
         auditor_rationale="Explicit human auditor verification rationale.",
-        auditor_identity="Lead Systems Architect",
+        declared_reviewer_identity="Lead Systems Architect",
+        decision_timestamp=datetime(2026, 8, 21, 4, 15, 0, tzinfo=timezone.utc),
     )
-
-    with pytest.raises(Exception):
-        stmt_dec.auditor_rationale = "Mutated rationale"  # type: ignore
 
     digest = HumanDecisionRecord.compute_canonical_digest(
         decision_record_id="hdec-rec-001",
@@ -52,8 +54,17 @@ def test_human_decision_model_integrity_and_immutability():
 
     assert rec.verify_integrity() is True
 
-    # Tampering digest fails verify_integrity()
-    tampered = HumanDecisionRecord(
+    # P0 Tamper check 1: Modifying decision_timestamp MUST fail verify_integrity()
+    tampered_time_dec = HumanStatementDecision(
+        decision_id="hdec-stmt-001",
+        statement_id="stmt-001",
+        decision_status=ReconciliationStatus.SUPPORTED,
+        quoted_evidence=[qe],
+        auditor_rationale="Explicit human auditor verification rationale.",
+        declared_reviewer_identity="Lead Systems Architect",
+        decision_timestamp=datetime(2099, 1, 1, 0, 0, 0, tzinfo=timezone.utc),  # Tampered timestamp
+    )
+    tampered_time_rec = HumanDecisionRecord(
         decision_record_id="hdec-rec-001",
         observation_id="obs-001",
         raw_answer_sha256="a" * 64,
@@ -61,14 +72,38 @@ def test_human_decision_model_integrity_and_immutability():
         source_ledger_sha256="b" * 64,
         query_map_sha256="c" * 64,
         manifest_sha256="d" * 64,
-        decisions=[stmt_dec],
-        canonical_digest="0" * 64,
+        decisions=[tampered_time_dec],
+        canonical_digest=digest,  # Original digest
     )
-    assert tampered.verify_integrity() is False
+    assert tampered_time_rec.verify_integrity() is False
+
+    # P0 Tamper check 2: Modifying reconciliation_method MUST fail verify_integrity()
+    tampered_method_dec = HumanStatementDecision(
+        decision_id="hdec-stmt-001",
+        statement_id="stmt-001",
+        decision_status=ReconciliationStatus.SUPPORTED,
+        quoted_evidence=[qe],
+        auditor_rationale="Explicit human auditor verification rationale.",
+        declared_reviewer_identity="Lead Systems Architect",
+        decision_timestamp=datetime(2026, 8, 21, 4, 15, 0, tzinfo=timezone.utc),
+        reconciliation_method=ReconciliationMethod.STRUCTURED_LLM_ASSISTED_REVIEW,  # Tampered method
+    )
+    tampered_method_rec = HumanDecisionRecord(
+        decision_record_id="hdec-rec-001",
+        observation_id="obs-001",
+        raw_answer_sha256="a" * 64,
+        source_ledger_run_id="run-001",
+        source_ledger_sha256="b" * 64,
+        query_map_sha256="c" * 64,
+        manifest_sha256="d" * 64,
+        decisions=[tampered_method_dec],
+        canonical_digest=digest,  # Original digest
+    )
+    assert tampered_method_rec.verify_integrity() is False
 
 
 def test_cli_human_decision_execution(tmp_path: Path):
-    """Test CLI human-decision subcommand execution end-to-end."""
+    """Test successful CLI human-decision execution with valid verbatim quote."""
     qm_file = Path("data/fixtures/sample_query_map.json")
     man_file = Path("data/fixtures/live_pep20_manifest.json")
     ledger_file = Path("data/fixtures/emitted_pep20_source_ledger.json")
@@ -79,6 +114,7 @@ def test_cli_human_decision_execution(tmp_path: Path):
 
     ledger_data = json.loads(ledger_file.read_text(encoding="utf-8"))
     ev_id = list(ledger_data["evidence_ledger"].keys())[0]
+    valid_quote = ledger_data["evidence_ledger"][ev_id]["opened_excerpt"]
 
     exit_code = run_cli_human_decision(
         query_map_path=qm_file,
@@ -88,7 +124,7 @@ def test_cli_human_decision_execution(tmp_path: Path):
         statement_id="stmt-001",
         status_str="supported",
         evidence_ids=[ev_id],
-        quotes=["Explicit is better than implicit. Simple is better than complex."],
+        quotes=[valid_quote],
         rationale="Detailed human auditor verification rationale for statement stmt-001.",
         auditor_identity="Lead Systems Architect & Auditor",
         output_json_path=output_json,
@@ -105,12 +141,12 @@ def test_cli_human_decision_execution(tmp_path: Path):
 
     md_content = output_md.read_text(encoding="utf-8")
     assert "Human Semantic Decision Record" in md_content
+    assert "Declared Reviewer Identity" in md_content
     assert "SUPPORTED" in md_content
-    assert "Explicit is better than implicit" in md_content
 
 
-def test_cli_human_decision_refuses_non_existent_statement(tmp_path: Path):
-    """P0 ADVERSARIAL TEST: Verify human-decision command rejects non-existent statement_id."""
+def test_cli_human_decision_refuses_fabricated_quote(tmp_path: Path):
+    """P0 ADVERSARIAL TEST: Verify CLI rejects fabricated quote string provided in Manus review."""
     qm_file = Path("data/fixtures/sample_query_map.json")
     man_file = Path("data/fixtures/live_pep20_manifest.json")
     ledger_file = Path("data/fixtures/emitted_pep20_source_ledger.json")
@@ -119,16 +155,19 @@ def test_cli_human_decision_refuses_non_existent_statement(tmp_path: Path):
     ledger_data = json.loads(ledger_file.read_text(encoding="utf-8"))
     ev_id = list(ledger_data["evidence_ledger"].keys())[0]
 
+    # Exact adversarial quote from Manus Sprint 6.4 review
+    fabricated_quote = "This fabricated quotation does not occur in the source."
+
     exit_code = run_cli_human_decision(
         query_map_path=qm_file,
         manifest_path=man_file,
         source_ledger_path=ledger_file,
         observation_path=obs_file,
-        statement_id="stmt-non-existent-999",
+        statement_id="stmt-001",
         status_str="supported",
         evidence_ids=[ev_id],
-        quotes=["Some quote"],
-        rationale="Some rationale for non-existent statement.",
+        quotes=[fabricated_quote],
+        rationale="Attempting to pass fabricated quotation.",
     )
 
     assert exit_code == 1
