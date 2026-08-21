@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
-from .enums import ConfidenceRating, SourceType, VerificationStatus
+from .enums import ConfidenceRating, FailureCategory, SourceType, VerificationStatus
 
 
 class VerificationArtifact(BaseModel):
@@ -48,6 +48,12 @@ class VerificationArtifact(BaseModel):
     policy_warnings: List[str] = Field(
         default_factory=list, description="Non-fatal policy warnings during retrieval"
     )
+    failure_category: Optional[FailureCategory] = Field(
+        default=None, description="Structured failure category if verification failed"
+    )
+    failure_reason: Optional[str] = Field(
+        default=None, description="Human-readable reason if verification failed"
+    )
     limitations: Optional[str] = Field(
         default=None, description="Known limitations (e.g. paywall, geo-location restriction)"
     )
@@ -72,6 +78,12 @@ class EvidenceRecord(BaseModel):
     verification_status: VerificationStatus = Field(
         default=VerificationStatus.UNVERIFIED_STALE,
         description="Verification state",
+    )
+    failure_category: Optional[FailureCategory] = Field(
+        default=None, description="Structured failure category if verification failed"
+    )
+    failure_reason: Optional[str] = Field(
+        default=None, description="Human-readable reason if verification failed"
     )
     retrieval_timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

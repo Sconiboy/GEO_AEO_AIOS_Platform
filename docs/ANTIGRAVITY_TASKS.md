@@ -76,6 +76,17 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - Hermetic unit tests with offline mocks (`tests/test_source_policy.py` and `tests/test_live_collector.py`).
 - **Status**: COMPLETED (24 unit tests passing, 84% code coverage, 0 Mypy issues).
 
+## 🔐 Sprint 2.2: Secure Fetch and Artifact Integrity (Manus Review Response)
+
+### Task A-10: Pre-Hop Redirect Validation, BeautifulSoup Visible Text Matching, and Typed Failure Reasons
+- **Goal**: Implement Sprint 2.2 security & validity controls:
+  - Manual pre-hop redirect loop disabling automatic HTTP redirects; validating scheme, domain, and SSRF IP safety BEFORE every hop.
+  - Parsed visible-text quote extraction using `BeautifulSoup` (`PARSED_VISIBLE_TEXT_BS4`), decomposing `<script>`, `<style>`, `<noscript>`, and `<iframe>` tags to prevent script-only quote false positives.
+  - Untracked git history cleanup (`git rm --cached`) for generated snapshots and reports.
+  - Typed `FailureCategory` enums (`SSRF_BLOCKED`, `UNSAFE_REDIRECT`, `REDIRECT_LIMIT_EXCEEDED`, `PAYLOAD_TOO_LARGE`, `CONTENT_TYPE_DISALLOWED`, `QUOTE_NOT_FOUND`) and detailed `failure_reason` strings.
+  - Comprehensive hermetic unit test suite (`tests/test_live_collector.py` & `tests/test_source_policy.py`).
+- **Status**: COMPLETED (24 unit tests passing, 82% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -90,3 +101,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-7: `VerificationArtifact` schema, URL syntax validation, score transparency breakdown, and report warning banner.
 - [x] Task A-8: Live Source Verifier (`src/collector/verifier.py`), Snapshot Store (`src/collector/snapshot.py`), `verify-source` CLI subcommand, and unit tests (`tests/test_live_collector.py`).
 - [x] Task A-9: SourcePolicy SSRF protection (`src/collector/policy.py`), HTTPS-only scheme controls, response payload limits, content-type checks, HTML text extraction, git-ignored snapshot storage (`.gitignore`), and hermetic test suite (`tests/test_source_policy.py`).
+- [x] Task A-10: Manual pre-hop redirect validation (`NoRedirectHandler`), BeautifulSoup visible text quote matching (`PARSED_VISIBLE_TEXT_BS4`), typed `FailureCategory` error handling, untracked git index artifact cleanup, and 24 passing hermetic unit tests.

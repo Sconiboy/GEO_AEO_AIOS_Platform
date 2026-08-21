@@ -94,10 +94,16 @@ def run_cli_verify_source(
     print(f"- Status: {evidence_record.verification_status.value}")
     print(f"- Evidence ID: {evidence_record.evidence_id}")
 
+    if evidence_record.failure_category:
+        print(f"- Failure Category: {evidence_record.failure_category.value}")
+    if evidence_record.failure_reason:
+        print(f"- Failure Reason: {evidence_record.failure_reason}")
+
     if evidence_record.verification_artifact:
         art = evidence_record.verification_artifact
         print(f"- Snapshot Hash: {art.snapshot_sha256}")
         print(f"- Quote Exact Match: {art.quote_exact_match}")
+        print(f"- Verifier Method: {art.verifier_method}")
         print(f"- Verifier Run ID: {art.verifier_run_id}")
     else:
         print(f"- Verification Artifact: NONE (Verification failed)")
