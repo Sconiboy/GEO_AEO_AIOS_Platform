@@ -11,6 +11,7 @@ from .enums import (
     VerificationStatus,
 )
 from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
+from .observation import AnswerObservation, CaptureMethod, ExtractedStatement, ExtractionStatus
 from .query_map import (
     CollectionPolicyProfile,
     QueryMap,
@@ -37,4 +38,8 @@ __all__ = [
     "SourceScope",
     "CollectionPolicyProfile",
     "QueryMap",
+    "AnswerObservation",
+    "ExtractedStatement",
+    "CaptureMethod",
+    "ExtractionStatus",
 ]

@@ -1,17 +1,75 @@
 """
-Auditable Report and Source Ledger Exporter
+Auditable Report, Source Ledger, and Observation Record Exporter
 """
 
 from typing import List
 from ..domain.enums import VerificationStatus
 from ..domain.models import AuditRun
+from ..domain.observation import AnswerObservation
+from ..domain.query_map import QueryMap
 from ..domain.validators import validate_audit_run_ledger
 
 
 class ReportExporter:
     """
-    Exports verified audit reports and controlled source ledgers to Markdown format.
+    Exports verified audit reports, controlled source ledgers, and answer observation records to Markdown.
     """
+
+    @classmethod
+    def export_observation_record(
+        cls, observation: AnswerObservation, query_map: QueryMap
+    ) -> str:
+        """
+        Renders an Answer-Surface Observation Record Markdown document.
+        Does NOT output visibility scores, commercial recommendation shares, or rank claims.
+        """
+        query_text = "Unknown Query"
+        for q in query_map.queries:
+            if q.query_id == observation.query_id:
+                query_text = q.text
+                break
+
+        lines: List[str] = [
+            "> [!NOTE]",
+            "> **MANUAL ANSWER-SURFACE OBSERVATION RECORD**",
+            "> Factual record of raw model response capture. Contains no commercial visibility scores or audit claims.",
+            "",
+            f"# 🔬 Answer-Surface Observation Record",
+            f"**Subject Entity**: `{query_map.entity_name}`  ",
+            f"**Target Query**: *\"{query_text}\"* (`{observation.query_id}`)  ",
+            f"**Model Provider**: `{observation.provider_name}`  ",
+            f"**Model Identifier**: `{observation.model_identifier}`  ",
+            f"**Capture Method**: `{observation.capture_method.value}`  ",
+            f"**Capture Timestamp**: `{observation.capture_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`  ",
+            f"**Raw Answer Digest**: `{observation.raw_answer_sha256[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 📝 Unmodified Raw Model Answer",
+            "```text",
+            observation.raw_answer_text,
+            "```",
+            "",
+            "---",
+            "",
+            "## 🧪 Extracted Statement Proposals",
+            "",
+        ]
+
+        if not observation.extracted_statements:
+            lines.append("*No extracted statements proposed for this observation.*")
+        else:
+            lines.append("| Statement ID | Extracted Statement | Status | Linked Evidence |")
+            lines.append("|---|---|---|---|")
+            for stmt in observation.extracted_statements:
+                ev_link = f"`{stmt.linked_evidence_id}`" if stmt.linked_evidence_id else "*None*"
+                lines.append(
+                    f"| `{stmt.statement_id}` | \"{stmt.text}\" | `{stmt.extraction_status.value}` | {ev_link} |"
+                )
+
+        lines.append("")
+        lines.append("---")
+        return "\n".join(lines)
 
     @classmethod
     def export_source_ledger(cls, audit_run: AuditRun) -> str:

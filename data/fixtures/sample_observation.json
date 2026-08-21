@@ -1,0 +1,24 @@
+{
+  "observation_id": "obs-pub-001",
+  "query_id": "q-001",
+  "query_map_id": "qm-python-pub-001",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "provider_name": "Ollama / Local",
+  "model_identifier": "hermes-3-llama-3.1-8b",
+  "capture_timestamp": "2026-08-21T02:00:00Z",
+  "capture_method": "human_operator_console",
+  "raw_answer_text": "Python is a high-level, general-purpose programming language known for readable syntax.",
+  "raw_answer_sha256": "dfcee4d5b76dd29f7cf6c7e00f49f61d9d13c5a955d883ca90031df4969c940c",
+  "extracted_statements": [
+    {
+      "statement_id": "stmt-001",
+      "text": "Python is a high-level, general-purpose programming language.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": null,
+      "human_notes": "Unverified statement proposal from raw model response."
+    }
+  ],
+  "operator_notes": "Controlled manual observation for public test entity query q-001.",
+  "locale": "en-US",
+  "region": "US"
+}

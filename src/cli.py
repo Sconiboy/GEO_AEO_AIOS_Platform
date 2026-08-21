@@ -8,10 +8,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from .collector.observation_importer import ObservationImporter
 from .collector.query_map_runner import DatasetManifest, QueryMapRunner
 from .collector.verifier import SourceVerifier
 from .domain.enums import SourceType
 from .domain.models import AuditRun
+from .domain.observation import AnswerObservation
 from .domain.query_map import QueryMap
 from .domain.validators import EvidenceLedgerValidationError, validate_audit_run_ledger
 from .exporter.report import ReportExporter
@@ -155,6 +157,62 @@ def run_cli_query_map(
         return 1
 
 
+def run_cli_observation(
+    query_map_path: Path,
+    manifest_path: Path,
+    observation_path: Path,
+    output_path: Optional[Path] = None,
+) -> int:
+    """
+    Executes manual Answer-Surface Observation import and renders an Observation Record.
+    """
+    print(f"🎯 Loading QueryMap: {query_map_path}")
+    print(f"📜 Loading Dataset Manifest: {manifest_path}")
+    print(f"🔬 Loading Observation: {observation_path}")
+
+    try:
+        with open(query_map_path, "r", encoding="utf-8") as f:
+            qm_data = json.load(f)
+        query_map = QueryMap.model_validate(qm_data)
+
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            man_data = json.load(f)
+        manifest = DatasetManifest.model_validate(man_data)
+
+        with open(observation_path, "r", encoding="utf-8") as f:
+            obs_data = json.load(f)
+        observation = AnswerObservation.model_validate(obs_data)
+
+        # Step 1: Run query map to build source ledger
+        runner = QueryMapRunner()
+        source_ledger = runner.run_query_map_audit(query_map, manifest)
+
+        # Step 2: Validate observation against query map and source ledger
+        validated_obs = ObservationImporter.import_observation(
+            observation=observation, query_map=query_map, source_ledger=source_ledger
+        )
+
+        markdown_content = ReportExporter.export_observation_record(
+            observation=validated_obs, query_map=query_map
+        )
+
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+            print(f"📄 Observation Record exported to: {output_path}")
+        else:
+            print("\n" + "=" * 50)
+            print(markdown_content)
+            print("=" * 50)
+
+        return 0
+
+    except Exception as e:
+        print(f"\n❌ OBSERVATION IMPORT FAILED: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="GEO/AEO Platform - Evidence-Governed Audit Console CLI"
@@ -218,6 +276,35 @@ def main() -> None:
         help="Optional path to write generated Source Ledger report",
     )
 
+    # 'observation' subcommand
+    obs_parser = subparsers.add_parser(
+        "observation", help="Import manual Answer-Surface Observation and export Observation Record"
+    )
+    obs_parser.add_argument(
+        "--query-map",
+        type=Path,
+        required=True,
+        help="Path to QueryMap JSON definition",
+    )
+    obs_parser.add_argument(
+        "--manifest",
+        type=Path,
+        required=True,
+        help="Path to pre-approved DatasetManifest JSON",
+    )
+    obs_parser.add_argument(
+        "--observation",
+        type=Path,
+        required=True,
+        help="Path to AnswerObservation JSON definition",
+    )
+    obs_parser.add_argument(
+        "--output",
+        type=Path,
+        required=False,
+        help="Optional path to write generated Observation Record",
+    )
+
     args = parser.parse_args()
 
     if args.command == "audit":
@@ -226,6 +313,12 @@ def main() -> None:
         sys.exit(run_cli_verify_source(args.url, args.excerpt, args.source_type))
     elif args.command == "query-map":
         sys.exit(run_cli_query_map(args.query_map, args.manifest, args.output))
+    elif args.command == "observation":
+        sys.exit(
+            run_cli_observation(
+                args.query_map, args.manifest, args.observation, args.output
+            )
+        )
 
 
 if __name__ == "__main__":

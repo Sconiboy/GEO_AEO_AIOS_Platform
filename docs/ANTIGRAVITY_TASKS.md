@@ -113,6 +113,21 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - Comprehensive unit test suite (`tests/test_query_map.py` & `tests/test_cli.py`).
 - **Status**: COMPLETED (33 unit tests passing, 86% code coverage, 0 Mypy issues).
 
+## 🔬 Sprint 4: Manual Answer-Surface Observation Contract (Manus Review Response)
+
+### Task A-13: AnswerObservation Models, Importer Pipeline, and Observation Record Renderer
+- **Goal**: Implement Sprint 4 Manual Observation contract:
+  - Typed domain models (`src/domain/observation.py`): `AnswerObservation`, `ExtractedStatement`, `CaptureMethod`, `ExtractionStatus`.
+  - SHA-256 hash validation enforcing exact raw answer text integrity.
+  - `ObservationImporter` (`src/collector/observation_importer.py`) enforcing:
+    1. Observation query_id must bind to an `APPROVED` `TargetQuery` in QueryMap (rejects unapproved or missing queries).
+    2. Observation `source_ledger_run_id` must match linked `AuditRun`.
+    3. Extracted statements default to `PROPOSED_UNVERIFIED` state (no automatic visibility scores or commercial claims).
+  - Dedicated `ReportExporter.export_observation_record(observation, query_map)` renderer.
+  - CLI subcommand `observation` (`python -m src.cli observation --query-map ... --manifest ... --observation ... --output ...`).
+  - Unit test suite (`tests/test_observation.py`).
+- **Status**: COMPLETED (37 unit tests passing, 86% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -130,3 +145,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-10: Manual pre-hop redirect validation (`NoRedirectHandler`), BeautifulSoup visible text quote matching (`PARSED_VISIBLE_TEXT_BS4`), typed `FailureCategory` error handling, untracked git index artifact cleanup, and 24 passing hermetic unit tests.
 - [x] Task A-11: QueryMap domain contracts (`src/domain/query_map.py`), Dataset Manifests (`data/fixtures/controlled_dataset_manifest.json`), domain allowlist & human approval enforcement (`src/collector/query_map_runner.py`), `query-map` CLI subcommand, and 27 passing unit tests.
 - [x] Task A-12: `max_sources_per_query` cap, `blocked_domains` precedence, `is_non_client_spike=True` gate, unique blocked entry IDs, dedicated `export_source_ledger` renderer, and 33 passing unit tests.
+- [x] Task A-13: `AnswerObservation` domain model (`src/domain/observation.py`), raw text SHA-256 integrity validation, `ObservationImporter` pipeline (`src/collector/observation_importer.py`), dedicated `export_observation_record` renderer, `observation` CLI subcommand, and 37 passing unit tests.
