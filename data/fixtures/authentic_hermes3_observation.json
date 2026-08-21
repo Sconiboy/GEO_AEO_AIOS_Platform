@@ -1,0 +1,34 @@
+{
+  "observation_id": "obs-auth-hermes3-001",
+  "query_id": "q-001",
+  "query_map_id": "qm-python-pub-001",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "query_map_sha256": "ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
+  "manifest_sha256": "71333fd91a308167fac7a2b457f62f07314687d2cf01b8cfedf92d49cc569d0c",
+  "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
+  "provider_name": "Ollama / Local Operator Console",
+  "model_identifier": "hermes-3-llama-3.1-8b",
+  "capture_timestamp": "2026-08-21T02:55:00Z",
+  "capture_method": "human_operator_console",
+  "raw_answer_text": "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20).",
+  "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
+  "extracted_statements": [
+    {
+      "statement_id": "stmt-001",
+      "text": "Python's core language design philosophy emphasizes code readability and simplicity.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": null,
+      "human_notes": "Authentic statement proposal from Hermes 3 response."
+    },
+    {
+      "statement_id": "stmt-002",
+      "text": "The Zen of Python (PEP 20) summarizes Python's design philosophy.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": null,
+      "human_notes": "Authentic statement proposal from Hermes 3 response."
+    }
+  ],
+  "operator_notes": "Authentic Manual Answer Capture via Local Operator Console for Hermes 3 model response.",
+  "locale": "en-US",
+  "region": "US"
+}

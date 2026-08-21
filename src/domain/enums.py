@@ -68,6 +68,16 @@ class HumanApprovalState(str, Enum):
     REJECTED = "rejected"
 
 
+class CaptureMethod(str, Enum):
+    """Method used to capture evidence."""
+
+    MANUAL_PASTE = "manual_paste"
+    HUMAN_OPERATOR_CONSOLE = "human_operator_console"
+    API_DIRECT_RESPONSE = "api_direct_response"
+    AUTOMATED_HEADLESS_BROWSER = "automated_headless_browser"
+    SYNTHETIC_FIXTURE_IMPORT = "synthetic_fixture_import"
+
+
 class ReconciliationStatus(str, Enum):
     """Semantic truth evaluation status of a statement against evidence."""
 

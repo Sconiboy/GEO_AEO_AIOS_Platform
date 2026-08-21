@@ -9,7 +9,7 @@
   "provider_name": "Ollama / Local Operator Console",
   "model_identifier": "hermes-3-llama-3.1-8b",
   "capture_timestamp": "2026-08-21T04:06:00Z",
-  "capture_method": "human_operator_console",
+  "capture_method": "synthetic_fixture_import",
   "raw_answer_text": "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20).\n\nFor systems programming alternatives, see https://doc.rust-lang.org/book/ for Rust design goals.",
   "raw_answer_sha256": "7cc5e16b9435179563b5a61ac68a562f1121cf2da93636d67635f32c7afd1bb0",
   "extracted_statements": [

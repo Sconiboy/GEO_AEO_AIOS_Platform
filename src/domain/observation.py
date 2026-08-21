@@ -9,12 +9,7 @@ from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class CaptureMethod(str, Enum):
-    """Method used to capture answer surface response."""
-
-    MANUAL_PASTE = "manual_paste"
-    HUMAN_OPERATOR_CONSOLE = "human_operator_console"
-    SYNTHETIC_FIXTURE_IMPORT = "synthetic_fixture_import"
+from .enums import CaptureMethod
 
 
 class ExtractionStatus(str, Enum):

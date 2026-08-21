@@ -3,7 +3,7 @@ Auditable Report, Source Ledger, and Observation Record Exporter
 """
 
 from typing import List
-from ..domain.enums import VerificationStatus
+from ..domain.enums import VerificationStatus, CaptureMethod
 from ..domain.gap_analysis import ForensicGapAnalysisRecord
 from ..domain.human_decision import HumanDecisionRecord
 from ..domain.models import AuditRun
@@ -222,7 +222,17 @@ class ReportExporter:
                 query_text = q.text
                 break
 
-        lines: List[str] = [
+        lines: List[str] = []
+
+        if observation.capture_method == CaptureMethod.SYNTHETIC_FIXTURE_IMPORT:
+            lines.extend([
+                "> [!WARNING]",
+                "> **SYNTHETIC FIXTURE OBSERVATION - NOT AN AUTHENTIC MODEL CAPTURE**",
+                "> This observation text was imported from a synthetic test fixture and does not represent an authentic live model response.",
+                "",
+            ])
+
+        lines.extend([
             "> [!NOTE]",
             "> **FORENSIC COMPETITOR EVIDENCE-GAP ANALYSIS RECORD**",
             "> Identifies model citation patterns, client evidence gaps, and confidence-bounded ethical priority action hypotheses.",
@@ -250,7 +260,7 @@ class ReportExporter:
             "",
             "## 📊 Competitor & Domain Citation Distribution",
             "",
-        ]
+        ])
 
         for pat in gap_record.competitor_patterns:
             cited_str = "Yes" if pat.client_domain_cited else "No (Client Evidence Gap)"
@@ -428,7 +438,17 @@ class ReportExporter:
         locale_str = observation.locale if observation.locale else "Unknown"
         region_str = observation.region if observation.region else "Unknown"
 
-        lines: List[str] = [
+        lines: List[str] = []
+
+        if observation.capture_method == CaptureMethod.SYNTHETIC_FIXTURE_IMPORT:
+            lines.extend([
+                "> [!WARNING]",
+                "> **SYNTHETIC FIXTURE OBSERVATION - NOT AN AUTHENTIC MODEL CAPTURE**",
+                "> This observation text was imported from a synthetic test fixture and does not represent an authentic live model response.",
+                "",
+            ])
+
+        lines.extend([
             "> [!NOTE]",
             "> **MANUAL ANSWER-SURFACE OBSERVATION RECORD**",
             "> Factual record of raw model response capture. Contains no commercial visibility scores or audit claims.",
@@ -454,7 +474,7 @@ class ReportExporter:
             "",
             "## 🧪 Extracted Statement Proposals",
             "",
-        ]
+        ])
 
         if not observation.extracted_statements:
             lines.append("*No extracted statements proposed for this observation.*")

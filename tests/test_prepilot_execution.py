@@ -86,7 +86,29 @@ def test_prepilot_controlled_competitor_collection_execution(tmp_path: Path) -> 
     assert ce.cited_url == "https://doc.rust-lang.org/book/"
     assert ce.verify_integrity() is True
 
-    # 4. Assert report export succeeds
+    # 4. Assert report export succeeds and includes SYNTHETIC FIXTURE OBSERVATION warning banner for synthetic fixture
     report_md = ReportExporter.export_gap_analysis_record(updated_gap_record, observation, query_map, updated_ledger)
     assert "Executed Candidate Collections (Provenance Tracing)" in report_md
     assert "doc.rust-lang.org" in report_md
+    assert "SYNTHETIC FIXTURE OBSERVATION - NOT AN AUTHENTIC MODEL CAPTURE" in report_md
+
+
+def test_authentic_hermes3_observation_provenance() -> None:
+    """Proves authentic manual Hermes 3 capture has honest human_operator_console provenance and does NOT render synthetic warning."""
+    from src.domain.enums import CaptureMethod
+
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    qm_path = Path("data/fixtures/sample_query_map.json")
+
+    auth_obs = AnswerObservation.model_validate_json(auth_obs_path.read_bytes())
+    query_map = QueryMap.model_validate_json(qm_path.read_bytes())
+
+    assert auth_obs.verify_integrity() is True
+    assert auth_obs.capture_method == CaptureMethod.HUMAN_OPERATOR_CONSOLE
+    assert auth_obs.provider_name == "Ollama / Local Operator Console"
+    assert auth_obs.model_identifier == "hermes-3-llama-3.1-8b"
+
+    rendered_obs = ReportExporter.export_observation_record(auth_obs, query_map)
+    assert "SYNTHETIC FIXTURE OBSERVATION" not in rendered_obs
+    assert "MANUAL ANSWER-SURFACE OBSERVATION RECORD" in rendered_obs
+
