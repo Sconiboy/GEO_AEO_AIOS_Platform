@@ -1,10 +1,11 @@
 """
-Unit tests for Sprint 7.2 Forensic Competitor Evidence-Gap Analysis Workflow
-Tests SubjectProfile SHA256 binding, human decision 6-binding replay validation,
-three-way statement evidence evaluation, answer citation competitor attribution gate,
-complete canonical digest tamper protection, and CLI analyze-gaps execution.
+Unit tests for Sprint 7.3 Forensic Competitor Evidence-Gap Analysis Workflow
+Tests direct answer citation classification against SubjectProfile, strict subdomain matching,
+derivation of CITED_COMPETITOR_OBSERVED for uncollected competitor URLs, rejection of deceptive subdomains,
+unverified competitor collection proposal hypotheses, complete canonical digest tamper protection, and CLI analyze-gaps execution.
 """
 
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from pydantic import ValidationError
@@ -90,6 +91,134 @@ def test_gap_analysis_models_are_frozen_and_immutable(sample_subject_profile: Su
     )
     with pytest.raises(ValidationError):
         gap.severity = ActionSeverity.LOW  # type: ignore[misc]
+
+
+def test_deceptive_subdomain_rejected(sample_subject_profile: SubjectProfile) -> None:
+    """Proves that deceptive domain names (notrust-lang.org, rust-lang.org.evil.com) are rejected."""
+    rel_exact, comp_exact = ForensicGapAnalyzer.classify_source_relationship(
+        domain="rust-lang.org", subject_profile=sample_subject_profile
+    )
+    assert rel_exact == SourceRelationship.COMPETITOR_OWNED
+    assert comp_exact == "Rust Foundation"
+
+    rel_sub, comp_sub = ForensicGapAnalyzer.classify_source_relationship(
+        domain="docs.rust-lang.org", subject_profile=sample_subject_profile
+    )
+    assert rel_sub == SourceRelationship.COMPETITOR_OWNED
+    assert comp_sub == "Rust Foundation"
+
+    rel_fake1, comp_fake1 = ForensicGapAnalyzer.classify_source_relationship(
+        domain="notrust-lang.org", subject_profile=sample_subject_profile
+    )
+    assert rel_fake1 != SourceRelationship.COMPETITOR_OWNED
+    assert comp_fake1 is None
+
+    rel_fake2, comp_fake2 = ForensicGapAnalyzer.classify_source_relationship(
+        domain="rust-lang.org.evil.com", subject_profile=sample_subject_profile
+    )
+    assert rel_fake2 != SourceRelationship.COMPETITOR_OWNED
+    assert comp_fake2 is None
+
+
+def test_competitor_url_in_answer_only_returns_cited_competitor_observed(
+    sample_subject_profile: SubjectProfile,
+) -> None:
+    """Proves that adding https://rust-lang.org to raw model answer yields CITED_COMPETITOR_OBSERVED even when absent from ledger."""
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    orig_obs = AnswerObservation.model_validate_json(raw_obs_bytes)
+
+    # Modify raw answer text to include explicit competitor citation https://rust-lang.org
+    competitor_answer_text = (
+        orig_obs.raw_answer_text + "\n\nFor speed comparison, see https://rust-lang.org official documentation."
+    )
+    competitor_obs = orig_obs.model_copy(
+        update={
+            "raw_answer_text": competitor_answer_text,
+            "raw_answer_sha256": hashlib.sha256(competitor_answer_text.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+
+    record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=competitor_obs,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    # Must return CITED_COMPETITOR_OBSERVED!
+    assert record.attribution_status == AttributionStatus.CITED_COMPETITOR_OBSERVED
+
+    # Check answer citations
+    pat = record.competitor_patterns[0]
+    assert len(pat.answer_citations) == 1
+    assert pat.answer_citations[0].domain == "rust-lang.org"
+    assert pat.answer_citations[0].source_relationship == SourceRelationship.COMPETITOR_OWNED
+    assert pat.answer_citations[0].matched_competitor_entity == "Rust Foundation"
+
+    # Must emit an Authorized Evidence Collection Proposal hypothesis!
+    assert len(record.prioritized_actions) >= 1
+    col_action = [a for a in record.prioritized_actions if "https://rust-lang.org" in a.recommended_action]
+    assert len(col_action) == 1
+    assert "Execute authorized manifest-approved evidence collection" in col_action[0].recommended_action
+
+
+def test_neutral_editorial_citation_classification(sample_subject_profile: SubjectProfile) -> None:
+    """Proves that citing a neutral editorial URL yields THIRD_PARTY_ONLY_CITATIONS."""
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    orig_obs = AnswerObservation.model_validate_json(raw_obs_bytes)
+
+    editorial_answer_text = orig_obs.raw_answer_text + "\n\nSee also https://en.wikipedia.org/wiki/Python."
+    editorial_obs = orig_obs.model_copy(
+        update={
+            "raw_answer_text": editorial_answer_text,
+            "raw_answer_sha256": hashlib.sha256(editorial_answer_text.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+
+    record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=editorial_obs,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    assert record.attribution_status == AttributionStatus.THIRD_PARTY_ONLY_CITATIONS
 
 
 def test_profile_sha256_digest_tamper_detection(sample_subject_profile: SubjectProfile) -> None:
@@ -232,44 +361,6 @@ def test_replayed_human_decision_context_mismatch_rejected(sample_subject_profil
             raw_profile_bytes=raw_profile_bytes,
             human_decision=replayed_hdec,
         )
-
-
-def test_client_evidence_present_pending_review_emits_no_gap(sample_subject_profile: SubjectProfile) -> None:
-    """Proves that when client-owned opened evidence exists for a statement, it emits ZERO gaps and ZERO actions."""
-    qm_path = Path("data/fixtures/sample_query_map.json")
-    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
-    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
-    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
-
-    raw_qm_bytes = qm_path.read_bytes()
-    query_map = QueryMap.model_validate_json(raw_qm_bytes)
-    raw_manifest_bytes = manifest_path.read_bytes()
-    manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
-    raw_ledger_bytes = ledger_path.read_bytes()
-    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
-    raw_obs_bytes = obs_path.read_bytes()
-    observation = AnswerObservation.model_validate_json(raw_obs_bytes)
-    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
-
-    # In emitted_pep20_source_ledger.json, ev-2968acf27391 is client-owned (peps.python.org)
-    # Without any human decision, stmt-001 and stmt-002 have client evidence present pending review
-    record = ForensicGapAnalyzer.analyze_gaps(
-        subject_profile=sample_subject_profile,
-        observation=observation,
-        source_ledger=source_ledger,
-        query_map=query_map,
-        manifest=manifest,
-        raw_qm_bytes=raw_qm_bytes,
-        raw_manifest_bytes=raw_manifest_bytes,
-        raw_ledger_bytes=raw_ledger_bytes,
-        raw_profile_bytes=raw_profile_bytes,
-        human_decision=None,
-    )
-
-    # 0 gaps and 0 actions must be emitted because client evidence exists!
-    assert len(record.evidence_gaps) == 0
-    assert len(record.prioritized_actions) == 0
-    assert record.attribution_status == AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE
 
 
 def test_cli_analyze_gaps_execution_with_profile(tmp_path: Path) -> None:

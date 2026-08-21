@@ -15,6 +15,7 @@ from .enums import ActionSeverity, AttributionStatus, GapCategory, SourceRelatio
 class AnswerCitation(BaseModel):
     """
     Explicit citation extracted directly from raw model answer text.
+    Classified directly against SubjectProfile.
     """
 
     model_config = {"frozen": True}
@@ -22,6 +23,12 @@ class AnswerCitation(BaseModel):
     url: str = Field(..., description="Cited URL extracted from raw model answer")
     domain: str = Field(..., description="Domain name parsed from cited URL")
     is_explicit_citation: bool = Field(default=True, description="Whether URL was explicitly cited in model text")
+    source_relationship: SourceRelationship = Field(
+        default=SourceRelationship.UNKNOWN, description="Ownership relationship classification against SubjectProfile"
+    )
+    matched_competitor_entity: Optional[str] = Field(
+        default=None, description="Name of matched competitor entity if competitor owned"
+    )
 
 
 class FindingBasis(BaseModel):
@@ -196,6 +203,8 @@ class ForensicGapAnalysisRecord(BaseModel):
                             "domain": ac.domain,
                             "url": ac.url,
                             "is_explicit_citation": ac.is_explicit_citation,
+                            "source_relationship": ac.source_relationship.value,
+                            "matched_competitor_entity": ac.matched_competitor_entity,
                         }
                         for ac in sorted(p.answer_citations, key=lambda x: x.url)
                     ],

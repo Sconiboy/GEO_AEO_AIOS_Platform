@@ -498,24 +498,25 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-18: Raw source-ledger SHA-256 hash preservation, canonical reconciliation digest calculation, fail-closed exporter verification, CLI raw bytes pass-through, consolidated enum definitions, and 45 passing unit tests.
 - [x] Task A-19: Implemented versioned ObservationReconciliation JSON artifact persistence (`--reconciliation-json`), pre-existing JSON artifact loading pipeline, original timestamp preservation, and 46 passing unit tests.
 - [x] Task A-20: Built official PEP 20 evidence ledger (`data/fixtures/pep20_source_ledger.json`), semantic relevance evaluator (`evaluate_semantic_support`), second real reconciliation (`data/fixtures/pep20_observation.json`), and exported [`reports/pep20_reconciliation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/pep20_reconciliation_record.md) evaluating both statements to `[SUPPORTED]`.
-- [x] Task A-21: Replay attack gate validating `observation_id`, `raw_answer_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, and statement IDs on pre-stored JSON loading, adversarial replay unit test, and 47 passing unit tests.
 - [x] Task A-22: Authentic live verifier snapshot hash (`1e2b8d7404d38ac6...`) from `https://peps.python.org/pep-0020/`, `is_synthetic_fixture: true` wrapper label, `is_independent: false` authoritative documentation label, and 47 passing unit tests.
 - [x] Task A-23: End-to-end live source-ledger emission pipeline (`QueryMapRunner` $\rightarrow$ `SourceVerifier` $\rightarrow$ `emitted_pep20_source_ledger.json` $\rightarrow$ `emitted_pep20_observation.json` $\rightarrow$ `emitted_pep20_reconciliation.json`), proving 100% automated live evidence verification to `SUPPORTED` claims.
 - [x] Task A-24: Persisted live dataset manifest `data/fixtures/live_pep20_manifest.json`, manifest hash binding, domain allowlist subdomain addition `peps.python.org`, complete removal of keyword auto-support logic, default `NOT_ASSESSABLE` status for all evidence matches, and 49 passing unit tests.
 - [x] Task A-25: Immutable `HumanDecisionRecord` contracts (`src/domain/human_decision.py`), `human-decision` CLI subcommand (`src/cli.py`), canonical decision digest calculation over all 6 context bindings, dedicated `export_human_decision_record()` Markdown renderer, and 52 passing unit tests.
 - [x] Task A-26: Verbatim quote verification against `opened_excerpt`, explicit `QuotedEvidencePassage` quote-evidence pairing, inclusion of `decision_timestamp` and `reconciliation_method` in canonical digest, adversarial fabricated quote unit test, and 52 passing unit tests.
+- [x] Task A-27: SubjectProfile contracts (`SubjectProfile`, `ClientProfile`, `CompetitorProfile`), `SourceRelationship` classification, `AnswerCitation` extraction, elimination of false gaps on supported human decisions, immutable `FindingBasis` tracing, total canonical digest protection over all rendered fields, and 58 passing unit tests.
+- [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.
+- [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
 
----
+## 🎯 Sprint 7.3: Answer-Level Competitor Citation Classification & Provenance (Manus Review Response)
 
-## 🎯 Sprint 7.2: Context-Bound Provenance & Evidence-Gap Classification (Manus Review Response)
-
-### Task A-28: Profile SHA-256 Digest Binding, Replay Defense, Three-Way Evidence Assessment, and Answer Citation Attribution Gate
-- **Goal**: Remediate Sprint 7.1 diagnostic and provenance issues:
-  - Bound `profile_sha256` into `ForensicGapAnalysisRecord` and canonical digest; added tamper tests proving profile content mutation invalidates `verify_integrity()`.
-  - Implemented 6-binding replay validation for `HumanDecisionRecord` (`observation_id`, `raw_answer_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, `query_map_sha256`, `manifest_sha256`); fails closed on context mismatch.
-  - Implemented three-way statement evidence classification (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`). Unadjudicated statements with client-owned opened evidence (`peps.python.org`) emit `SEMANTIC_REVIEW_PENDING` with **0 false gaps and 0 false catch-up action plans**.
-  - Implemented Answer Citation Competitor Attribution Gate: when raw model answer text contains no URLs, attribution is set to `NO_ANSWER_CITATIONS_NOT_ASSESSABLE`, emitting 0 competitor action plans.
-- **Status**: COMPLETED (57 unit tests passing, 82% code coverage, 0 Mypy issues).
+### Task A-29: Direct Profile Answer Citation Classification, Subdomain Safety, and Collection Proposals
+- **Goal**: Remediate Sprint 7.2 competitor citation classification:
+  - Classifies every URL extracted from raw model answer text directly against `SubjectProfile` (`CLIENT_OWNED`, `COMPETITOR_OWNED`, etc.), independent of source-ledger membership.
+  - Enriched `AnswerCitation` with `source_relationship: SourceRelationship` and `matched_competitor_entity: Optional[str]`.
+  - Derived `AttributionStatus.CITED_COMPETITOR_OBSERVED` directly from raw answer citations (correctly classifying `https://rust-lang.org` as `CITED_COMPETITOR_OBSERVED` with entity `"Rust Foundation"` even when missing from source ledger!).
+  - Implemented strict subdomain matching (`dom == target or dom.endswith("." + target)`), rejecting deceptive subdomains (`notrust-lang.org` or `rust-lang.org.evil.com`).
+  - Implemented Unverified Competitor Citation Collection Hypothesis: emitting an authorized manifest-approved evidence collection proposal for observed competitor URLs missing from the source ledger before comparative analysis.
+- **Status**: COMPLETED (59 unit tests passing, 84% code coverage, 0 Mypy issues).
 
 ---
 
@@ -550,3 +551,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-26: Verbatim quote verification against `opened_excerpt`, explicit `QuotedEvidencePassage` quote-evidence pairing, inclusion of `decision_timestamp` and `reconciliation_method` in canonical digest, adversarial fabricated quote unit test, and 52 passing unit tests.
 - [x] Task A-27: SubjectProfile contracts (`SubjectProfile`, `ClientProfile`, `CompetitorProfile`), `SourceRelationship` classification, `AnswerCitation` extraction, elimination of false gaps on supported human decisions, immutable `FindingBasis` tracing, total canonical digest protection over all rendered fields, and 58 passing unit tests.
 - [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.
+- [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.

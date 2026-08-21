@@ -7,7 +7,7 @@ evidence-backed action hypotheses with complete canonical digest protection.
 
 import hashlib
 import re
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 from ..collector.query_map_runner import DatasetManifest
@@ -87,11 +87,11 @@ class ForensicGapAnalyzer:
 
     @classmethod
     def classify_source_relationship(
-        cls, domain: str, subject_profile: SubjectProfile, source_type: SourceType
-    ) -> SourceRelationship:
+        cls, domain: str, subject_profile: SubjectProfile, source_type: SourceType = SourceType.UNKNOWN
+    ) -> Tuple[SourceRelationship, Optional[str]]:
         """
-        Classifies domain source relationship using explicit SubjectProfile contracts.
-        Does NOT infer client ownership from collection allowlists.
+        Classifies domain source relationship and matched competitor entity name directly using SubjectProfile contracts.
+        Subdomain matching is strict (domain == target OR domain.endswith("." + target)).
         """
         dom_lower = domain.lower()
 
@@ -101,27 +101,29 @@ class ForensicGapAnalyzer:
         client_domains.add(subject_profile.client_profile.client_domain.lower())
 
         if any(dom_lower == cd or dom_lower.endswith("." + cd) for cd in client_domains):
-            return SourceRelationship.CLIENT_OWNED
+            return SourceRelationship.CLIENT_OWNED, None
 
         for comp in subject_profile.competitor_profiles:
             comp_domains = {d.lower() for d in comp.competitor_domains}
             if any(dom_lower == cd or dom_lower.endswith("." + cd) for cd in comp_domains):
-                return SourceRelationship.COMPETITOR_OWNED
+                return SourceRelationship.COMPETITOR_OWNED, comp.competitor_entity_name
 
         if source_type == SourceType.OFFICIAL_DOCUMENTATION:
-            return SourceRelationship.OFFICIAL_REFERENCE
+            return SourceRelationship.OFFICIAL_REFERENCE, None
         elif source_type == SourceType.INDEPENDENT_EDITORIAL:
-            return SourceRelationship.INDEPENDENT_EDITORIAL
+            return SourceRelationship.INDEPENDENT_EDITORIAL, None
         elif source_type == SourceType.REVIEW_AGGREGATOR:
-            return SourceRelationship.REVIEW_PLATFORM
+            return SourceRelationship.REVIEW_PLATFORM, None
         elif source_type == SourceType.COMMUNITY_FORUM:
-            return SourceRelationship.COMMUNITY
+            return SourceRelationship.COMMUNITY, None
         else:
-            return SourceRelationship.UNKNOWN
+            return SourceRelationship.UNKNOWN, None
 
     @classmethod
-    def extract_answer_citations(cls, raw_answer_text: str) -> List[AnswerCitation]:
-        """Extracts explicit HTTP/HTTPS URLs cited directly in raw model answer text."""
+    def extract_answer_citations(
+        cls, raw_answer_text: str, subject_profile: SubjectProfile
+    ) -> List[AnswerCitation]:
+        """Extracts explicit HTTP/HTTPS URLs cited directly in raw model answer text and classifies them against SubjectProfile."""
         url_pattern = r'https?://[^\s<>"]+'
         urls = re.findall(url_pattern, raw_answer_text)
         citations: List[AnswerCitation] = []
@@ -133,11 +135,16 @@ class ForensicGapAnalyzer:
                 seen_urls.add(clean_url)
                 parsed = urlparse(clean_url)
                 dom = parsed.hostname.lower() if parsed.hostname else clean_url
+                rel, comp_entity = cls.classify_source_relationship(
+                    domain=dom, subject_profile=subject_profile, source_type=SourceType.UNKNOWN
+                )
                 citations.append(
                     AnswerCitation(
                         url=clean_url,
                         domain=dom,
                         is_explicit_citation=True,
+                        source_relationship=rel,
+                        matched_competitor_entity=comp_entity,
                     )
                 )
 
@@ -162,9 +169,10 @@ class ForensicGapAnalyzer:
         Executes forensic gap analysis:
         1. Binds and validates raw profile_sha256.
         2. Validates 6-binding context of human_decision if provided.
-        3. Three-way statement evidence evaluation: SUPPORTED, SEMANTIC_REVIEW_PENDING, or CANDIDATE_EVIDENCE_GAP.
-        4. Answer-level citation competitor attribution gate (NO citations -> NOT_ASSESSABLE).
-        5. Computes content-addressed canonical SHA-256 digest covering ALL fields.
+        3. Classifies answer citations directly against SubjectProfile.
+        4. Three-way statement evidence evaluation: SUPPORTED, SEMANTIC_REVIEW_PENDING, or CANDIDATE_EVIDENCE_GAP.
+        5. Derives AttributionStatus directly from classified answer citations (e.g. CITED_COMPETITOR_OBSERVED).
+        6. Computes content-addressed canonical SHA-256 digest covering ALL fields.
         """
         qm_sha256 = hashlib.sha256(raw_qm_bytes).hexdigest()
         manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
@@ -182,8 +190,11 @@ class ForensicGapAnalyzer:
                 ledger_sha256=ledger_sha256,
             )
 
-        # Step 1: Extract answer citations
-        answer_citations = cls.extract_answer_citations(observation.raw_answer_text)
+        # Step 1: Extract and classify answer citations directly against SubjectProfile
+        answer_citations = cls.extract_answer_citations(
+            raw_answer_text=observation.raw_answer_text,
+            subject_profile=subject_profile,
+        )
 
         # Step 2: Source Ledger Domain & Relationship Classification
         domain_counts: Dict[str, int] = {}
@@ -196,7 +207,7 @@ class ForensicGapAnalyzer:
             if ev.verification_status.value == "opened_verified":
                 parsed = urlparse(ev.url)
                 dom = parsed.hostname.lower() if parsed.hostname else ev.url
-                rel = cls.classify_source_relationship(
+                rel, _ = cls.classify_source_relationship(
                     domain=dom,
                     subject_profile=subject_profile,
                     source_type=ev.source_type,
@@ -222,13 +233,15 @@ class ForensicGapAnalyzer:
             rel == SourceRelationship.CLIENT_OWNED for rel in domain_relationships.values()
         )
 
-        # Competitor Attribution Status Gate
+        # Competitor Attribution Status Derivation (Directly from Answer Citations!)
         if not answer_citations:
             attr_status = AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE
-        elif any(domain_relationships.get(ac.domain) == SourceRelationship.COMPETITOR_OWNED for ac in answer_citations):
+        elif any(ac.source_relationship == SourceRelationship.COMPETITOR_OWNED for ac in answer_citations):
             attr_status = AttributionStatus.CITED_COMPETITOR_OBSERVED
-        else:
+        elif all(ac.source_relationship == SourceRelationship.CLIENT_OWNED for ac in answer_citations):
             attr_status = AttributionStatus.CLIENT_ONLY_CITATIONS
+        else:
+            attr_status = AttributionStatus.THIRD_PARTY_ONLY_CITATIONS
 
         pattern = CompetitorCitationPattern(
             pattern_id=f"pat-{observation.query_id}",
@@ -270,6 +283,43 @@ class ForensicGapAnalyzer:
         gaps: List[ClientEvidenceGap] = []
         actions: List[PrioritizedActionPlan] = []
 
+        # Check if an unverified competitor citation was observed in raw answer surface
+        unverified_competitor_citations = [
+            ac
+            for ac in answer_citations
+            if ac.source_relationship == SourceRelationship.COMPETITOR_OWNED
+            and ac.domain not in domain_counts
+        ]
+
+        for ac in unverified_competitor_citations:
+            act_id = f"act-col-{observation.query_id}-{hashlib.sha256(ac.url.encode()).hexdigest()[:6]}"
+            entity_str = f" ({ac.matched_competitor_entity})" if ac.matched_competitor_entity else ""
+
+            basis = FindingBasis(
+                observation_id=observation.observation_id,
+                statement_id="obs-surface-citation",
+                evidence_ids=[],
+                source_relationships=[SourceRelationship.COMPETITOR_OWNED],
+            )
+
+            actions.append(
+                PrioritizedActionPlan(
+                    action_id=act_id,
+                    gap_id=f"gap-pat-{observation.query_id}",
+                    recommended_action=(
+                        f"Hypothesis for Review: Execute authorized manifest-approved evidence collection and verifier snapshot "
+                        f"for observed competitor citation '{ac.url}'{entity_str} prior to comparative evaluation."
+                    ),
+                    target_domain=ac.domain,
+                    suggested_source_type=SourceType.OFFICIAL_DOCUMENTATION,
+                    expected_evidence_impact="Establishes OPENED_VERIFIED competitor evidence record in source ledger for forensic comparison.",
+                    confidence_score=0.90,
+                    confidence_explanation="High confidence: competitor domain observed directly in raw answer surface.",
+                    ethical_boundary_notes="Collection executed via manifest-approved verifier. Non-manipulative evidence gathering.",
+                    finding_basis=basis,
+                )
+            )
+
         # Only emit evidence gap if statement has NO client-owned opened evidence (Candidate Evidence Gap)
         if candidate_gap_stmts:
             gap_id = f"gap-{observation.query_id}-001"
@@ -283,7 +333,7 @@ class ForensicGapAnalyzer:
                     domain=urlparse(ev.url).hostname or ev.url,
                     subject_profile=subject_profile,
                     source_type=ev.source_type,
-                )
+                )[0]
                 for ev in source_ledger.evidence_ledger.values()
                 if ev.verification_status.value == "opened_verified"
             })
@@ -313,7 +363,6 @@ class ForensicGapAnalyzer:
                 )
             )
 
-            # Formulate evidence-backed action hypothesis ONLY if competitor citations exist or client evidence is missing
             if attr_status != AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE:
                 client_dom = subject_profile.client_profile.client_domain
                 act_id = f"act-{observation.query_id}-001"

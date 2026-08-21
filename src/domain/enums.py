@@ -123,6 +123,7 @@ class AttributionStatus(str, Enum):
     CITED_COMPETITOR_OBSERVED = "cited_competitor_observed"
     NO_ANSWER_CITATIONS_NOT_ASSESSABLE = "no_answer_citations_not_assessable"
     CLIENT_ONLY_CITATIONS = "client_only_citations"
+    THIRD_PARTY_ONLY_CITATIONS = "third_party_only_citations"
 
 
 class StatementEvidenceState(str, Enum):

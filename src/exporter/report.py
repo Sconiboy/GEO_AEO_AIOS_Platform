@@ -267,7 +267,10 @@ class ReportExporter:
             if pat.answer_citations:
                 lines.append("- **Actual Raw Model Answer Citations**:")
                 for ac in pat.answer_citations:
-                    lines.append(f"  - [{ac.url}]({ac.url}) (`{ac.domain}`)")
+                    comp_info = f" (Competitor Entity: `{ac.matched_competitor_entity}`)" if ac.matched_competitor_entity else ""
+                    lines.append(
+                        f"  - [{ac.url}]({ac.url}) (`{ac.domain}`, Relationship: `{ac.source_relationship.value}`{comp_info})"
+                    )
                 lines.append("")
             else:
                 lines.append("- **Actual Raw Model Answer Citations**: *None (No explicit URLs in model response)*")
