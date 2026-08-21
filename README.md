@@ -75,6 +75,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_SPRINT751_REVIEW.md`](docs/MANUS_SPRINT751_REVIEW.md) - Sprint 7.5.1 review requiring failed verifier results to remain attempts rather than completed collection executions.
 - [`docs/MANUS_SPRINT752_REVIEW.md`](docs/MANUS_SPRINT752_REVIEW.md) - Sprint 7.5.2 approval for one tightly controlled public competitor-source collection pre-pilot.
 - [`docs/MANUS_SPRINT76_REVIEW.md`](docs/MANUS_SPRINT76_REVIEW.md) - Sprint 7.6 review accepting the live Rust retrieval but rejecting the scripted observation as evidence of an actual model citation.
+- [`docs/MANUS_SPRINT761_REVIEW.md`](docs/MANUS_SPRINT761_REVIEW.md) - Sprint 7.6.1 review approving synthetic-fixture labeling while requiring an artifact-backed capture before accepting a model observation as genuine.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
