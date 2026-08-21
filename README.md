@@ -51,6 +51,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_SPRINT2_REVIEW.md`](docs/MANUS_SPRINT2_REVIEW.md) - Controlled live-collection review and required source-policy hardening before client query-map work.
 - [`docs/MANUS_SPRINT21_REVIEW.md`](docs/MANUS_SPRINT21_REVIEW.md) - Sprint 2.1 source-policy review and required secure-fetch gate before any real collection.
 - [`docs/MANUS_SPRINT22_REVIEW.md`](docs/MANUS_SPRINT22_REVIEW.md) - Sprint 2.2 secure-fetch review and controlled non-client query-map approval boundary.
+- [`docs/MANUS_SPRINT3_REVIEW.md`](docs/MANUS_SPRINT3_REVIEW.md) - Sprint 3 query-map review and required policy-enforcement remediation before answer-surface observation.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
