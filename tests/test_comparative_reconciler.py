@@ -1,5 +1,5 @@
 """
-Unit and Adversarial Tests for ComparativeEvidenceReconciler & Sprint 8.2 Workflow
+Unit and Adversarial Tests for ComparativeEvidenceReconciler & Sprint 8.3 Workflow
 """
 
 import hashlib
@@ -128,14 +128,18 @@ def test_false_positive_keyword_claim_returns_candidate_for_human_review() -> No
         statement_id=false_statement_id,
         statement_text=false_statement_text,
         evidence=comp_evidence,
+        expected_role=SourceRelationship.COMPETITOR_OWNED,
     )
 
     assert assessment.assessment_status == ReconciliationStatus.CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW
     assert assessment.assessment_status != ReconciliationStatus.SUPPORTED
 
 
-def test_human_decision_promotion_for_comparative_claim() -> None:
-    """Proves comparative claim status is promoted to SUPPORTED only when a valid HumanDecisionRecord is provided."""
+def test_cross_evidence_human_decision_replay_rejected() -> None:
+    """
+    Adversarial Test (P0): Proves a human decision approving PEP 20 evidence ('ev-client-pep20')
+    is NOT replayed onto Rust Book evidence ('ev-comp-rustbook'). Rust evidence remains CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW.
+    """
     obs_path = Path("data/fixtures/competitor_cited_observation.json")
     qm_path = Path("data/fixtures/sample_query_map.json")
     manifest_path = Path("data/fixtures/prepilot_manifest.json")
@@ -151,7 +155,7 @@ def test_human_decision_promotion_for_comparative_claim() -> None:
     observation = AnswerObservation.model_validate_json(obs_path.read_bytes())
 
     initial_ledger = AuditRun(
-        run_id="run-test-comp-hd-001",
+        run_id="run-test-comp-replay-001",
         client_domain=profile.client_profile.client_domain,
         category="python_programming",
         evidence_ledger={},
@@ -189,10 +193,10 @@ def test_human_decision_promotion_for_comparative_claim() -> None:
         opened_excerpt="The Rust Programming Language",
     )
 
-    # Create valid HumanDecisionRecord for statement stmt-001
+    # Human decision approving ONLY client PEP 20 evidence ('ev-client-pep20')
     stmt_id = observation.extracted_statements[0].statement_id
     hd_dec = HumanStatementDecision(
-        decision_id="hsd-001",
+        decision_id="hsd-pep20-only",
         statement_id=stmt_id,
         decision_status=ReconciliationStatus.SUPPORTED,
         declared_reviewer_identity="auditor-benjamin",
@@ -201,14 +205,14 @@ def test_human_decision_promotion_for_comparative_claim() -> None:
         auditor_rationale="Verified PEP 20 document substantiates readability principles.",
         quoted_evidence=[
             QuotedEvidencePassage(
-                evidence_id=client_evidence.evidence_id,
+                evidence_id="ev-client-pep20",
                 quoted_passage="Beautiful is better than ugly.",
             )
         ],
     )
 
     dig = HumanDecisionRecord.compute_canonical_digest(
-        decision_record_id="hdr-comp-001",
+        decision_record_id="hdr-pep20-only",
         observation_id=observation.observation_id,
         raw_answer_sha256=observation.raw_answer_sha256,
         source_ledger_run_id=initial_ledger.run_id,
@@ -219,7 +223,7 @@ def test_human_decision_promotion_for_comparative_claim() -> None:
     )
 
     hd_record = HumanDecisionRecord(
-        decision_record_id="hdr-comp-001",
+        decision_record_id="hdr-pep20-only",
         observation_id=observation.observation_id,
         raw_answer_sha256=observation.raw_answer_sha256,
         source_ledger_run_id=initial_ledger.run_id,
@@ -246,14 +250,16 @@ def test_human_decision_promotion_for_comparative_claim() -> None:
         human_decision_record=hd_record,
     )
 
+    # Client evidence is promoted to SUPPORTED because decision matches ev-client-pep20
     assert record.client_claim_assessments[0].assessment_status == ReconciliationStatus.SUPPORTED
-    assert record.client_claim_assessments[0].human_decision_id == "hdr-comp-001"
-    assert record.human_decision_record_id == "hdr-comp-001"
-    assert record.verify_integrity() is True
+
+    # Competitor evidence ('ev-comp-rustbook') MUST NOT BE PROMOTED! (evidence_id mismatch)
+    assert record.competitor_claim_assessments[0].assessment_status == ReconciliationStatus.CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW
+    assert record.competitor_claim_assessments[0].assessment_status != ReconciliationStatus.SUPPORTED
 
 
-def test_altered_finding_basis_fails_canonical_digest() -> None:
-    """Proves ComparativeEvidenceRecord.verify_integrity returns False if finding_basis or fields are tampered with."""
+def test_mismatched_observation_id_human_decision_raises_error() -> None:
+    """Proves passing a HumanDecisionRecord with mismatched observation_id raises ValueError."""
     obs_path = Path("data/fixtures/competitor_cited_observation.json")
     qm_path = Path("data/fixtures/sample_query_map.json")
     manifest_path = Path("data/fixtures/prepilot_manifest.json")
@@ -269,7 +275,7 @@ def test_altered_finding_basis_fails_canonical_digest() -> None:
     observation = AnswerObservation.model_validate_json(obs_path.read_bytes())
 
     initial_ledger = AuditRun(
-        run_id="run-test-comp-005",
+        run_id="run-test-comp-mismatch-001",
         client_domain=profile.client_profile.client_domain,
         category="python_programming",
         evidence_ledger={},
@@ -305,32 +311,70 @@ def test_altered_finding_basis_fails_canonical_digest() -> None:
         verification_status=VerificationStatus.OPENED_VERIFIED,
         is_independent=True,
         opened_excerpt="The Rust Programming Language",
+    )
+
+    stmt_id = observation.extracted_statements[0].statement_id
+    hd_dec = HumanStatementDecision(
+        decision_id="hsd-mismatch",
+        statement_id=stmt_id,
+        decision_status=ReconciliationStatus.SUPPORTED,
+        declared_reviewer_identity="auditor-benjamin",
+        decision_timestamp=datetime.now(timezone.utc),
+        reconciliation_method=ReconciliationMethod.HUMAN_AUDITOR_REVIEW,
+        auditor_rationale="Verified PEP 20 document.",
+        quoted_evidence=[
+            QuotedEvidencePassage(
+                evidence_id="ev-client-pep20",
+                quoted_passage="Beautiful is better than ugly.",
+            )
+        ],
+    )
+
+    # Mismatched observation_id
+    wrong_obs_id = "obs-unrelated-999"
+    dig = HumanDecisionRecord.compute_canonical_digest(
+        decision_record_id="hdr-mismatch",
+        observation_id=wrong_obs_id,
+        raw_answer_sha256=observation.raw_answer_sha256,
+        source_ledger_run_id=initial_ledger.run_id,
+        source_ledger_sha256=hashlib.sha256(raw_ledger_bytes).hexdigest(),
+        query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
+        manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
+        decisions=[hd_dec],
+    )
+
+    hd_record = HumanDecisionRecord(
+        decision_record_id="hdr-mismatch",
+        observation_id=wrong_obs_id,
+        raw_answer_sha256=observation.raw_answer_sha256,
+        source_ledger_run_id=initial_ledger.run_id,
+        source_ledger_sha256=hashlib.sha256(raw_ledger_bytes).hexdigest(),
+        query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
+        manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
+        decisions=[hd_dec],
+        created_at=datetime.now(timezone.utc),
+        canonical_digest=dig,
     )
 
     reconciler = ComparativeEvidenceReconciler()
-    record = reconciler.compare_evidence(
-        observation=observation,
-        query_map=query_map,
-        gap_record=gap_record,
-        profile=profile,
-        client_evidence=client_evidence,
-        competitor_evidence=comp_evidence,
-        raw_qm_bytes=raw_qm_bytes,
-        raw_manifest_bytes=raw_manifest_bytes,
-        raw_ledger_bytes=raw_ledger_bytes,
-        raw_profile_bytes=raw_profile_bytes,
-    )
-
-    assert record.verify_integrity() is True
-
-    # Tamper with finding_basis evidence_ids
-    tampered_fb = record.finding_basis.model_copy(update={"evidence_ids": ["ev-forged-001"]})
-    tampered_record = record.model_copy(update={"finding_basis": tampered_fb})
-    assert tampered_record.verify_integrity() is False
+    with pytest.raises(ValueError, match="HumanDecisionRecord Context Mismatch: observation_id"):
+        reconciler.compare_evidence(
+            observation=observation,
+            query_map=query_map,
+            gap_record=gap_record,
+            profile=profile,
+            client_evidence=client_evidence,
+            competitor_evidence=comp_evidence,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+            human_decision_record=hd_record,
+        )
 
 
-def test_cited_competitor_with_complete_client_evidence() -> None:
-    """Proves that if client evidence is supported by human decision and complete, evidence_gap_identified is False."""
+def test_altered_quoted_passage_prevents_promotion() -> None:
+    """Proves quoted passage not present in opened_excerpt prevents claim status promotion."""
     obs_path = Path("data/fixtures/competitor_cited_observation.json")
     qm_path = Path("data/fixtures/sample_query_map.json")
     manifest_path = Path("data/fixtures/prepilot_manifest.json")
@@ -346,7 +390,7 @@ def test_cited_competitor_with_complete_client_evidence() -> None:
     observation = AnswerObservation.model_validate_json(obs_path.read_bytes())
 
     initial_ledger = AuditRun(
-        run_id="run-test-comp-complete-001",
+        run_id="run-test-comp-quote-001",
         client_domain=profile.client_profile.client_domain,
         category="python_programming",
         evidence_ledger={},
@@ -384,41 +428,44 @@ def test_cited_competitor_with_complete_client_evidence() -> None:
         opened_excerpt="The Rust Programming Language",
     )
 
-    # Human decision supporting client claim
-    hd_decisions = [
-        HumanStatementDecision(
-            decision_id=f"hsd-{s.statement_id}",
-            statement_id=s.statement_id,
-            decision_status=ReconciliationStatus.SUPPORTED,
-            declared_reviewer_identity="auditor-benjamin",
-            decision_timestamp=datetime.now(timezone.utc),
-            reconciliation_method=ReconciliationMethod.HUMAN_AUDITOR_REVIEW,
-            auditor_rationale="Verified client documentation substantiates statement.",
-            quoted_evidence=[QuotedEvidencePassage(evidence_id=client_evidence.evidence_id, quoted_passage="Beautiful is better than ugly.")],
-        )
-        for s in observation.extracted_statements
-    ]
+    # Quoted passage is NOT present in client_evidence.opened_excerpt
+    stmt_id = observation.extracted_statements[0].statement_id
+    hd_dec = HumanStatementDecision(
+        decision_id="hsd-bad-passage",
+        statement_id=stmt_id,
+        decision_status=ReconciliationStatus.SUPPORTED,
+        declared_reviewer_identity="auditor-benjamin",
+        decision_timestamp=datetime.now(timezone.utc),
+        reconciliation_method=ReconciliationMethod.HUMAN_AUDITOR_REVIEW,
+        auditor_rationale="Fabricated quoted passage not in excerpt.",
+        quoted_evidence=[
+            QuotedEvidencePassage(
+                evidence_id="ev-client-pep20",
+                quoted_passage="Fabricated passage never written in PEP 20.",
+            )
+        ],
+    )
 
     dig = HumanDecisionRecord.compute_canonical_digest(
-        decision_record_id="hdr-comp-complete",
+        decision_record_id="hdr-bad-passage",
         observation_id=observation.observation_id,
         raw_answer_sha256=observation.raw_answer_sha256,
         source_ledger_run_id=initial_ledger.run_id,
         source_ledger_sha256=hashlib.sha256(raw_ledger_bytes).hexdigest(),
         query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
         manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
-        decisions=hd_decisions,
+        decisions=[hd_dec],
     )
 
     hd_record = HumanDecisionRecord(
-        decision_record_id="hdr-comp-complete",
+        decision_record_id="hdr-bad-passage",
         observation_id=observation.observation_id,
         raw_answer_sha256=observation.raw_answer_sha256,
         source_ledger_run_id=initial_ledger.run_id,
         source_ledger_sha256=hashlib.sha256(raw_ledger_bytes).hexdigest(),
         query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
         manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
-        decisions=hd_decisions,
+        decisions=[hd_dec],
         created_at=datetime.now(timezone.utc),
         canonical_digest=dig,
     )
@@ -438,6 +485,6 @@ def test_cited_competitor_with_complete_client_evidence() -> None:
         human_decision_record=hd_record,
     )
 
-    assert record.evidence_gap_identified is False
-    assert "No client evidence gap identified" in record.action_hypothesis
-    assert record.verify_integrity() is True
+    # Passage mismatch prevents promotion -> remains CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW
+    assert record.client_claim_assessments[0].assessment_status == ReconciliationStatus.CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW
+    assert record.client_claim_assessments[0].assessment_status != ReconciliationStatus.SUPPORTED

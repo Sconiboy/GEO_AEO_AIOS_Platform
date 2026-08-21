@@ -1,9 +1,9 @@
 """
-Forensic Comparative Evidence Reconciler Engine (Sprint 8.2 Remediated)
+Forensic Comparative Evidence Reconciler Engine (Sprint 8.3 Remediated)
 Compares verified client evidence against verified competitor evidence for a target query observation.
 Dynamically derives domain ownership from SubjectProfile.
 Automated evaluation defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW or NOT_ASSESSABLE (zero keyword auto-support).
-Integrates HumanDecisionRecord for status promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED.
+Integrates HumanDecisionRecord with strict 7-binding context verification and verbatim quoted passage matching per evidence record.
 Binds all 9 context hashes, statement texts, excerpts, finding basis trace, and human decisions into canonical digest.
 """
 
@@ -39,6 +39,7 @@ class ComparativeEvidenceReconciler:
         statement_id: str,
         statement_text: str,
         evidence: Optional[EvidenceRecord],
+        expected_role: SourceRelationship,
         human_decision_record: Optional[HumanDecisionRecord] = None,
     ) -> ClaimExcerptAssessment:
         """
@@ -46,25 +47,34 @@ class ComparativeEvidenceReconciler:
         Zero keyword auto-support: Automated evaluation NEVER promotes statements to SUPPORTED based on word overlap.
         Defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW if OPENED_VERIFIED evidence excerpt exists,
         or NOT_ASSESSABLE if evidence is missing or unverified.
-        Promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED requires binding a valid HumanDecisionRecord.
+        Promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED requires a valid HumanDecisionRecord containing an explicit
+        QuotedEvidencePassage matching evidence.evidence_id AND verbatim quoted_passage inside evidence.opened_excerpt.
         """
-        # Check if human decision record contains an adjudicated decision for this statement
-        if human_decision_record and human_decision_record.verify_integrity():
+        # Check if human decision record contains an adjudicated decision for this exact statement AND evidence ID
+        if human_decision_record and evidence and evidence.verification_status == VerificationStatus.OPENED_VERIFIED:
             for dec in human_decision_record.decisions:
                 if dec.statement_id == statement_id:
-                    return ClaimExcerptAssessment(
-                        statement_id=statement_id,
-                        statement_text=statement_text,
-                        evidence_id=evidence.evidence_id if evidence else None,
-                        evidence_url=evidence.url if evidence else None,
-                        opened_excerpt=evidence.opened_excerpt if evidence else None,
-                        assessment_status=dec.decision_status,
-                        semantic_rationale=f"Human auditor adjudication ({dec.declared_reviewer_identity}): {dec.auditor_rationale}",
-                        human_decision_id=human_decision_record.decision_record_id,
-                        human_decision_digest=human_decision_record.canonical_digest,
-                    )
+                    # Validate per-evidence quote matching: dec.quoted_evidence must contain a passage matching evidence.evidence_id
+                    matching_quote = None
+                    for qe in dec.quoted_evidence:
+                        if qe.evidence_id == evidence.evidence_id and qe.quoted_passage in (evidence.opened_excerpt or ""):
+                            matching_quote = qe
+                            break
 
-        # No human decision present: automated baseline fallback (strictly non-promoted)
+                    if matching_quote:
+                        return ClaimExcerptAssessment(
+                            statement_id=statement_id,
+                            statement_text=statement_text,
+                            evidence_id=evidence.evidence_id,
+                            evidence_url=evidence.url,
+                            opened_excerpt=evidence.opened_excerpt,
+                            assessment_status=dec.decision_status,
+                            semantic_rationale=f"Human auditor adjudication ({dec.declared_reviewer_identity}, Role: {expected_role.value}): {dec.auditor_rationale}",
+                            human_decision_id=human_decision_record.decision_record_id,
+                            human_decision_digest=human_decision_record.canonical_digest,
+                        )
+
+        # No human decision or evidence mismatch fallback: baseline non-promoted status
         if not evidence or evidence.verification_status != VerificationStatus.OPENED_VERIFIED or not evidence.opened_excerpt:
             return ClaimExcerptAssessment(
                 statement_id=statement_id,
@@ -105,16 +115,14 @@ class ComparativeEvidenceReconciler:
     ) -> ComparativeEvidenceRecord:
         """
         Executes bounded comparative evidence reconciliation between client and competitor evidence.
-        Enforces strict profile relationship classification, 9-hash context binding, and canonical digest verification.
+        Enforces strict profile relationship classification, 7-binding human decision verification,
+        9-hash context binding, and canonical digest verification.
         """
         if not observation.verify_integrity():
             raise ValueError(f"Observation integrity verification failed for '{observation.observation_id}'.")
 
         if not gap_record.verify_integrity():
             raise ValueError(f"ForensicGapAnalysisRecord integrity verification failed for '{gap_record.analysis_id}'.")
-
-        if human_decision_record and not human_decision_record.verify_integrity():
-            raise ValueError(f"HumanDecisionRecord integrity verification failed for '{human_decision_record.decision_record_id}'.")
 
         created_at = timestamp or datetime.now(timezone.utc)
 
@@ -124,7 +132,44 @@ class ComparativeEvidenceReconciler:
         ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
         profile_sha256 = hashlib.sha256(raw_profile_bytes).hexdigest()
 
-        # Step 2: Dynamically classify client domain ownership
+        # Step 2: Total 7-binding context verification for HumanDecisionRecord
+        if human_decision_record:
+            if not human_decision_record.verify_integrity():
+                raise ValueError(f"HumanDecisionRecord integrity verification failed for '{human_decision_record.decision_record_id}'.")
+            
+            # Enforce exact context matching against current observation and artifacts
+            if human_decision_record.observation_id != observation.observation_id:
+                raise ValueError(
+                    f"HumanDecisionRecord Context Mismatch: observation_id ('{human_decision_record.observation_id}') "
+                    f"does not match current observation ('{observation.observation_id}')."
+                )
+            if human_decision_record.raw_answer_sha256.lower() != observation.raw_answer_sha256.lower():
+                raise ValueError(
+                    f"HumanDecisionRecord Context Mismatch: raw_answer_sha256 ('{human_decision_record.raw_answer_sha256}') "
+                    f"does not match observation raw answer digest ('{observation.raw_answer_sha256}')."
+                )
+            if human_decision_record.source_ledger_run_id != gap_record.source_ledger_run_id:
+                raise ValueError(
+                    f"HumanDecisionRecord Context Mismatch: source_ledger_run_id ('{human_decision_record.source_ledger_run_id}') "
+                    f"does not match gap record ledger run ID ('{gap_record.source_ledger_run_id}')."
+                )
+            if human_decision_record.source_ledger_sha256.lower() != ledger_sha256.lower():
+                raise ValueError(
+                    f"HumanDecisionRecord Context Mismatch: source_ledger_sha256 ('{human_decision_record.source_ledger_sha256}') "
+                    f"does not match calculated ledger SHA-256 ('{ledger_sha256}')."
+                )
+            if human_decision_record.query_map_sha256.lower() != qm_sha256.lower():
+                raise ValueError(
+                    f"HumanDecisionRecord Context Mismatch: query_map_sha256 ('{human_decision_record.query_map_sha256}') "
+                    f"does not match calculated QueryMap SHA-256 ('{qm_sha256}')."
+                )
+            if human_decision_record.manifest_sha256.lower() != manifest_sha256.lower():
+                raise ValueError(
+                    f"HumanDecisionRecord Context Mismatch: manifest_sha256 ('{human_decision_record.manifest_sha256}') "
+                    f"does not match calculated manifest SHA-256 ('{manifest_sha256}')."
+                )
+
+        # Step 3: Dynamically classify client domain ownership
         client_dom = urlparse(client_evidence.url).hostname or client_evidence.url
         client_rel, _ = ForensicGapAnalyzer.classify_source_relationship(client_dom, profile, client_evidence.source_type)
         if client_rel != SourceRelationship.CLIENT_OWNED:
@@ -156,7 +201,7 @@ class ComparativeEvidenceReconciler:
             opened_excerpt=client_evidence.opened_excerpt,
         )
 
-        # Step 3: Dynamically classify competitor domain ownership
+        # Step 4: Dynamically classify competitor domain ownership
         comp_dom = urlparse(competitor_evidence.url).hostname or competitor_evidence.url
         comp_rel, comp_entity = ForensicGapAnalyzer.classify_source_relationship(comp_dom, profile, competitor_evidence.source_type)
         if comp_rel != SourceRelationship.COMPETITOR_OWNED:
@@ -188,20 +233,18 @@ class ComparativeEvidenceReconciler:
             opened_excerpt=competitor_evidence.opened_excerpt,
         )
 
-        # Step 4: Source-to-claim semantic assessments
+        # Step 5: Source-to-claim semantic assessments (role-aware & evidence-bound)
         client_assessments: List[ClaimExcerptAssessment] = []
         competitor_assessments: List[ClaimExcerptAssessment] = []
 
         for stmt in observation.extracted_statements:
-            client_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, client_evidence, human_decision_record))
-            competitor_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, competitor_evidence, human_decision_record))
+            client_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, client_evidence, SourceRelationship.CLIENT_OWNED, human_decision_record))
+            competitor_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, competitor_evidence, SourceRelationship.COMPETITOR_OWNED, human_decision_record))
 
-        # Step 5: Derive factual evidence gap from comparative claim assessments
-        # Gap exists if competitor evidence has a supported/reviewed claim while client evidence is unverified, missing, or not assessable
+        # Step 6: Derive factual evidence gap from comparative claim assessments
         comp_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in competitor_assessments)
         client_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in client_assessments)
         
-        # A cited competitor with unverified or unreviewed client evidence triggers investigation requirement
         cited_competitor_present = gap_record.attribution_status.value == "cited_competitor_observed"
         gap_exists = cited_competitor_present and not client_supported
 
@@ -235,7 +278,7 @@ class ComparativeEvidenceReconciler:
 
         comparative_id = f"comp-rec-{observation.observation_id}"
 
-        # Step 6: Compute 9-hash canonical digest over ALL fields and finding basis
+        # Step 7: Compute 9-hash canonical digest over ALL fields and finding basis
         human_rec_id = human_decision_record.decision_record_id if human_decision_record else None
         human_rec_dig = human_decision_record.canonical_digest if human_decision_record else None
 
