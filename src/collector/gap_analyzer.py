@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 from ..collector.query_map_runner import DatasetManifest
+from ..domain.candidate_collection import CollectionExecutionRecord
 from ..domain.enums import ActionSeverity, AttributionStatus, GapCategory, ReconciliationStatus, SourceRelationship, SourceType, StatementEvidenceState
 from ..domain.gap_analysis import (
     AnswerCitation,
@@ -166,6 +167,7 @@ class ForensicGapAnalyzer:
         raw_profile_bytes: bytes,
         human_decision: Optional[HumanDecisionRecord] = None,
         reconciliation: Optional[ObservationReconciliation] = None,
+        collection_executions: Optional[List[CollectionExecutionRecord]] = None,
     ) -> ForensicGapAnalysisRecord:
         """
         Executes forensic gap analysis:
@@ -419,6 +421,8 @@ class ForensicGapAnalyzer:
 
         analysis_id = f"fga-rec-{observation.observation_id}"
 
+        execs = collection_executions or []
+
         canonical_digest = ForensicGapAnalysisRecord.compute_canonical_digest(
             analysis_id=analysis_id,
             observation_id=observation.observation_id,
@@ -432,6 +436,7 @@ class ForensicGapAnalyzer:
             attribution_status=attr_status,
             competitor_patterns=[pattern],
             collection_candidates=collection_candidates,
+            collection_executions=execs,
             evidence_gaps=gaps,
             prioritized_actions=actions,
         )
@@ -449,6 +454,7 @@ class ForensicGapAnalyzer:
             attribution_status=attr_status,
             competitor_patterns=[pattern],
             collection_candidates=collection_candidates,
+            collection_executions=execs,
             evidence_gaps=gaps,
             prioritized_actions=actions,
             canonical_digest=canonical_digest,

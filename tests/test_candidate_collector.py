@@ -165,7 +165,26 @@ def test_mismatched_query_id_candidate_fails_closed(
 
     # Tamper candidate to set requires_human_manifest_approval=False to test execution gate re-check
     tampered_cand = mismatched_cand.model_copy(update={"requires_human_manifest_approval": False})
-    tampered_gap_record = cand_basis.model_copy(update={"collection_candidates": [tampered_cand]})
+    valid_digest = ForensicGapAnalysisRecord.compute_canonical_digest(
+        analysis_id=cand_basis.analysis_id,
+        observation_id=cand_basis.observation_id,
+        raw_answer_sha256=cand_basis.raw_answer_sha256,
+        source_ledger_run_id=cand_basis.source_ledger_run_id,
+        source_ledger_sha256=cand_basis.source_ledger_sha256,
+        query_map_sha256=cand_basis.query_map_sha256,
+        manifest_sha256=cand_basis.manifest_sha256,
+        profile_id=cand_basis.profile_id,
+        profile_sha256=cand_basis.profile_sha256,
+        attribution_status=cand_basis.attribution_status,
+        competitor_patterns=cand_basis.competitor_patterns,
+        collection_candidates=[tampered_cand],
+        collection_executions=cand_basis.collection_executions,
+        evidence_gaps=cand_basis.evidence_gaps,
+        prioritized_actions=cand_basis.prioritized_actions,
+    )
+    tampered_gap_record = cand_basis.model_copy(
+        update={"collection_candidates": [tampered_cand], "canonical_digest": valid_digest}
+    )
 
     collector = CandidateCollector()
 
@@ -309,3 +328,262 @@ def test_authorized_candidate_collection_success(
 
     # Verify updated gap record digest passes verification
     assert updated_gap_record.verify_integrity() is True
+
+
+def test_tampered_or_mismatched_gap_record_fails_closed(
+    sample_subject_profile: SubjectProfile,
+) -> None:
+    """Proves candidate collection fails closed if gap_record fails verify_integrity() or has context binding mismatches."""
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    observation = AnswerObservation.model_validate_json(raw_obs_bytes)
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+
+    gap_record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=observation,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    collector = CandidateCollector()
+
+    # 1. Tamper gap_record digest -> fails integrity verification
+    tampered_gap_record = gap_record.model_copy(update={"canonical_digest": "0" * 64})
+    with pytest.raises(ValueError, match="failed canonical digest integrity verification"):
+        collector.collect_candidate(
+            candidate_id="occ-q-001-fake",
+            subject_profile=sample_subject_profile,
+            observation=observation,
+            source_ledger=source_ledger,
+            query_map=query_map,
+            manifest=manifest,
+            gap_record=tampered_gap_record,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )
+
+    # 2. Context binding mismatch (mismatched profile_id)
+    mismatched_gap_record = gap_record.model_copy(update={"profile_id": "prof-OTHER"})
+    # Fix digest to bypass gate 0a so gate 0b catches context mismatch
+    valid_digest_for_mismatch = ForensicGapAnalysisRecord.compute_canonical_digest(
+        analysis_id=gap_record.analysis_id,
+        observation_id=gap_record.observation_id,
+        raw_answer_sha256=gap_record.raw_answer_sha256,
+        source_ledger_run_id=gap_record.source_ledger_run_id,
+        source_ledger_sha256=gap_record.source_ledger_sha256,
+        query_map_sha256=gap_record.query_map_sha256,
+        manifest_sha256=gap_record.manifest_sha256,
+        profile_id="prof-OTHER",
+        profile_sha256=gap_record.profile_sha256,
+        attribution_status=gap_record.attribution_status,
+        competitor_patterns=gap_record.competitor_patterns,
+        collection_candidates=gap_record.collection_candidates,
+        collection_executions=gap_record.collection_executions,
+        evidence_gaps=gap_record.evidence_gaps,
+        prioritized_actions=gap_record.prioritized_actions,
+    )
+    mismatched_gap_record = mismatched_gap_record.model_copy(update={"canonical_digest": valid_digest_for_mismatch})
+
+    with pytest.raises(ValueError, match="Context mismatch: gap_record.profile_id"):
+        collector.collect_candidate(
+            candidate_id="occ-q-001-fake",
+            subject_profile=sample_subject_profile,
+            observation=observation,
+            source_ledger=source_ledger,
+            query_map=query_map,
+            manifest=manifest,
+            gap_record=mismatched_gap_record,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )
+
+
+def test_non_mocked_real_http_candidate_collection(
+    sample_subject_profile: SubjectProfile,
+    tmp_path: Path,
+) -> None:
+    """
+    Non-mocked integration test: Spins up local HTTP server thread, executes CandidateCollector
+    with REAL SourceVerifier and SnapshotStore (NO MONKEYPATCHING!), verifies HTML snapshot saved on disk,
+    proves EvidenceRecord + CollectionExecutionRecord generated and 7 upstream context bindings verified.
+    """
+    import threading
+    import typing
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    # 1. Local HTTP server handler
+    class TestHTTPHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            html = (
+                "<!DOCTYPE html><html><body>"
+                "<h1>Rust Official Documentation</h1>"
+                "<p>Rust is a language empowering everyone to build reliable and efficient software.</p>"
+                "</body></html>"
+            )
+            self.wfile.write(html.encode("utf-8"))
+
+        def log_message(self, format: str, *args: typing.Any) -> None:
+            pass  # Suppress HTTP server output in test runner
+
+    server = HTTPServer(("127.0.0.1", 0), TestHTTPHandler)
+    port = server.server_address[1]
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
+    try:
+        url = f"http://127.0.0.1:{port}/learn"
+
+        qm_path = Path("data/fixtures/sample_query_map.json")
+        manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+        ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+        obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+        raw_qm_bytes = qm_path.read_bytes()
+        orig_qm = QueryMap.model_validate_json(raw_qm_bytes)
+        # Update QueryMap policy to allow HTTP scheme and 127.0.0.1 domain for local test
+        updated_qm = orig_qm.model_copy(
+            update={
+                "policy_profile": orig_qm.policy_profile.model_copy(
+                    update={
+                        "allowed_schemes": {"http", "https"},
+                        "source_scope": orig_qm.policy_profile.source_scope.model_copy(
+                            update={"allowed_domains": orig_qm.policy_profile.source_scope.allowed_domains + ["127.0.0.1"]}
+                        ),
+                    }
+                )
+            }
+        )
+        raw_qm_bytes = updated_qm.model_dump_json().encode("utf-8")
+
+        raw_manifest_bytes = manifest_path.read_bytes()
+        orig_manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+
+        # Authorize local HTTP candidate URL for query q-001
+        authorized_manifest = orig_manifest.model_copy(
+            update={
+                "candidates": orig_manifest.candidates + [
+                    ManifestSourceCandidate(
+                        url=url,
+                        candidate_excerpt="Rust is a language empowering everyone to build reliable and efficient software.",
+                        source_type=SourceType.OFFICIAL_DOCUMENTATION,
+                        query_id="q-001",
+                    )
+                ]
+            }
+        )
+        raw_manifest_bytes = authorized_manifest.model_dump_json().encode("utf-8")
+
+        # Update subject profile to include 127.0.0.1 as a competitor domain
+        from src.domain.profile import CompetitorProfile
+        competitor_profile = CompetitorProfile(
+            competitor_entity_name="Rust Foundation",
+            competitor_domains=["rust-lang.org", "127.0.0.1"],
+        )
+        updated_profile = sample_subject_profile.model_copy(
+            update={"competitor_profiles": [competitor_profile]}
+        )
+        raw_profile_bytes = updated_profile.model_dump_json().encode("utf-8")
+
+        raw_ledger_bytes = ledger_path.read_bytes()
+        source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+        raw_obs_bytes = obs_path.read_bytes()
+        orig_obs = AnswerObservation.model_validate_json(raw_obs_bytes)
+
+        # Answer cites local test URL
+        competitor_answer_text = orig_obs.raw_answer_text + f"\n\nLearn Rust at {url}."
+        competitor_obs = orig_obs.model_copy(
+            update={
+                "raw_answer_text": competitor_answer_text,
+                "raw_answer_sha256": hashlib.sha256(competitor_answer_text.encode("utf-8")).hexdigest(),
+            }
+        )
+
+        initial_gap_record = ForensicGapAnalyzer.analyze_gaps(
+            subject_profile=updated_profile,
+            observation=competitor_obs,
+            source_ledger=source_ledger,
+            query_map=updated_qm,
+            manifest=authorized_manifest,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )
+
+        assert len(initial_gap_record.collection_candidates) == 1
+        cand = initial_gap_record.collection_candidates[0]
+        assert cand.requires_human_manifest_approval is False
+
+        # Execute candidate collector through REAL verifier and REAL snapshot store (NO MOCKS!)
+        store = SnapshotStore(base_dir=tmp_path / "snapshots")
+        collector = CandidateCollector(snapshot_store=store, block_private_ips=False)
+
+        updated_ledger, updated_gap_record = collector.collect_candidate(
+            candidate_id=cand.candidate_id,
+            subject_profile=updated_profile,
+            observation=competitor_obs,
+            source_ledger=source_ledger,
+            query_map=updated_qm,
+            manifest=authorized_manifest,
+            gap_record=initial_gap_record,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )
+
+        # 1. Assert real evidence record created in updated ledger
+        new_ev_records = [
+            ev for ev in updated_ledger.evidence_ledger.values()
+            if ev.url.lower().rstrip("/") == url.lower().rstrip("/") and ev.verification_status == VerificationStatus.OPENED_VERIFIED
+        ]
+        assert len(new_ev_records) == 1
+        new_ev = new_ev_records[0]
+        assert new_ev.verification_artifact is not None
+        snap_hash = new_ev.verification_artifact.snapshot_sha256
+
+        # 2. Assert snapshot file was ACTUALLY written to disk in SnapshotStore
+        saved_snapshot_bytes = store.load_snapshot(snap_hash)
+        assert saved_snapshot_bytes is not None
+        assert b"Rust is a language empowering everyone to build reliable and efficient software." in saved_snapshot_bytes
+
+        # 3. Assert CollectionExecutionRecord was generated and binds all 7 context SHA-256 digests
+        assert len(updated_gap_record.collection_executions) == 1
+        ce = updated_gap_record.collection_executions[0]
+        assert ce.candidate_id == cand.candidate_id
+        assert ce.observation_id == competitor_obs.observation_id
+        assert ce.raw_answer_sha256 == competitor_obs.raw_answer_sha256
+        assert ce.evidence_id == new_ev.evidence_id
+        assert ce.snapshot_sha256 == snap_hash
+        assert ce.verify_integrity() is True
+
+        # 4. Assert updated gap record digest passes verification
+        assert updated_gap_record.verify_integrity() is True
+
+    finally:
+        server.shutdown()
+        server.server_close()

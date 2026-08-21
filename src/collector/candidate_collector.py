@@ -34,8 +34,13 @@ class CandidateCollector:
     7. Re-analyzes gaps to emit updated ForensicGapAnalysisRecord.
     """
 
-    def __init__(self, snapshot_store: Optional[SnapshotStore] = None):
+    def __init__(
+        self,
+        snapshot_store: Optional[SnapshotStore] = None,
+        block_private_ips: bool = True,
+    ):
         self.snapshot_store = snapshot_store or SnapshotStore()
+        self.block_private_ips = block_private_ips
 
     def collect_candidate(
         self,
@@ -56,6 +61,36 @@ class CandidateCollector:
         Executes candidate collection under strict execution-time authorization controls.
         Fails closed with ValueError if any authorization check fails.
         """
+        # Gate 0a: Verify gap_record integrity
+        if not gap_record.verify_integrity():
+            raise ValueError(
+                f"Execution Gate Blocked: ForensicGapAnalysisRecord '{gap_record.analysis_id}' "
+                f"failed canonical digest integrity verification."
+            )
+
+        # Gate 0b: Validate all 7 upstream context bindings against raw artifact bytes
+        qm_sha256 = hashlib.sha256(raw_qm_bytes).hexdigest()
+        manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
+        ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
+        profile_sha256 = hashlib.sha256(raw_profile_bytes).hexdigest()
+
+        if gap_record.observation_id != observation.observation_id:
+            raise ValueError(f"Context mismatch: gap_record.observation_id ('{gap_record.observation_id}') != observation.observation_id ('{observation.observation_id}').")
+        if gap_record.raw_answer_sha256.lower() != observation.raw_answer_sha256.lower():
+            raise ValueError(f"Context mismatch: gap_record.raw_answer_sha256 ('{gap_record.raw_answer_sha256}') != observation.raw_answer_sha256 ('{observation.raw_answer_sha256}').")
+        if gap_record.source_ledger_run_id != source_ledger.run_id:
+            raise ValueError(f"Context mismatch: gap_record.source_ledger_run_id ('{gap_record.source_ledger_run_id}') != source_ledger.run_id ('{source_ledger.run_id}').")
+        if gap_record.source_ledger_sha256.lower() != ledger_sha256.lower():
+            raise ValueError(f"Context mismatch: gap_record.source_ledger_sha256 ('{gap_record.source_ledger_sha256}') != raw source_ledger digest ('{ledger_sha256}').")
+        if gap_record.query_map_sha256.lower() != qm_sha256.lower():
+            raise ValueError(f"Context mismatch: gap_record.query_map_sha256 ('{gap_record.query_map_sha256}') != raw query_map digest ('{qm_sha256}').")
+        if gap_record.manifest_sha256.lower() != manifest_sha256.lower():
+            raise ValueError(f"Context mismatch: gap_record.manifest_sha256 ('{gap_record.manifest_sha256}') != raw manifest digest ('{manifest_sha256}').")
+        if gap_record.profile_id != subject_profile.profile_id:
+            raise ValueError(f"Context mismatch: gap_record.profile_id ('{gap_record.profile_id}') != subject_profile.profile_id ('{subject_profile.profile_id}').")
+        if gap_record.profile_sha256.lower() != profile_sha256.lower():
+            raise ValueError(f"Context mismatch: gap_record.profile_sha256 ('{gap_record.profile_sha256}') != raw profile digest ('{profile_sha256}').")
+
         # Step 1: Find candidate in gap_record
         cand: Optional[ObservedCitationCollectionCandidate] = None
         for c in gap_record.collection_candidates:
@@ -113,7 +148,7 @@ class CandidateCollector:
             timeout_seconds=query_map.policy_profile.timeout_seconds,
             allowed_domains=scope.allowed_domains,
             blocked_domains=scope.blocked_domains,
-            block_private_ips=True,
+            block_private_ips=self.block_private_ips,
         )
 
         verifier = SourceVerifier(snapshot_store=self.snapshot_store, policy=policy)
@@ -126,7 +161,53 @@ class CandidateCollector:
             is_independent=manifest_matched_cs.is_independent if hasattr(manifest_matched_cs, "is_independent") else False,
         )
 
-        # Step 3: Append new evidence record to source ledger
+        # Step 3: Create CollectionExecutionRecord binding candidate-to-evidence provenance
+        from datetime import datetime, timezone
+        from ..domain.candidate_collection import CollectionExecutionRecord
+
+        exec_id = f"cer-{cand.candidate_id}"
+        snap_sha256 = ev_record.verification_artifact.snapshot_sha256 if ev_record.verification_artifact else "unknown"
+        verifier_run = ev_record.verification_artifact.verifier_run_id if ev_record.verification_artifact else "unknown"
+        exec_ts = datetime.now(timezone.utc)
+
+        exec_digest = CollectionExecutionRecord.compute_canonical_digest(
+            execution_id=exec_id,
+            candidate_id=cand.candidate_id,
+            target_query_id=cand.target_query_id,
+            cited_url=cand.cited_url,
+            observation_id=observation.observation_id,
+            raw_answer_sha256=observation.raw_answer_sha256,
+            profile_id=subject_profile.profile_id,
+            profile_sha256=profile_sha256,
+            manifest_sha256=manifest_sha256,
+            query_map_sha256=qm_sha256,
+            source_ledger_sha256=ledger_sha256,
+            evidence_id=ev_record.evidence_id,
+            verifier_run_id=verifier_run,
+            snapshot_sha256=snap_sha256,
+            execution_timestamp=exec_ts,
+        )
+
+        execution_record = CollectionExecutionRecord(
+            execution_id=exec_id,
+            candidate_id=cand.candidate_id,
+            target_query_id=cand.target_query_id,
+            cited_url=cand.cited_url,
+            observation_id=observation.observation_id,
+            raw_answer_sha256=observation.raw_answer_sha256,
+            profile_id=subject_profile.profile_id,
+            profile_sha256=profile_sha256,
+            manifest_sha256=manifest_sha256,
+            query_map_sha256=qm_sha256,
+            source_ledger_sha256=ledger_sha256,
+            evidence_id=ev_record.evidence_id,
+            verifier_run_id=verifier_run,
+            snapshot_sha256=snap_sha256,
+            execution_timestamp=exec_ts,
+            canonical_digest=exec_digest,
+        )
+
+        # Step 4: Append new evidence record to source ledger
         updated_ledger_map = dict(source_ledger.evidence_ledger)
         updated_ledger_map[ev_record.evidence_id] = ev_record
 
@@ -135,7 +216,10 @@ class CandidateCollector:
         )
         updated_ledger_bytes = updated_source_ledger.model_dump_json().encode("utf-8")
 
-        # Step 4: Re-analyze gaps with updated source ledger
+        existing_execs = list(gap_record.collection_executions)
+        existing_execs.append(execution_record)
+
+        # Step 5: Re-analyze gaps with updated source ledger & collection_executions
         updated_gap_record = ForensicGapAnalyzer.analyze_gaps(
             subject_profile=subject_profile,
             observation=observation,
@@ -147,6 +231,7 @@ class CandidateCollector:
             raw_ledger_bytes=updated_ledger_bytes,
             raw_profile_bytes=raw_profile_bytes,
             human_decision=human_decision,
+            collection_executions=existing_execs,
         )
 
         return updated_source_ledger, updated_gap_record

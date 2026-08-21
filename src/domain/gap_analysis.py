@@ -9,6 +9,7 @@ import json
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
+from ..domain.candidate_collection import CollectionExecutionRecord
 from .enums import ActionSeverity, AttributionStatus, GapCategory, SourceRelationship, SourceType, StatementEvidenceState
 
 
@@ -173,6 +174,7 @@ class ForensicGapAnalysisRecord(BaseModel):
     )
     competitor_patterns: List[CompetitorCitationPattern] = Field(default_factory=list)
     collection_candidates: List[ObservedCitationCollectionCandidate] = Field(default_factory=list)
+    collection_executions: List[CollectionExecutionRecord] = Field(default_factory=list)
     evidence_gaps: List[ClientEvidenceGap] = Field(default_factory=list)
     prioritized_actions: List[PrioritizedActionPlan] = Field(default_factory=list)
     canonical_digest: str = Field(..., description="Content-addressed SHA-256 digest over ALL context bindings and findings")
@@ -192,10 +194,11 @@ class ForensicGapAnalysisRecord(BaseModel):
         attribution_status: AttributionStatus,
         competitor_patterns: List[CompetitorCitationPattern],
         collection_candidates: List[ObservedCitationCollectionCandidate],
+        collection_executions: List[CollectionExecutionRecord],
         evidence_gaps: List[ClientEvidenceGap],
         prioritized_actions: List[PrioritizedActionPlan],
     ) -> str:
-        """Computes deterministic SHA-256 canonical digest over ALL context bindings including profile_sha256, attribution_status, collection_candidates, total counts, descriptions, evidence bases, impact statements, and ethical notes."""
+        """Computes deterministic SHA-256 canonical digest over ALL context bindings including profile_sha256, attribution_status, collection_candidates, collection_executions, total counts, descriptions, evidence bases, impact statements, and ethical notes."""
         payload = {
             "analysis_id": analysis_id,
             "observation_id": observation_id,
@@ -256,6 +259,26 @@ class ForensicGapAnalysisRecord(BaseModel):
                 }
                 for cc in sorted(collection_candidates, key=lambda x: x.candidate_id)
             ],
+            "collection_executions": [
+                {
+                    "execution_id": ce.execution_id,
+                    "candidate_id": ce.candidate_id,
+                    "target_query_id": ce.target_query_id,
+                    "cited_url": ce.cited_url,
+                    "observation_id": ce.observation_id,
+                    "raw_answer_sha256": ce.raw_answer_sha256.lower(),
+                    "profile_id": ce.profile_id,
+                    "profile_sha256": ce.profile_sha256.lower(),
+                    "manifest_sha256": ce.manifest_sha256.lower(),
+                    "query_map_sha256": ce.query_map_sha256.lower(),
+                    "source_ledger_sha256": ce.source_ledger_sha256.lower(),
+                    "evidence_id": ce.evidence_id,
+                    "verifier_run_id": ce.verifier_run_id,
+                    "snapshot_sha256": ce.snapshot_sha256.lower(),
+                    "canonical_digest": ce.canonical_digest.lower(),
+                }
+                for ce in sorted(collection_executions, key=lambda x: x.execution_id)
+            ],
             "evidence_gaps": [
                 {
                     "gap_id": g.gap_id,
@@ -313,6 +336,7 @@ class ForensicGapAnalysisRecord(BaseModel):
             attribution_status=self.attribution_status,
             competitor_patterns=self.competitor_patterns,
             collection_candidates=self.collection_candidates,
+            collection_executions=self.collection_executions,
             evidence_gaps=self.evidence_gaps,
             prioritized_actions=self.prioritized_actions,
         )

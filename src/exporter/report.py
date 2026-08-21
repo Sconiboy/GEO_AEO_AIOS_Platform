@@ -304,6 +304,27 @@ class ReportExporter:
                 lines.append(f"- **Action Hypothesis**: {cc.action_hypothesis}")
                 lines.append("")
 
+        if gap_record.collection_executions:
+            lines.extend([
+                "---",
+                "",
+                "## 📜 Executed Candidate Collections (Provenance Tracing)",
+                "",
+            ])
+            for ce in gap_record.collection_executions:
+                snap_fmt = f"`{ce.snapshot_sha256[:16]}...`"
+                dig_fmt = f"`{ce.canonical_digest[:16]}...`"
+                lines.append(f"### Execution `{ce.execution_id}` (Candidate: `{ce.candidate_id}`)")
+                lines.append(f"- **Target Query**: `{ce.target_query_id}`")
+                lines.append(f"- **Collected URL**: [{ce.cited_url}]({ce.cited_url})")
+                lines.append(f"- **Bound Observation ID**: `{ce.observation_id}`")
+                lines.append(f"- **Evidence Record ID**: `{ce.evidence_id}`")
+                lines.append(f"- **Verifier Run ID**: `{ce.verifier_run_id}`")
+                lines.append(f"- **Snapshot Hash**: {snap_fmt}")
+                lines.append(f"- **Execution Timestamp**: `{ce.execution_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`")
+                lines.append(f"- **Canonical Digest**: {dig_fmt}")
+                lines.append("")
+
         lines.extend([
             "---",
             "",

@@ -41,6 +41,7 @@ from .reconciliation import ObservationReconciliation, StatementReconciliation
 from .validators import EvidenceLedgerValidationError, validate_audit_run_ledger
 
 __all__ = [
+    "CollectionExecutionRecord",
     "SourceType",
     "VerificationStatus",
     "ConfidenceRating",

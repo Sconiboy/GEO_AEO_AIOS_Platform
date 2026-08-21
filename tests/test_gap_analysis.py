@@ -512,6 +512,7 @@ def test_profile_sha256_digest_tamper_detection(sample_subject_profile: SubjectP
         attribution_status=AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE,
         competitor_patterns=[pattern],
         collection_candidates=[],
+        collection_executions=[],
         evidence_gaps=[],
         prioritized_actions=[],
     )
