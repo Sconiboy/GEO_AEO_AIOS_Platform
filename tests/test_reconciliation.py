@@ -353,3 +353,42 @@ def test_cli_reconcile_with_json_persistence_and_loading(tmp_path: Path):
     # Verify original decision timestamp was preserved!
     assert reloaded_obj.reconciliations[0].reconciliation_timestamp == first_timestamp
 
+
+def test_cli_reconcile_refuses_replayed_mismatched_reconciliation_json(tmp_path: Path):
+    """P0 ADVERSARIAL TEST: Test that CLI reconcile rejects loading stored JSON artifact when replayed against unrelated observation or source ledger."""
+    qm_file = Path("data/fixtures/sample_query_map.json")
+    man_file = Path("data/fixtures/controlled_dataset_manifest.json")
+    original_ledger = Path("data/fixtures/frozen_source_ledger.json")
+    original_obs = Path("data/fixtures/authorized_first_observation.json")
+
+    unrelated_ledger = Path("data/fixtures/pep20_source_ledger.json")
+    unrelated_obs = Path("data/fixtures/pep20_observation.json")
+
+    # Step 1: Create a valid reconciliation JSON for original_obs & original_ledger
+    reconciliation_json = tmp_path / "original_reconciliation.json"
+    output_file = tmp_path / "output.md"
+
+    exit_code_1 = run_cli_reconcile(
+        query_map_path=qm_file,
+        manifest_path=man_file,
+        source_ledger_path=original_ledger,
+        observation_path=original_obs,
+        output_path=output_file,
+        reconciliation_json_path=reconciliation_json,
+    )
+    assert exit_code_1 == 0
+    assert reconciliation_json.exists()
+
+    # Step 2: Attempt REPLAY ATTACK by supplying original_reconciliation.json with unrelated_obs & unrelated_ledger
+    # Must fail closed with exit code 1!
+    exit_code_replay = run_cli_reconcile(
+        query_map_path=qm_file,
+        manifest_path=man_file,
+        source_ledger_path=unrelated_ledger,
+        observation_path=unrelated_obs,
+        output_path=output_file,
+        reconciliation_json_path=reconciliation_json,
+    )
+    assert exit_code_replay == 1
+
+

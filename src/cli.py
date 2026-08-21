@@ -3,6 +3,7 @@ Internal Audit Console & CLI Runner for Evidence-Governed Audits
 """
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -270,10 +271,47 @@ def run_cli_reconcile(
             reconciliation = ObservationReconciliation.model_validate(
                 json.loads(rec_bytes.decode("utf-8"))
             )
+            # Gate 1: Check self-integrity digest
             if not reconciliation.verify_integrity():
                 raise ValueError(
                     f"Integrity failure: Stored Reconciliation JSON artifact '{reconciliation_json_path}' failed digest verification."
                 )
+
+            # Gate 2: Check observation context bindings
+            if reconciliation.observation_id != validated_obs.observation_id:
+                raise ValueError(
+                    f"Context mismatch: Stored reconciliation observation_id ('{reconciliation.observation_id}') "
+                    f"does not match current observation ID ('{validated_obs.observation_id}')."
+                )
+
+            if reconciliation.raw_answer_sha256.lower() != validated_obs.raw_answer_sha256.lower():
+                raise ValueError(
+                    f"Context mismatch: Stored reconciliation raw_answer_sha256 ('{reconciliation.raw_answer_sha256}') "
+                    f"does not match current observation digest ('{validated_obs.raw_answer_sha256}')."
+                )
+
+            # Gate 3: Check source ledger context bindings
+            actual_ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
+            if reconciliation.source_ledger_run_id != source_ledger.run_id:
+                raise ValueError(
+                    f"Context mismatch: Stored reconciliation source_ledger_run_id ('{reconciliation.source_ledger_run_id}') "
+                    f"does not match current source ledger run ID ('{source_ledger.run_id}')."
+                )
+
+            if reconciliation.source_ledger_sha256.lower() != actual_ledger_sha256.lower():
+                raise ValueError(
+                    f"Context mismatch: Stored reconciliation source_ledger_sha256 ('{reconciliation.source_ledger_sha256}') "
+                    f"does not match current raw source ledger digest ('{actual_ledger_sha256}')."
+                )
+
+            # Gate 4: Check statement ID presence
+            obs_stmt_ids = {s.statement_id for s in validated_obs.extracted_statements}
+            for rec_stmt in reconciliation.reconciliations:
+                if rec_stmt.statement_id not in obs_stmt_ids:
+                    raise ValueError(
+                        f"Context mismatch: Stored reconciliation contains statement_id ('{rec_stmt.statement_id}') "
+                        f"which does not exist in current observation."
+                    )
         else:
             print("⚡ Reconciling statement proposals against source ledger...")
             reconciliation = ClaimReconciler.reconcile_observation(

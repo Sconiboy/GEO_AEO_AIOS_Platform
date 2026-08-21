@@ -3,7 +3,7 @@
   "observation_id": "obs-pep20-001",
   "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
   "source_ledger_run_id": "run-qm-pep20-pub-001",
-  "source_ledger_sha256": "cad4791d1416ea5e8180dd97f7aa791a5757e15915fa5aba977be47bb6691f29",
+  "source_ledger_sha256": "76b078d345d934c1c9ce14ed716f567b5f152ec0aa67517415a6a18f004c4935",
   "reconciliations": [
     {
       "reconciliation_id": "rec-obs-pep20-001-001",
@@ -14,7 +14,7 @@
       ],
       "semantic_rationale": "Statement 'stmt-pep20-001' is semantically SUPPORTED by verified opened evidence 'ev-pep20-001' ('https://peps.python.org/pep-0020/') with excerpt quote: \"PEP 20 - The Zen of Python by Tim Peters. Beautiful is better than ugly. Explicit is better than implicit. Simple is better than complex. Readability counts.\".",
       "reviewer_role": "Lead Systems Architect & Auditor",
-      "reconciliation_timestamp": "2026-08-21T03:30:31.553848Z",
+      "reconciliation_timestamp": "2026-08-21T03:45:36.662388Z",
       "reconciliation_method": "heuristic_exact_fact_match"
     },
     {
@@ -26,9 +26,9 @@
       ],
       "semantic_rationale": "Statement 'stmt-pep20-002' is semantically SUPPORTED by verified opened evidence 'ev-pep20-001' ('https://peps.python.org/pep-0020/') with excerpt quote: \"PEP 20 - The Zen of Python by Tim Peters. Beautiful is better than ugly. Explicit is better than implicit. Simple is better than complex. Readability counts.\".",
       "reviewer_role": "Lead Systems Architect & Auditor",
-      "reconciliation_timestamp": "2026-08-21T03:30:31.553848Z",
+      "reconciliation_timestamp": "2026-08-21T03:45:36.662388Z",
       "reconciliation_method": "heuristic_exact_fact_match"
     }
   ],
-  "reconciliation_sha256": "93bed1fb6534329aba24d15fd378331b240a021900663b6342a6100e79d58e8d"
+  "reconciliation_sha256": "b02cc58b93d907ed8471e1bd8834fc831e6e331d021bd36e12f23bc354ae0398"
 }
