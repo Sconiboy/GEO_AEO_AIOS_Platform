@@ -12,6 +12,7 @@
   "capture_method": "human_operator_console",
   "capture_artifact": {
     "artifact_id": "art-hermes3-console-001",
+    "session_id": "sess-hermes3-20260821-001",
     "artifact_type": "raw_transcript_export",
     "artifact_path_or_uri": "data/captures/hermes3_q001_raw.txt",
     "artifact_sha256": "7b1c1cabb0f8fda0a6764015b932f7a61f9fa8c812d07500b23e24af008cf976",

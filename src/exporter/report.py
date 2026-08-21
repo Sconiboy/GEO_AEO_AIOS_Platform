@@ -241,7 +241,7 @@ class ReportExporter:
         else:
             lines.extend([
                 "> [!NOTE]",
-                "> **ARTIFACT-BACKED MANUAL CAPTURE**",
+                "> **ARTIFACT-BACKED OPERATOR-DECLARED CAPTURE**",
                 "> Verified raw model response capture bound to an immutable raw transcript/console artifact.",
                 "",
             ])
@@ -274,7 +274,7 @@ class ReportExporter:
         if observation.is_artifact_backed and observation.capture_artifact is not None:
             art = observation.capture_artifact
             lines.extend([
-                f"- **Bound Capture Artifact ID**: `{art.artifact_id}`",
+                f"- **Bound Capture Artifact ID**: `{art.artifact_id}` (Session ID: `{art.session_id}`)",
                 f"- **Artifact Type**: `{art.artifact_type}`",
                 f"- **Artifact File Path**: `{art.artifact_path_or_uri}`",
                 f"- **Artifact SHA256**: `{art.artifact_sha256[:16]}...`",
@@ -484,7 +484,7 @@ class ReportExporter:
         else:
             lines.extend([
                 "> [!NOTE]",
-                "> **ARTIFACT-BACKED MANUAL CAPTURE**",
+                "> **ARTIFACT-BACKED OPERATOR-DECLARED CAPTURE**",
                 "> Verified raw model response capture bound to an immutable raw transcript/console artifact.",
                 "",
             ])
@@ -512,7 +512,7 @@ class ReportExporter:
                 "---",
                 "",
                 "## 📎 Bound Raw Capture Artifact",
-                f"- **Artifact ID**: `{art.artifact_id}`",
+                f"- **Artifact ID**: `{art.artifact_id}` (Session ID: `{art.session_id}`)",
                 f"- **Artifact Category**: `{art.artifact_type}`",
                 f"- **Artifact File Path**: `{art.artifact_path_or_uri}`",
                 f"- **Artifact SHA256**: `{art.artifact_sha256[:16]}...`",

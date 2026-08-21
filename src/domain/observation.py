@@ -51,6 +51,7 @@ class CaptureArtifact(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     artifact_id: str = Field(..., description="Unique capture artifact identifier")
+    session_id: str = Field(..., min_length=1, description="Console or API session identifier")
     artifact_type: str = Field(..., description="Artifact category (e.g. raw_transcript_export, console_log_export, session_screenshot)")
     artifact_path_or_uri: str = Field(..., description="Relative or absolute path/URI to preserved raw capture artifact file")
     artifact_sha256: str = Field(..., min_length=64, max_length=64, description="SHA-256 digest of preserved raw capture artifact file")
@@ -135,6 +136,8 @@ class AnswerObservation(BaseModel):
         3. Verifies file_bytes SHA-256 == capture_artifact.artifact_sha256.
         4. Parses raw transcript content using TranscriptParser and verifies parsed output SHA-256 == self.raw_answer_sha256.
         5. Verifies parsed query_id, provider_name, and model_identifier match observation metadata.
+        6. Verifies parsed operator_identity and session_id match capture_artifact metadata.
+        7. Verifies parsed timestamp equals capture_timestamp and captured_at after UTC normalization.
         Returns True if all checks pass, False if any check fails or is missing.
         """
         calculated_hash = hashlib.sha256(self.raw_answer_text.encode("utf-8")).hexdigest()
@@ -158,8 +161,9 @@ class AnswerObservation(BaseModel):
             if file_hash.lower() != self.capture_artifact.artifact_sha256.lower():
                 return False
 
-            # Check 4 & 5: Parse transcript and verify content + metadata matching
+            # Check 4-7: Parse transcript and verify content + metadata + timestamp matching
             try:
+                from datetime import timezone
                 from ..collector.transcript_parser import TranscriptParser
                 parsed_text = file_bytes.decode("utf-8")
                 parsed = TranscriptParser.parse_transcript(parsed_text)
@@ -172,6 +176,19 @@ class AnswerObservation(BaseModel):
                     return False
                 if parsed.model_identifier != self.model_identifier:
                     return False
+                if parsed.operator_identity != self.capture_artifact.operator_identity:
+                    return False
+                if parsed.session_id != self.capture_artifact.session_id:
+                    return False
+
+                # Timezone-normalized timestamp comparison
+                parsed_utc = parsed.timestamp.astimezone(timezone.utc)
+                obs_utc = self.capture_timestamp.astimezone(timezone.utc)
+                art_utc = self.capture_artifact.captured_at.astimezone(timezone.utc)
+
+                if parsed_utc != obs_utc or parsed_utc != art_utc:
+                    return False
+
             except Exception:
                 return False
 

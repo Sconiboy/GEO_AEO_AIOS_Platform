@@ -114,7 +114,7 @@ def test_authentic_hermes3_observation_provenance() -> None:
 
     rendered_obs = ReportExporter.export_observation_record(auth_obs, query_map)
     assert "SYNTHETIC FIXTURE OBSERVATION" not in rendered_obs
-    assert "ARTIFACT-BACKED MANUAL CAPTURE" in rendered_obs
+    assert "ARTIFACT-BACKED OPERATOR-DECLARED CAPTURE" in rendered_obs
     assert "Bound Raw Capture Artifact" in rendered_obs
     assert "art-hermes3-console-001" in rendered_obs
 
@@ -227,6 +227,44 @@ def test_transcript_query_id_mismatch_fails_verify_integrity(tmp_path: Path) -> 
 
     mismatched_obs = AnswerObservation.model_validate(obs_dict)
     assert mismatched_obs.verify_integrity() is False
+
+
+def test_timestamp_mismatch_fails_verify_integrity() -> None:
+    """Proves verify_integrity fails closed when capture_timestamp or captured_at does not match parsed transcript timestamp."""
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+
+    # Mutate observation timestamp to 2099
+    obs_dict["capture_timestamp"] = "2099-01-01T00:00:00Z"
+    obs_dict["capture_artifact"]["captured_at"] = "2099-01-01T00:00:00Z"
+
+    mismatched_ts_obs = AnswerObservation.model_validate(obs_dict)
+    assert mismatched_ts_obs.verify_integrity() is False
+
+
+def test_operator_identity_mismatch_fails_verify_integrity() -> None:
+    """Proves verify_integrity fails closed when capture_artifact operator_identity does not match parsed transcript operator."""
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+
+    # Mutate operator identity
+    obs_dict["capture_artifact"]["operator_identity"] = "operator-unauthorized"
+
+    mismatched_op_obs = AnswerObservation.model_validate(obs_dict)
+    assert mismatched_op_obs.verify_integrity() is False
+
+
+def test_session_id_mismatch_fails_verify_integrity() -> None:
+    """Proves verify_integrity fails closed when capture_artifact session_id does not match parsed transcript session ID."""
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+
+    # Mutate session ID
+    obs_dict["capture_artifact"]["session_id"] = "sess-unrelated-999"
+
+    mismatched_sess_obs = AnswerObservation.model_validate(obs_dict)
+    assert mismatched_sess_obs.verify_integrity() is False
+
 
 
 
