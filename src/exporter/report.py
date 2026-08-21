@@ -29,7 +29,18 @@ class ReportExporter:
         Renders a Claim Reconciliation Record Markdown document.
         Displays semantic evaluations (supported, unsupported, contradicted, not_assessable)
         against frozen source evidence. Does NOT output commercial rank/visibility claims.
+        Fails closed if observation or reconciliation fails SHA-256 integrity verification.
         """
+        if not observation.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: observation raw_answer_sha256 ('{observation.raw_answer_sha256}') does not match raw_answer_text digest."
+            )
+
+        if not reconciliation.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: reconciliation_sha256 digest ('{reconciliation.reconciliation_sha256}') does not match canonical calculation over metadata and decisions."
+            )
+
         query_text = "Unknown Query"
         for q in query_map.queries:
             if q.query_id == observation.query_id:

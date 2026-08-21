@@ -1,30 +1,22 @@
 """
-Domain Models for Claim Reconciliation Contracts (Sprint 5)
-Evaluates extracted statement proposals semantically against frozen source ledgers.
+Domain Models for Claim Reconciliation Contracts (Sprint 5.1 Remediation)
+Evaluates extracted statement proposals semantically against frozen source ledgers with canonical digest bindings.
 """
 
+import json
 import hashlib
-from datetime import datetime, timezone
-from enum import Enum
-from typing import List, Optional
+from datetime import datetime
+from typing import Any, Dict, List
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .enums import ReconciliationMethod, ReconciliationStatus
 
-class ReconciliationStatus(str, Enum):
-    """Semantic truth evaluation status of a statement against evidence."""
-
-    SUPPORTED = "supported"
-    UNSUPPORTED = "unsupported"
-    CONTRADICTED = "contradicted"
-    NOT_ASSESSABLE = "not_assessable"
-
-
-class ReconciliationMethod(str, Enum):
-    """Method used to reconcile statement against source evidence."""
-
-    HUMAN_AUDITOR_REVIEW = "human_auditor_review"
-    HEURISTIC_EXACT_FACT_MATCH = "heuristic_exact_fact_match"
-    STRUCTURED_LLM_ASSISTED_REVIEW = "structured_llm_assisted_review"
+__all__ = [
+    "ReconciliationStatus",
+    "ReconciliationMethod",
+    "StatementReconciliation",
+    "ObservationReconciliation",
+]
 
 
 class StatementReconciliation(BaseModel):
@@ -74,7 +66,7 @@ class ObservationReconciliation(BaseModel):
         default_factory=list, description="List of individual statement reconciliation decisions"
     )
     reconciliation_sha256: str = Field(
-        ..., min_length=64, max_length=64, description="SHA-256 digest of reconciliation content"
+        ..., min_length=64, max_length=64, description="Canonical SHA-256 digest of full reconciliation record"
     )
 
     @field_validator("raw_answer_sha256", "source_ledger_sha256", "reconciliation_sha256")
@@ -82,10 +74,41 @@ class ObservationReconciliation(BaseModel):
     def clean_hash_lowercase(cls, v: str) -> str:
         return v.strip().lower()
 
+    @classmethod
+    def compute_canonical_digest(
+        cls,
+        reconciliation_run_id: str,
+        observation_id: str,
+        raw_answer_sha256: str,
+        source_ledger_run_id: str,
+        source_ledger_sha256: str,
+        reconciliations: List[StatementReconciliation],
+    ) -> str:
+        """
+        Computes a deterministic canonical SHA-256 digest covering all run metadata and statement decisions.
+        """
+        payload: Dict[str, Any] = {
+            "reconciliation_run_id": reconciliation_run_id,
+            "observation_id": observation_id,
+            "raw_answer_sha256": raw_answer_sha256.lower(),
+            "source_ledger_run_id": source_ledger_run_id,
+            "source_ledger_sha256": source_ledger_sha256.lower(),
+            "reconciliations": [r.model_dump(mode="json") for r in reconciliations],
+        }
+        serialized = json.dumps(payload, sort_keys=True)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
     def verify_integrity(self) -> bool:
-        """Re-verifies that reconciliation_sha256 matches calculated digest of statement decisions."""
-        statements_data = [r.model_dump(mode="json") for r in self.reconciliations]
-        serialized = hashlib.sha256(
-            str(sorted([str(d) for d in statements_data])).encode("utf-8")
-        ).hexdigest()
-        return self.reconciliation_sha256.lower() == serialized.lower()
+        """
+        Re-verifies that reconciliation_sha256 matches the calculated canonical digest over metadata & decisions.
+        Returns True if intact, False if mutated or tampered.
+        """
+        computed = self.compute_canonical_digest(
+            reconciliation_run_id=self.reconciliation_run_id,
+            observation_id=self.observation_id,
+            raw_answer_sha256=self.raw_answer_sha256,
+            source_ledger_run_id=self.source_ledger_run_id,
+            source_ledger_sha256=self.source_ledger_sha256,
+            reconciliations=self.reconciliations,
+        )
+        return self.reconciliation_sha256.lower() == computed.lower()

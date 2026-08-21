@@ -259,9 +259,11 @@ def run_cli_reconcile(
             raw_ledger_bytes=raw_ledger_bytes,
         )
 
-        # Step 2: Reconcile statements semantically against source ledger
+        # Step 2: Reconcile statements semantically against source ledger with raw artifact hash validation
         reconciliation = ClaimReconciler.reconcile_observation(
-            observation=validated_obs, source_ledger=source_ledger
+            observation=validated_obs,
+            source_ledger=source_ledger,
+            raw_ledger_bytes=raw_ledger_bytes,
         )
 
         markdown_content = ReportExporter.export_reconciliation_record(

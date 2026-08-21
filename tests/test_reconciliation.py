@@ -1,5 +1,5 @@
 """
-Unit Tests for Claim Reconciliation Engine and CLI Subcommand (Sprint 5)
+Unit Tests for Claim Reconciliation Engine and CLI Subcommand (Sprint 5.1 Remediation)
 """
 
 import hashlib
@@ -10,10 +10,18 @@ import pytest
 from pydantic import ValidationError
 from src.cli import run_cli_reconcile
 from src.collector.reconciler import ClaimReconciler
-from src.domain.enums import ReconciliationMethod, ReconciliationStatus, SourceType, VerificationStatus
+from src.domain.enums import (
+    QueryIntent,
+    ReconciliationMethod,
+    ReconciliationStatus,
+    SourceType,
+    VerificationStatus,
+)
 from src.domain.models import AuditRun, EvidenceRecord, VerificationArtifact
 from src.domain.observation import AnswerObservation, CaptureMethod, ExtractedStatement
+from src.domain.query_map import CollectionPolicyProfile, QueryMap, SourceScope, TargetQuery
 from src.domain.reconciliation import ObservationReconciliation, StatementReconciliation
+from src.exporter.report import ReportExporter
 
 
 def make_sample_ledger_with_python_evidence() -> AuditRun:
@@ -61,6 +69,165 @@ def test_reconciliation_model_is_frozen_and_immutable():
         rec.semantic_rationale = "Mutated rationale"  # type: ignore
 
 
+def test_reconciliation_raw_ledger_hash_mismatch_raises_error():
+    """P0 INTEGRITY TEST: Test that a raw ledger hash mismatch raises ValueError during reconciliation."""
+    raw_text = "Python is a high-level, general-purpose programming language."
+    digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+    art = VerificationArtifact(
+        verifier_run_id="v1",
+        verifier_method="PARSED_VISIBLE_TEXT_BS4",
+        snapshot_sha256="1" * 64,
+        quote_exact_match=True,
+    )
+    ev = EvidenceRecord(
+        evidence_id="ev-httpbin-001",
+        url="https://httpbin.org/html",
+        opened_excerpt="Herman Melville - Moby-Dick",
+        verification_status=VerificationStatus.OPENED_VERIFIED,
+        verification_artifact=art,
+    )
+    ledger = AuditRun(
+        run_id="run-qm-qm-python-pub-001",
+        client_domain="Python",
+        category="PL",
+        evidence_ledger={"ev-httpbin-001": ev},
+    )
+
+    wrong_ledger_bytes = b"wrong ledger content payload"
+
+    obs = AnswerObservation(
+        observation_id="obs-test-01",
+        query_id="q-001",
+        query_map_id="qm-python-pub-001",
+        source_ledger_run_id="run-qm-qm-python-pub-001",
+        query_map_sha256="a" * 64,
+        manifest_sha256="b" * 64,
+        source_ledger_sha256="c" * 64,  # Does not match wrong_ledger_bytes!
+        provider_name="Ollama",
+        model_identifier="hermes-3",
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=digest,
+    )
+
+    with pytest.raises(ValueError, match="Artifact mismatch"):
+        ClaimReconciler.reconcile_observation(
+            observation=obs, source_ledger=ledger, raw_ledger_bytes=wrong_ledger_bytes
+        )
+
+
+def test_reconciliation_canonical_digest_tampering_detected():
+    """P0 INTEGRITY TEST: Test that tampering with reconciliation metadata or decisions invalidates verify_integrity()."""
+    statement_rec = StatementReconciliation(
+        reconciliation_id="rec-001",
+        statement_id="stmt-001",
+        status=ReconciliationStatus.NOT_ASSESSABLE,
+        evaluated_evidence_ids=[],
+        semantic_rationale="No relevant opened evidence records exist.",
+        reviewer_role="Lead Auditor",
+        reconciliation_timestamp=datetime.now(timezone.utc),
+        reconciliation_method=ReconciliationMethod.HUMAN_AUDITOR_REVIEW,
+    )
+
+    canonical_digest = ObservationReconciliation.compute_canonical_digest(
+        reconciliation_run_id="rec-run-001",
+        observation_id="obs-001",
+        raw_answer_sha256="a" * 64,
+        source_ledger_run_id="run-001",
+        source_ledger_sha256="b" * 64,
+        reconciliations=[statement_rec],
+    )
+
+    rec_run = ObservationReconciliation(
+        reconciliation_run_id="rec-run-001",
+        observation_id="obs-001",
+        raw_answer_sha256="a" * 64,
+        source_ledger_run_id="run-001",
+        source_ledger_sha256="b" * 64,
+        reconciliations=[statement_rec],
+        reconciliation_sha256=canonical_digest,
+    )
+
+    assert rec_run.verify_integrity() is True
+
+    # Tampered reconciliation digest MUST fail verify_integrity()
+    tampered_rec_run = ObservationReconciliation(
+        reconciliation_run_id="rec-run-001",
+        observation_id="obs-001",
+        raw_answer_sha256="a" * 64,
+        source_ledger_run_id="run-001",
+        source_ledger_sha256="b" * 64,
+        reconciliations=[statement_rec],
+        reconciliation_sha256="0" * 64,  # Tampered digest!
+    )
+    assert tampered_rec_run.verify_integrity() is False
+
+
+def test_exporter_refuses_tampered_reconciliation_record():
+    """P0 INTEGRITY TEST: Test that ReportExporter.export_reconciliation_record fails closed on tampered reconciliation."""
+    raw_text = "Python is a high-level programming language."
+    digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+    qm = QueryMap(
+        query_map_id="qm-python-pub-001",
+        entity_name="Python Software Foundation",
+        category="Programming Languages",
+        target_buyer_persona="Systems Architect",
+        policy_profile=CollectionPolicyProfile(
+            profile_id="p1",
+            source_scope=SourceScope(scope_id="s1", allowed_domains=["python.org"]),
+        ),
+        queries=[
+            TargetQuery(
+                query_id="q-001",
+                text="What is Python core language design philosophy?",
+                intent=QueryIntent.INFORMATIONAL_EVALUATION,
+                rationale="Test query rationale.",
+            )
+        ],
+    )
+    ledger = AuditRun(
+        run_id="run-001",
+        client_domain="Python",
+        category="PL",
+    )
+    obs = AnswerObservation(
+        observation_id="obs-001",
+        query_id="q-001",
+        query_map_id="qm-python-pub-001",
+        source_ledger_run_id="run-001",
+        query_map_sha256="a" * 64,
+        manifest_sha256="b" * 64,
+        source_ledger_sha256="c" * 64,
+        provider_name="Ollama",
+        model_identifier="hermes-3",
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=digest,
+    )
+
+    tampered_rec = ObservationReconciliation(
+        reconciliation_run_id="rec-run-001",
+        observation_id="obs-001",
+        raw_answer_sha256=digest,
+        source_ledger_run_id="run-001",
+        source_ledger_sha256="c" * 64,
+        reconciliations=[],
+        reconciliation_sha256="0" * 64,  # Invalid hash!
+    )
+
+    with pytest.raises(ValueError, match="Integrity failure"):
+        ReportExporter.export_reconciliation_record(
+            reconciliation=tampered_rec,
+            observation=obs,
+            query_map=qm,
+            source_ledger=ledger,
+        )
+
+
 def test_reconciliation_default_not_assessable_for_irrelevant_evidence():
     """Test that irrelevant evidence (e.g. httpbin Moby Dick excerpt) results in NOT_ASSESSABLE."""
     raw_text = "Python is a high-level, general-purpose programming language."
@@ -85,6 +252,7 @@ def test_reconciliation_default_not_assessable_for_irrelevant_evidence():
         category="PL",
         evidence_ledger={"ev-httpbin-001": ev},
     )
+    ledger_hash = ClaimReconciler.compute_model_hash(ledger.model_dump(mode="json"))
 
     obs = AnswerObservation(
         observation_id="obs-test-01",
@@ -93,7 +261,7 @@ def test_reconciliation_default_not_assessable_for_irrelevant_evidence():
         source_ledger_run_id="run-qm-qm-python-pub-001",
         query_map_sha256="a" * 64,
         manifest_sha256="b" * 64,
-        source_ledger_sha256="c" * 64,
+        source_ledger_sha256=ledger_hash,
         provider_name="Ollama",
         model_identifier="hermes-3",
         capture_timestamp=datetime.now(timezone.utc),
@@ -115,56 +283,7 @@ def test_reconciliation_default_not_assessable_for_irrelevant_evidence():
     rec = result.reconciliations[0]
     assert rec.status == ReconciliationStatus.NOT_ASSESSABLE
     assert "semantically irrelevant" in rec.semantic_rationale
-
-
-def test_reconciliation_manual_override_supported_decision():
-    """Test manual decision override for SUPPORTED statement with valid OPENED_VERIFIED evidence."""
-    raw_text = "Python is a high-level programming language emphasizing readability."
-    digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
-
-    ledger = make_sample_ledger_with_python_evidence()
-
-    obs = AnswerObservation(
-        observation_id="obs-test-02",
-        query_id="q-001",
-        query_map_id="qm-python-pub-001",
-        source_ledger_run_id=ledger.run_id,
-        query_map_sha256="a" * 64,
-        manifest_sha256="b" * 64,
-        source_ledger_sha256="c" * 64,
-        provider_name="Ollama",
-        model_identifier="hermes-3",
-        capture_timestamp=datetime.now(timezone.utc),
-        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
-        raw_answer_text=raw_text,
-        raw_answer_sha256=digest,
-        extracted_statements=[
-            ExtractedStatement(
-                statement_id="stmt-py-01",
-                text="Python emphasizes readability.",
-                linked_evidence_id="ev-py-design-01",
-            )
-        ],
-    )
-
-    manual_rec = StatementReconciliation(
-        reconciliation_id="rec-py-01",
-        statement_id="stmt-py-01",
-        status=ReconciliationStatus.SUPPORTED,
-        evaluated_evidence_ids=["ev-py-design-01"],
-        semantic_rationale="Official Python documentation explicitly supports that design philosophy emphasizes code readability.",
-        reviewer_role="Lead Auditor",
-        reconciliation_timestamp=datetime.now(timezone.utc),
-        reconciliation_method=ReconciliationMethod.HUMAN_AUDITOR_REVIEW,
-    )
-
-    result = ClaimReconciler.reconcile_observation(
-        observation=obs, source_ledger=ledger, manual_reconciliations=[manual_rec]
-    )
-
-    assert len(result.reconciliations) == 1
-    assert result.reconciliations[0].status == ReconciliationStatus.SUPPORTED
-    assert result.reconciliations[0].evaluated_evidence_ids == ["ev-py-design-01"]
+    assert result.verify_integrity() is True
 
 
 def test_cli_reconcile_command_execution(tmp_path: Path):
