@@ -136,8 +136,7 @@ def run_cli_query_map(
         runner = QueryMapRunner()
         audit_run = runner.run_query_map_audit(query_map, manifest)
 
-        validated_run = validate_audit_run_ledger(audit_run)
-        markdown_content = ReportExporter.export_to_markdown(validated_run)
+        markdown_content = ReportExporter.export_source_ledger(audit_run)
 
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)

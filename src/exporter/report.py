@@ -1,17 +1,87 @@
 """
-Auditable Report Exporter with Runtime Evidence Validation
+Auditable Report and Source Ledger Exporter
 """
 
 from typing import List
+from ..domain.enums import VerificationStatus
 from ..domain.models import AuditRun
 from ..domain.validators import validate_audit_run_ledger
 
 
 class ReportExporter:
     """
-    Exports verified audit reports to Markdown format.
-    Enforces strict runtime evidence ledger validation before rendering.
+    Exports verified audit reports and controlled source ledgers to Markdown format.
     """
+
+    @classmethod
+    def export_source_ledger(cls, audit_run: AuditRun) -> str:
+        """
+        Renders a Controlled Source Ledger Markdown document.
+        Does NOT use commercial client-audit wording ('Client Domain', 'Claims', or 'Confidence Ranks').
+        Exposes verified public sources, snapshot hashes, and policy-filtered exclusions.
+        """
+        lines: List[str] = [
+            "> [!NOTE]",
+            "> **CONTROLLED NON-CLIENT DATASET SPIKE**",
+            "> This source ledger documents public test evidence and policy verification results.",
+            "",
+            f"# 📜 Controlled Source Ledger",
+            f"**Subject Entity**: `{audit_run.client_domain}`  ",
+            f"**Category**: `{audit_run.category}`  ",
+            f"**Run ID**: `{audit_run.run_id}`  ",
+            f"**Generated**: `{audit_run.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}`",
+            "",
+            "---",
+            "",
+            "## 🔍 Verified Public Sources",
+            "",
+        ]
+
+        verified_records = [
+            ev
+            for ev in audit_run.evidence_ledger.values()
+            if ev.verification_status == VerificationStatus.OPENED_VERIFIED
+        ]
+
+        if not verified_records:
+            lines.append("*No OPENED_VERIFIED source records found in this run.*")
+        else:
+            for i, ev in enumerate(verified_records, 1):
+                indep_label = "Independent" if ev.is_independent else "Non-Independent"
+                art = ev.verification_artifact
+                art_hash = f"`{art.snapshot_sha256[:16]}...`" if art else "`N/A`"
+                method = art.verifier_method if art else "N/A"
+
+                lines.append(f"### Source {i}: [{ev.url}]({ev.url})")
+                lines.append(f"- **Type**: `{ev.source_type.value}` ({indep_label})")
+                lines.append(f"- **Status**: `{ev.verification_status.value}`")
+                lines.append(f"- **Snapshot Hash**: {art_hash}")
+                lines.append(f"- **Verifier Method**: `{method}`")
+                lines.append(f"- **Excerpt**: *\"{ev.opened_excerpt}\"*")
+                lines.append("")
+
+        excluded_records = [
+            ev
+            for ev in audit_run.evidence_ledger.values()
+            if ev.verification_status != VerificationStatus.OPENED_VERIFIED
+        ]
+
+        if excluded_records:
+            lines.extend([
+                "---",
+                "",
+                "## 🚫 Policy-Filtered / Excluded Candidates",
+                "",
+            ])
+            for i, ev in enumerate(excluded_records, 1):
+                cat = ev.failure_category.value if ev.failure_category else "excluded"
+                reason = ev.failure_reason or "Source failed policy checks."
+                lines.append(f"{i}. **[{cat}]** [{ev.url}]({ev.url})")
+                lines.append(f"   > *Reason: {reason}*")
+                lines.append("")
+
+        lines.append("---")
+        return "\n".join(lines)
 
     @classmethod
     def export_to_markdown(cls, audit_run: AuditRun) -> str:

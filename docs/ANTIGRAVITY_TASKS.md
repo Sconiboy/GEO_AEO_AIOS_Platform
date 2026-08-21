@@ -101,6 +101,18 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - Unit test suite (`tests/test_query_map.py`).
 - **Status**: COMPLETED (27 unit tests passing, 80% code coverage, 0 Mypy issues).
 
+## 🛠️ Sprint 3.1: Policy Completeness & Source Ledger Renderer (Manus Review Response)
+
+### Task A-12: Cap Enforcement, Blocked Domains Precedence, Non-Client Gate, and Dedicated Source Ledger Exporter
+- **Goal**: Implement Sprint 3.1 P0 and P1 policy controls:
+  - Enforce `max_sources_per_query` per-query fetch ceiling (limits verifier calls to cap).
+  - Enforce `blocked_domains` precedence (blocked domains override allowlists and make ZERO verifier calls).
+  - Enforce `is_non_client_spike=True` gate (`ValueError` if False).
+  - Deterministic unique blocked ledger entry IDs (`ev-blocked-{query_id}-{hash}`).
+  - Dedicated `ReportExporter.export_source_ledger(audit_run)` renderer removing "Client Domain" wording, "Claims", and commercial audit confidence scores.
+  - Comprehensive unit test suite (`tests/test_query_map.py` & `tests/test_cli.py`).
+- **Status**: COMPLETED (33 unit tests passing, 86% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -117,3 +129,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-9: SourcePolicy SSRF protection (`src/collector/policy.py`), HTTPS-only scheme controls, response payload limits, content-type checks, HTML text extraction, git-ignored snapshot storage (`.gitignore`), and hermetic test suite (`tests/test_source_policy.py`).
 - [x] Task A-10: Manual pre-hop redirect validation (`NoRedirectHandler`), BeautifulSoup visible text quote matching (`PARSED_VISIBLE_TEXT_BS4`), typed `FailureCategory` error handling, untracked git index artifact cleanup, and 24 passing hermetic unit tests.
 - [x] Task A-11: QueryMap domain contracts (`src/domain/query_map.py`), Dataset Manifests (`data/fixtures/controlled_dataset_manifest.json`), domain allowlist & human approval enforcement (`src/collector/query_map_runner.py`), `query-map` CLI subcommand, and 27 passing unit tests.
+- [x] Task A-12: `max_sources_per_query` cap, `blocked_domains` precedence, `is_non_client_spike=True` gate, unique blocked entry IDs, dedicated `export_source_ledger` renderer, and 33 passing unit tests.
