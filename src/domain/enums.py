@@ -66,3 +66,20 @@ class HumanApprovalState(str, Enum):
     PROPOSED = "proposed"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class ReconciliationStatus(str, Enum):
+    """Semantic truth evaluation status of a statement against evidence."""
+
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    CONTRADICTED = "contradicted"
+    NOT_ASSESSABLE = "not_assessable"
+
+
+class ReconciliationMethod(str, Enum):
+    """Method used to reconcile statement against source evidence."""
+
+    HUMAN_AUDITOR_REVIEW = "human_auditor_review"
+    HEURISTIC_EXACT_FACT_MATCH = "heuristic_exact_fact_match"
+    STRUCTURED_LLM_ASSISTED_REVIEW = "structured_llm_assisted_review"

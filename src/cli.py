@@ -10,6 +10,7 @@ from typing import Optional
 
 from .collector.observation_importer import ObservationImporter
 from .collector.query_map_runner import DatasetManifest, QueryMapRunner
+from .collector.reconciler import ClaimReconciler
 from .collector.verifier import SourceVerifier
 from .domain.enums import SourceType
 from .domain.models import AuditRun
@@ -218,6 +219,75 @@ def run_cli_observation(
         return 1
 
 
+def run_cli_reconcile(
+    query_map_path: Path,
+    manifest_path: Path,
+    source_ledger_path: Path,
+    observation_path: Path,
+    output_path: Optional[Path] = None,
+) -> int:
+    """
+    Executes Claim Reconciliation against a frozen AnswerObservation and Source Ledger.
+    Evaluates raw statement proposals semantically against source evidence.
+    """
+    print(f"🎯 Loading QueryMap artifact: {query_map_path}")
+    print(f"📜 Loading Dataset Manifest artifact: {manifest_path}")
+    print(f"🏛️ Loading Frozen Source Ledger artifact: {source_ledger_path}")
+    print(f"🔬 Loading Observation artifact: {observation_path}")
+
+    try:
+        raw_qm_bytes = query_map_path.read_bytes()
+        query_map = QueryMap.model_validate(json.loads(raw_qm_bytes.decode("utf-8")))
+
+        raw_manifest_bytes = manifest_path.read_bytes()
+        manifest = DatasetManifest.model_validate(json.loads(raw_manifest_bytes.decode("utf-8")))
+
+        raw_ledger_bytes = source_ledger_path.read_bytes()
+        source_ledger = AuditRun.model_validate(json.loads(raw_ledger_bytes.decode("utf-8")))
+
+        raw_obs_bytes = observation_path.read_bytes()
+        observation = AnswerObservation.model_validate(json.loads(raw_obs_bytes.decode("utf-8")))
+
+        # Step 1: Validate observation import pipeline
+        validated_obs = ObservationImporter.import_observation(
+            observation=observation,
+            query_map=query_map,
+            manifest=manifest,
+            source_ledger=source_ledger,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+        )
+
+        # Step 2: Reconcile statements semantically against source ledger
+        reconciliation = ClaimReconciler.reconcile_observation(
+            observation=validated_obs, source_ledger=source_ledger
+        )
+
+        markdown_content = ReportExporter.export_reconciliation_record(
+            reconciliation=reconciliation,
+            observation=validated_obs,
+            query_map=query_map,
+            source_ledger=source_ledger,
+        )
+
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+            print(f"📄 Claim Reconciliation Record exported to: {output_path}")
+        else:
+            print("\n" + "=" * 50)
+            print(markdown_content)
+            print("=" * 50)
+
+        return 0
+
+    except Exception as e:
+        print(f"\n❌ CLAIM RECONCILIATION FAILED: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="GEO/AEO Platform - Evidence-Governed Audit Console CLI"
@@ -316,6 +386,41 @@ def main() -> None:
         help="Optional path to write generated Observation Record",
     )
 
+    # 'reconcile' subcommand
+    rec_parser = subparsers.add_parser(
+        "reconcile", help="Reconcile Answer-Surface Observation statements against Source Ledger"
+    )
+    rec_parser.add_argument(
+        "--query-map",
+        type=Path,
+        required=True,
+        help="Path to QueryMap JSON definition",
+    )
+    rec_parser.add_argument(
+        "--manifest",
+        type=Path,
+        required=True,
+        help="Path to pre-approved DatasetManifest JSON",
+    )
+    rec_parser.add_argument(
+        "--source-ledger",
+        type=Path,
+        required=True,
+        help="Path to frozen Source Ledger AuditRun JSON artifact",
+    )
+    rec_parser.add_argument(
+        "--observation",
+        type=Path,
+        required=True,
+        help="Path to AnswerObservation JSON definition",
+    )
+    rec_parser.add_argument(
+        "--output",
+        type=Path,
+        required=False,
+        help="Optional path to write generated Claim Reconciliation Record",
+    )
+
     args = parser.parse_args()
 
     if args.command == "audit":
@@ -334,7 +439,18 @@ def main() -> None:
                 args.output,
             )
         )
+    elif args.command == "reconcile":
+        sys.exit(
+            run_cli_reconcile(
+                args.query_map,
+                args.manifest,
+                args.source_ledger,
+                args.observation,
+                args.output,
+            )
+        )
 
 
 if __name__ == "__main__":
     main()
+

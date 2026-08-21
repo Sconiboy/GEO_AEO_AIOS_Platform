@@ -7,13 +7,91 @@ from ..domain.enums import VerificationStatus
 from ..domain.models import AuditRun
 from ..domain.observation import AnswerObservation
 from ..domain.query_map import QueryMap
+from ..domain.reconciliation import ObservationReconciliation
 from ..domain.validators import validate_audit_run_ledger
 
 
 class ReportExporter:
     """
-    Exports verified audit reports, controlled source ledgers, and answer observation records to Markdown.
+    Exports verified audit reports, controlled source ledgers, answer observations,
+    and claim reconciliation records to Markdown.
     """
+
+    @classmethod
+    def export_reconciliation_record(
+        cls,
+        reconciliation: ObservationReconciliation,
+        observation: AnswerObservation,
+        query_map: QueryMap,
+        source_ledger: AuditRun,
+    ) -> str:
+        """
+        Renders a Claim Reconciliation Record Markdown document.
+        Displays semantic evaluations (supported, unsupported, contradicted, not_assessable)
+        against frozen source evidence. Does NOT output commercial rank/visibility claims.
+        """
+        query_text = "Unknown Query"
+        for q in query_map.queries:
+            if q.query_id == observation.query_id:
+                query_text = q.text
+                break
+
+        lines: List[str] = [
+            "> [!NOTE]",
+            "> **CLAIM RECONCILIATION RECORD**",
+            "> Semantic truth evaluation of raw model statement proposals against frozen source evidence.",
+            "> Contains no commercial visibility scores, rank recommendations, or client audit claims.",
+            "",
+            f"# ⚖️ Claim Reconciliation Record",
+            f"**Subject Entity**: `{query_map.entity_name}`  ",
+            f"**Target Query**: *\"{query_text}\"* (`{observation.query_id}`)  ",
+            f"**Model Provider / Identifier**: `{observation.provider_name}` (`{observation.model_identifier}`)  ",
+            f"**Raw Answer Digest**: `{observation.raw_answer_sha256[:16]}...`  ",
+            f"**Source Ledger Run ID**: `{source_ledger.run_id}`  ",
+            f"**Reconciliation Run ID**: `{reconciliation.reconciliation_run_id}`  ",
+            f"**Reconciliation Digest**: `{reconciliation.reconciliation_sha256[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 📝 Evaluated Raw Model Answer",
+            "```text",
+            observation.raw_answer_text,
+            "```",
+            "",
+            "---",
+            "",
+            "## 🎯 Statement Reconciliation Decisions",
+            "",
+        ]
+
+        if not reconciliation.reconciliations:
+            lines.append("*No statement reconciliation decisions present in this record.*")
+        else:
+            lines.append(
+                "| Statement ID | Extracted Statement | Decision | Evaluated Evidence | Semantic Rationale |"
+            )
+            lines.append("|---|---|---|---|---|")
+
+            # Build map of statement text from observation
+            stmt_text_map = {
+                s.statement_id: s.text for s in observation.extracted_statements
+            }
+
+            for rec in reconciliation.reconciliations:
+                text = stmt_text_map.get(rec.statement_id, "Unknown Statement")
+                ev_str = (
+                    ", ".join([f"`{eid}`" for eid in rec.evaluated_evidence_ids])
+                    if rec.evaluated_evidence_ids
+                    else "*None (No relevant evidence)*"
+                )
+                badge = f"**`[{rec.status.value.upper()}]`**"
+                lines.append(
+                    f"| `{rec.statement_id}` | \"{text}\" | {badge} | {ev_str} | {rec.semantic_rationale} |"
+                )
+
+        lines.append("")
+        lines.append("---")
+        return "\n".join(lines)
 
     @classmethod
     def export_observation_record(
