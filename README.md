@@ -59,6 +59,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_FIRST_OBSERVATION_ASSESSMENT.md`](docs/MANUS_FIRST_OBSERVATION_ASSESSMENT.md) - Assessment of the first authorized observation and the claim-reconciliation requirement it exposed.
 - [`docs/MANUS_SPRINT5_REVIEW.md`](docs/MANUS_SPRINT5_REVIEW.md) - Sprint 5 reconciliation review and the required frozen-artifact integrity correction.
 - [`docs/MANUS_SPRINT51_REVIEW.md`](docs/MANUS_SPRINT51_REVIEW.md) - Sprint 5.1 integrity approval and the persistence requirement for durable reconciliation records.
+- [`docs/MANUS_SPRINT52_6_REVIEW.md`](docs/MANUS_SPRINT52_6_REVIEW.md) - Sprint 5.2/6 review requiring persisted-artifact context binding and authentic PEP 20 source verification.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
