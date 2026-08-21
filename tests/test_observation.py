@@ -213,6 +213,118 @@ def test_observation_linked_evidence_must_be_opened_verified():
         )
 
 
+def test_observation_unlinked_statements_default_proposed_unverified():
+    """P1 TEST: Test that unlinked extracted statements default to PROPOSED_UNVERIFIED."""
+    raw_text = "Python is a high-level programming language."
+    correct_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+    qm = make_sample_query_map()
+    manifest = DatasetManifest(
+        manifest_id="m1",
+        description="d",
+        candidates=[
+            ManifestSourceCandidate(
+                query_id="q-approved",
+                url="https://httpbin.org/html",
+                candidate_excerpt="Herman Melville - Moby-Dick",
+            )
+        ],
+    )
+    ledger = make_sample_ledger()
+
+    qm_hash = ObservationImporter.compute_artifact_hash(qm.model_dump(mode="json"))
+    manifest_hash = ObservationImporter.compute_artifact_hash(manifest.model_dump(mode="json"))
+    ledger_hash = ObservationImporter.compute_artifact_hash(ledger.model_dump(mode="json"))
+
+    obs = AnswerObservation(
+        observation_id="obs-stmt-test",
+        query_id="q-approved",
+        query_map_id=qm.query_map_id,
+        source_ledger_run_id=ledger.run_id,
+        query_map_sha256=qm_hash,
+        manifest_sha256=manifest_hash,
+        source_ledger_sha256=ledger_hash,
+        provider_name="Ollama",
+        model_identifier="hermes-3-llama-3.1-8b",
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=correct_hash,
+        extracted_statements=[
+            ExtractedStatement(
+                statement_id="stmt-1",
+                text="Python is high level.",
+                extraction_status=ExtractionStatus.SOURCE_VERIFIED,  # Attempting to set SOURCE_VERIFIED without link!
+            )
+        ],
+    )
+
+    imported = ObservationImporter.import_observation(
+        observation=obs, query_map=qm, manifest=manifest, source_ledger=ledger
+    )
+
+    # Must be reset to PROPOSED_UNVERIFIED because linked_evidence_id was None
+    assert imported.extracted_statements[0].extraction_status == ExtractionStatus.PROPOSED_UNVERIFIED
+
+
+def test_observation_status_escalation_forged_payload_downgraded_to_proposed_unverified():
+    """ADVERSARIAL P0 TEST (Sprint 4.2): Test that an input payload containing HUMAN_APPROVED or SOURCE_VERIFIED with valid OPENED_VERIFIED evidence is FORCED to PROPOSED_UNVERIFIED upon import."""
+    raw_text = "Python is a high-level, general-purpose programming language."
+    digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+    qm = make_sample_query_map()
+    manifest = DatasetManifest(
+        manifest_id="man-obs-test",
+        description="Test manifest",
+        candidates=[
+            ManifestSourceCandidate(
+                query_id="q-approved",
+                url="https://httpbin.org/html",
+                candidate_excerpt="Herman Melville - Moby-Dick",
+            )
+        ],
+    )
+    ledger = make_sample_ledger()
+
+    qm_hash = ObservationImporter.compute_artifact_hash(qm.model_dump(mode="json"))
+    manifest_hash = ObservationImporter.compute_artifact_hash(manifest.model_dump(mode="json"))
+    ledger_hash = ObservationImporter.compute_artifact_hash(ledger.model_dump(mode="json"))
+
+    # Forged input payload attempting to claim HUMAN_APPROVED on statement
+    forged_obs = AnswerObservation(
+        observation_id="obs-forged-01",
+        query_id="q-approved",
+        query_map_id=qm.query_map_id,
+        source_ledger_run_id=ledger.run_id,
+        query_map_sha256=qm_hash,
+        manifest_sha256=manifest_hash,
+        source_ledger_sha256=ledger_hash,
+        provider_name="Ollama",
+        model_identifier="hermes-3-llama-3.1-8b",
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=digest,
+        extracted_statements=[
+            ExtractedStatement(
+                statement_id="stmt-forged-1",
+                text="Python is high-level.",
+                extraction_status=ExtractionStatus.HUMAN_APPROVED,  # FORGED STATUS!
+                linked_evidence_id="ev-verified-001",  # Valid OPENED_VERIFIED evidence!
+            )
+        ],
+    )
+
+    imported = ObservationImporter.import_observation(
+        observation=forged_obs, query_map=qm, manifest=manifest, source_ledger=ledger
+    )
+
+    # STRICT RULE: Must be forcibly downgraded to PROPOSED_UNVERIFIED upon import!
+    imported_stmt = imported.extracted_statements[0]
+    assert imported_stmt.extraction_status == ExtractionStatus.PROPOSED_UNVERIFIED
+    assert imported_stmt.linked_evidence_id == "ev-verified-001"
+
+
 def test_hermetic_cli_observation_command(tmp_path: Path):
     """P1 HERMETIC CLI TEST: Test CLI observation subcommand with frozen ledger artifact (making ZERO network calls)."""
     qm_file = Path("data/fixtures/sample_query_map.json")

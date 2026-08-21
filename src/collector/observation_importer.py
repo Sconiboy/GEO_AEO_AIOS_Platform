@@ -108,9 +108,10 @@ class ObservationImporter:
                 f"Cannot import observation for query '{observation.query_id}': Query is unapproved or missing from QueryMap."
             )
 
-        # Gate 5: Validate Extracted Statements
+        # Gate 5: Validate Extracted Statements (FORCE PROPOSED_UNVERIFIED for ALL imported statements)
         validated_statements = []
         for stmt in observation.extracted_statements:
+            linked_ev_id = None
             if stmt.linked_evidence_id:
                 if stmt.linked_evidence_id not in source_ledger.evidence_ledger:
                     raise ValueError(
@@ -121,19 +122,18 @@ class ObservationImporter:
                     raise ValueError(
                         f"Statement '{stmt.statement_id}' references evidence '{stmt.linked_evidence_id}' which is status '{ev.verification_status.value}', not OPENED_VERIFIED."
                     )
-                # Keep statement status if evidence is OPENED_VERIFIED
-                validated_statements.append(stmt)
-            else:
-                # Force unlinked statements to PROPOSED_UNVERIFIED
-                validated_statements.append(
-                    ExtractedStatement(
-                        statement_id=stmt.statement_id,
-                        text=stmt.text,
-                        extraction_status=ExtractionStatus.PROPOSED_UNVERIFIED,
-                        linked_evidence_id=None,
-                        human_notes=stmt.human_notes,
-                    )
+                linked_ev_id = stmt.linked_evidence_id
+
+            # STRICT RULE: Force ALL imported statements to PROPOSED_UNVERIFIED
+            validated_statements.append(
+                ExtractedStatement(
+                    statement_id=stmt.statement_id,
+                    text=stmt.text,
+                    extraction_status=ExtractionStatus.PROPOSED_UNVERIFIED,
+                    linked_evidence_id=linked_ev_id,
+                    human_notes=stmt.human_notes,
                 )
+            )
 
         # Return new validated observation instance with enforced statement statuses
         return AnswerObservation(
