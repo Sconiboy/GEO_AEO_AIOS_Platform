@@ -4,6 +4,7 @@ Auditable Report, Source Ledger, and Observation Record Exporter
 
 from typing import List
 from ..domain.enums import VerificationStatus
+from ..domain.human_decision import HumanDecisionRecord
 from ..domain.models import AuditRun
 from ..domain.observation import AnswerObservation
 from ..domain.query_map import QueryMap
@@ -101,6 +102,91 @@ class ReportExporter:
                 )
 
         lines.append("")
+        lines.append("---")
+        return "\n".join(lines)
+
+    @classmethod
+    def export_human_decision_record(
+        cls,
+        decision_record: HumanDecisionRecord,
+        observation: AnswerObservation,
+        query_map: QueryMap,
+        source_ledger: AuditRun,
+    ) -> str:
+        """
+        Renders a Human Semantic Decision Record Markdown document.
+        Displays human auditor governance decisions, cited verbatim evidence passages,
+        and content-addressed context bindings.
+        Fails closed if decision_record or observation fails SHA-256 integrity verification.
+        """
+        if not observation.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: observation raw_answer_sha256 ('{observation.raw_answer_sha256}') does not match raw_answer_text digest."
+            )
+
+        if not decision_record.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: HumanDecisionRecord canonical_digest ('{decision_record.canonical_digest}') does not match calculated digest."
+            )
+
+        query_text = "Unknown Query"
+        for q in query_map.queries:
+            if q.query_id == observation.query_id:
+                query_text = q.text
+                break
+
+        lines: List[str] = [
+            "> [!IMPORTANT]",
+            "> **HUMAN SEMANTIC DECISION RECORD**",
+            "> Formal human auditor governance adjudication transitioning statement proposals to verified semantic status.",
+            "> Contains content-addressed artifact bindings, auditor identity, and quoted evidence passages.",
+            "",
+            f"# 🏛️ Human Semantic Decision Record",
+            f"**Subject Entity**: `{query_map.entity_name}`  ",
+            f"**Target Query**: *\"{query_text}\"* (`{observation.query_id}`)  ",
+            f"**Model Provider / Identifier**: `{observation.provider_name}` (`{observation.model_identifier}`)  ",
+            f"**Decision Record ID**: `{decision_record.decision_record_id}`  ",
+            f"**Canonical Decision Digest**: `{decision_record.canonical_digest[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 🔒 Content-Addressed Artifact Bindings",
+            f"- **Observation ID**: `{decision_record.observation_id}` (Raw Answer SHA256: `{decision_record.raw_answer_sha256[:16]}...`)",
+            f"- **Source Ledger Run ID**: `{decision_record.source_ledger_run_id}` (Raw Ledger SHA256: `{decision_record.source_ledger_sha256[:16]}...`)",
+            f"- **QueryMap SHA256**: `{decision_record.query_map_sha256[:16]}...`",
+            f"- **Dataset Manifest SHA256**: `{decision_record.manifest_sha256[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 📝 Evaluated Model Response Text",
+            "```text",
+            observation.raw_answer_text,
+            "```",
+            "",
+            "---",
+            "",
+            "## 🎯 Human Auditor Adjudication Decisions",
+            "",
+        ]
+
+        stmt_map = {s.statement_id: s.text for s in observation.extracted_statements}
+
+        for dec in decision_record.decisions:
+            stmt_text = stmt_map.get(dec.statement_id, "Unknown Statement")
+            badge = f"**`[{dec.decision_status.value.upper()}]`**"
+            ev_str = ", ".join([f"`{eid}`" for eid in dec.evaluated_evidence_ids])
+
+            lines.append(f"### Statement `{dec.statement_id}`: \"{stmt_text}\"")
+            lines.append(f"- **Final Adjudicated Decision**: {badge}")
+            lines.append(f"- **Evaluated Evidence IDs**: {ev_str}")
+            lines.append(f"- **Auditor Identity / Role**: `{dec.auditor_identity}`")
+            lines.append(f"- **Adjudication Timestamp**: `{dec.decision_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`")
+            lines.append(f"- **Auditor Technical Rationale**: {dec.auditor_rationale}")
+            lines.append(f"- **Quoted Supporting Passages**:")
+            for passage in dec.quoted_passages:
+                lines.append(f"  > *\"{passage}\"*")
+            lines.append("")
+
         lines.append("---")
         return "\n".join(lines)
 

@@ -1,0 +1,27 @@
+{
+  "decision_record_id": "hdec-rec-obs-emitted-pep20-001",
+  "observation_id": "obs-emitted-pep20-001",
+  "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
+  "query_map_sha256": "ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
+  "manifest_sha256": "71333fd91a308167fac7a2b457f62f07314687d2cf01b8cfedf92d49cc569d0c",
+  "decisions": [
+    {
+      "decision_id": "hdec-stmt-001",
+      "statement_id": "stmt-001",
+      "decision_status": "supported",
+      "evaluated_evidence_ids": [
+        "ev-2968acf27391"
+      ],
+      "quoted_passages": [
+        "Explicit is better than implicit. Simple is better than complex."
+      ],
+      "auditor_rationale": "Human Auditor verification: The Zen of Python (PEP 20) explicitly states that explicit syntax is preferred over implicit magic, semantically supporting statement stmt-001.",
+      "auditor_identity": "Lead Systems Architect & Auditor",
+      "decision_timestamp": "2026-08-21T04:15:46.540397Z",
+      "reconciliation_method": "human_auditor_review"
+    }
+  ],
+  "canonical_digest": "d27bfb0ad5020edf47ec38067ebe5dd2c439f57becca4d2d2fe5e9dc3211d2e4"
+}

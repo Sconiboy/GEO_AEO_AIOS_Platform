@@ -7,7 +7,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from .collector.observation_importer import ObservationImporter
 from .collector.query_map_runner import DatasetManifest, QueryMapRunner
@@ -352,6 +352,140 @@ def run_cli_reconcile(
         return 1
 
 
+def run_cli_human_decision(
+    query_map_path: Path,
+    manifest_path: Path,
+    source_ledger_path: Path,
+    observation_path: Path,
+    statement_id: str,
+    status_str: str,
+    evidence_ids: List[str],
+    quotes: List[str],
+    rationale: str,
+    auditor_identity: str = "Lead Systems Architect & Auditor",
+    output_json_path: Optional[Path] = None,
+    output_path: Optional[Path] = None,
+) -> int:
+    """
+    Executes a formal Human Auditor Adjudication operation.
+    Transitions a statement proposal from NOT_ASSESSABLE to SUPPORTED/CONTRADICTED backed by explicit human decision.
+    Validates all 6 context bindings, computes canonical digest, persists HumanDecisionRecord JSON, and exports Markdown.
+    """
+    from .domain.enums import ReconciliationStatus
+    from .domain.human_decision import HumanDecisionRecord, HumanStatementDecision
+
+    print(f"🏛️ Executing Human Auditor Semantic Adjudication for statement: {statement_id}")
+    print(f"🎯 QueryMap: {query_map_path}")
+    print(f"📜 Manifest: {manifest_path}")
+    print(f"🏛️ Source Ledger: {source_ledger_path}")
+    print(f"🔬 Observation: {observation_path}")
+
+    try:
+        raw_qm_bytes = query_map_path.read_bytes()
+        qm_sha256 = hashlib.sha256(raw_qm_bytes).hexdigest()
+        query_map = QueryMap.model_validate(json.loads(raw_qm_bytes.decode("utf-8")))
+
+        raw_manifest_bytes = manifest_path.read_bytes()
+        manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
+        manifest = DatasetManifest.model_validate(json.loads(raw_manifest_bytes.decode("utf-8")))
+
+        raw_ledger_bytes = source_ledger_path.read_bytes()
+        ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
+        source_ledger = AuditRun.model_validate(json.loads(raw_ledger_bytes.decode("utf-8")))
+
+        raw_obs_bytes = observation_path.read_bytes()
+        observation = AnswerObservation.model_validate(json.loads(raw_obs_bytes.decode("utf-8")))
+
+        # Validate observation import & context bindings
+        validated_obs = ObservationImporter.import_observation(
+            observation=observation,
+            query_map=query_map,
+            manifest=manifest,
+            source_ledger=source_ledger,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+        )
+
+        # Validate statement_id existence in observation
+        stmt_obj = next((s for s in validated_obs.extracted_statements if s.statement_id == statement_id), None)
+        if not stmt_obj:
+            raise ValueError(f"Statement ID '{statement_id}' does not exist in observation '{validated_obs.observation_id}'.")
+
+        # Validate evidence_ids existence in source ledger and status OPENED_VERIFIED
+        for eid in evidence_ids:
+            if eid not in source_ledger.evidence_ledger:
+                raise ValueError(f"Evidence ID '{eid}' does not exist in Source Ledger.")
+            ev = source_ledger.evidence_ledger[eid]
+            if ev.verification_status.value != "opened_verified":
+                raise ValueError(f"Evidence ID '{eid}' has status '{ev.verification_status.value}', not 'opened_verified'.")
+
+        status_enum = ReconciliationStatus(status_str.lower())
+
+        stmt_decision = HumanStatementDecision(
+            decision_id=f"hdec-{statement_id}",
+            statement_id=statement_id,
+            decision_status=status_enum,
+            evaluated_evidence_ids=evidence_ids,
+            quoted_passages=quotes,
+            auditor_rationale=rationale,
+            auditor_identity=auditor_identity,
+        )
+
+        rec_id = f"hdec-rec-{validated_obs.observation_id}"
+
+        canonical_digest = HumanDecisionRecord.compute_canonical_digest(
+            decision_record_id=rec_id,
+            observation_id=validated_obs.observation_id,
+            raw_answer_sha256=validated_obs.raw_answer_sha256,
+            source_ledger_run_id=source_ledger.run_id,
+            source_ledger_sha256=ledger_sha256,
+            query_map_sha256=qm_sha256,
+            manifest_sha256=manifest_sha256,
+            decisions=[stmt_decision],
+        )
+
+        decision_record = HumanDecisionRecord(
+            decision_record_id=rec_id,
+            observation_id=validated_obs.observation_id,
+            raw_answer_sha256=validated_obs.raw_answer_sha256,
+            source_ledger_run_id=source_ledger.run_id,
+            source_ledger_sha256=ledger_sha256,
+            query_map_sha256=qm_sha256,
+            manifest_sha256=manifest_sha256,
+            decisions=[stmt_decision],
+            canonical_digest=canonical_digest,
+        )
+
+        if output_json_path:
+            output_json_path.parent.mkdir(parents=True, exist_ok=True)
+            serialized = json.dumps(decision_record.model_dump(mode="json"), indent=2)
+            output_json_path.write_text(serialized, encoding="utf-8")
+            print(f"💾 Saved versioned HumanDecisionRecord JSON artifact to: {output_json_path}")
+
+        markdown_content = ReportExporter.export_human_decision_record(
+            decision_record=decision_record,
+            observation=validated_obs,
+            query_map=query_map,
+            source_ledger=source_ledger,
+        )
+
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(markdown_content, encoding="utf-8")
+            print(f"📄 Human Semantic Decision Record exported to: {output_path}")
+        else:
+            print("\n" + "=" * 50)
+            print(markdown_content)
+            print("=" * 50)
+
+        return 0
+
+    except Exception as e:
+        print(f"\n❌ HUMAN DECISION ADJUDICATION FAILED: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="GEO/AEO Platform - Evidence-Governed Audit Console CLI"
@@ -484,12 +618,22 @@ def main() -> None:
         required=False,
         help="Optional path to write generated Claim Reconciliation Record Markdown",
     )
-    rec_parser.add_argument(
-        "--reconciliation-json",
-        type=Path,
-        required=False,
-        help="Optional path to write or read versioned ObservationReconciliation JSON artifact",
+    # 'human-decision' subcommand
+    hdec_parser = subparsers.add_parser(
+        "human-decision", help="Execute formal Human Auditor Semantic Adjudication operation"
     )
+    hdec_parser.add_argument("--query-map", type=Path, required=True, help="Path to QueryMap JSON definition")
+    hdec_parser.add_argument("--manifest", type=Path, required=True, help="Path to pre-approved DatasetManifest JSON")
+    hdec_parser.add_argument("--source-ledger", type=Path, required=True, help="Path to frozen Source Ledger JSON artifact")
+    hdec_parser.add_argument("--observation", type=Path, required=True, help="Path to AnswerObservation JSON definition")
+    hdec_parser.add_argument("--statement-id", type=str, required=True, help="Target statement ID to adjudicate")
+    hdec_parser.add_argument("--status", type=str, required=True, help="Adjudicated status (supported, unsupported, contradicted, not_assessable)")
+    hdec_parser.add_argument("--evidence-id", type=str, action="append", required=True, help="Evaluated evidence ID(s)")
+    hdec_parser.add_argument("--quote", type=str, action="append", required=True, help="Quoted supporting/refuting passage(s)")
+    hdec_parser.add_argument("--rationale", type=str, required=True, help="Detailed auditor technical rationale")
+    hdec_parser.add_argument("--auditor-identity", type=str, default="Lead Systems Architect & Auditor", help="Auditor identity or role")
+    hdec_parser.add_argument("--output-json", type=Path, required=False, help="Optional path to write HumanDecisionRecord JSON")
+    hdec_parser.add_argument("--output", type=Path, required=False, help="Optional path to write Markdown report")
 
     args = parser.parse_args()
 
@@ -518,6 +662,23 @@ def main() -> None:
                 args.observation,
                 args.output,
                 args.reconciliation_json,
+            )
+        )
+    elif args.command == "human-decision":
+        sys.exit(
+            run_cli_human_decision(
+                query_map_path=args.query_map,
+                manifest_path=args.manifest,
+                source_ledger_path=args.source_ledger,
+                observation_path=args.observation,
+                statement_id=args.statement_id,
+                status_str=args.status,
+                evidence_ids=args.evidence_id,
+                quotes=args.quote,
+                rationale=args.rationale,
+                auditor_identity=args.auditor_identity,
+                output_json_path=args.output_json,
+                output_path=args.output,
             )
         )
 
