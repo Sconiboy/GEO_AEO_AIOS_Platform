@@ -34,6 +34,24 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - **Goal**: Build the CLI audit console to run local fixture audits against sample buyer queries and export auditable client markdown reports.
 - **Status**: COMPLETED (CLI tool `src/cli.py` built and tested against `data/fixtures/sample_audit.json`, producing validated report `reports/sample_report.md`).
 
+## 🛡️ Sprint 1 Hardening & Remediation Gate (Manus Review Response)
+
+### Task A-4: Reproducibility & GitHub Actions CI (P0)
+- **Goal**: Add `pyproject.toml`, `requirements.txt`, setup instructions in `README.md`, and `.github/workflows/ci.yml`.
+- **Status**: COMPLETED
+
+### Task A-5: Synthetic Fixture Relabeling & Adversarial Testing (P0)
+- **Goal**: Relabel sample fixture with `is_synthetic_fixture=True` and synthetic URLs; create `data/fixtures/adversarial_invalid_audit.json` to prove CLI fails on bad data.
+- **Status**: COMPLETED
+
+### Task A-6: Strict Evidence & Counter-Evidence Validation (P0)
+- **Goal**: Enforce strict rule: ALL supporting and counter-evidence IDs must pass validation. Require valid `VerificationArtifact` with `quote_exact_match=True` for any `OPENED_VERIFIED` record.
+- **Status**: COMPLETED
+
+### Task A-7: Verification Artifact Contract & Score Transparency (P1)
+- **Goal**: Add `VerificationArtifact` schema, URL syntax validator, score input breakdown, and synthetic report warning banners.
+- **Status**: COMPLETED (13 pytest unit tests passing with coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -42,3 +60,7 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-1: Python foundation, exact Pydantic domain models (`EvidenceRecord`, `ClaimRecord`, `AuditRun`, `ConfidenceScore`), runtime validator, and Markdown exporter.
 - [x] Task A-2: Comprehensive unit test suite (`pytest`, `mypy`) proving report export is blocked on missing/unverified evidence.
 - [x] Task A-3: Internal CLI audit console (`src/cli.py`), sample fixture data (`data/fixtures/sample_audit.json`), and verified offline report renderer (`reports/sample_report.md`).
+- [x] Task A-4: GitHub Actions CI workflow, `pyproject.toml`, `requirements.txt`, and clean clone instructions.
+- [x] Task A-5: Synthetic fixture relabeling (`is_synthetic_fixture=True`) and adversarial invalid fixture creation (`data/fixtures/adversarial_invalid_audit.json`).
+- [x] Task A-6: Strict evidence validation (ALL supporting/counter evidence must pass; `VerificationArtifact` required for `OPENED_VERIFIED` status).
+- [x] Task A-7: `VerificationArtifact` schema, URL syntax validation, score transparency breakdown, and report warning banner.

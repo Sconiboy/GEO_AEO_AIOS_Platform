@@ -2,17 +2,43 @@
 Domain Pydantic Models for Evidence Ledger and Audit Runs
 """
 
+import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from .enums import ConfidenceRating, SourceType, VerificationStatus
 
 
+class VerificationArtifact(BaseModel):
+    """
+    Concrete proof artifact generated when an evidence source is verified.
+    No EvidenceRecord can be marked OPENED_VERIFIED without a valid VerificationArtifact.
+    """
+
+    verifier_run_id: str = Field(..., description="Run ID of the verification agent")
+    verification_timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Timestamp when source was opened and verified",
+    )
+    verifier_method: str = Field(
+        ..., description="Method used (e.g. DIRECT_HTTP_SNAPSHOT, PLAYWRIGHT_HEADLESS)"
+    )
+    snapshot_sha256: str = Field(
+        ..., min_length=64, max_length=64, description="SHA-256 hash of captured HTML/markdown content"
+    )
+    quote_exact_match: bool = Field(
+        ..., description="True if opened_excerpt matches snapshot text verbatim"
+    )
+    limitations: Optional[str] = Field(
+        default=None, description="Known limitations (e.g. paywall, geo-location restriction)"
+    )
+
+
 class EvidenceRecord(BaseModel):
     """
-    Represents a verified, opened-source evidence item.
-    No model claim can exist in an audit report without a linked EvidenceRecord.
+    Represents an evidence source item.
+    No claim can exist in an audit report without a linked, verified EvidenceRecord.
     """
 
     evidence_id: str = Field(
@@ -43,6 +69,27 @@ class EvidenceRecord(BaseModel):
     is_syndicated_duplicate: bool = Field(
         default=False, description="True if content is copied/syndicated"
     )
+    verification_artifact: Optional[VerificationArtifact] = Field(
+        default=None,
+        description="Concrete verification metadata required when status is OPENED_VERIFIED",
+    )
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_syntax(cls, v: str) -> str:
+        url_regex = re.compile(
+            r"^https?://"
+            r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|"
+            r"localhost|"
+            r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"
+            r"(?::\d+)?"
+            r"(?:/?|[/?]\S+)$",
+            re.IGNORECASE,
+        )
+        cleaned = v.strip()
+        if not url_regex.match(cleaned):
+            raise ValueError(f"Invalid URL syntax: '{v}'")
+        return cleaned
 
     @field_validator("opened_excerpt")
     @classmethod
@@ -56,7 +103,7 @@ class EvidenceRecord(BaseModel):
 class ConfidenceScore(BaseModel):
     """
     Deterministically derived confidence score based on concrete evidence metrics.
-    Confidence is NOT a free-text model feeling; it is computed from visible inputs.
+    Exposes input factors and formula parameters for transparency.
     """
 
     score: float = Field(
@@ -65,11 +112,19 @@ class ConfidenceScore(BaseModel):
     rating: ConfidenceRating = Field(
         ..., description="Categorical rating based on calculated score"
     )
+    formula_version: str = Field(
+        default="provisional_v1.0",
+        description="Version tag of the confidence scoring formula",
+    )
     verified_sources_count: int = Field(default=0, ge=0)
     independent_sources_count: int = Field(default=0, ge=0)
     distinct_source_types: int = Field(default=0, ge=0)
     has_circular_duplication: bool = Field(default=False)
     has_unresolved_counter_evidence: bool = Field(default=False)
+    input_breakdown: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Detailed text explanation of factors driving this score",
+    )
 
     @classmethod
     def compute(
@@ -93,11 +148,13 @@ class ConfidenceScore(BaseModel):
             return cls(
                 score=0.0,
                 rating=ConfidenceRating.UNGROUNDED,
+                formula_version="provisional_v1.0",
                 verified_sources_count=0,
                 independent_sources_count=0,
                 distinct_source_types=0,
                 has_circular_duplication=False,
                 has_unresolved_counter_evidence=len(counter_evidence_list) > 0,
+                input_breakdown={"reason": "No OPENED_VERIFIED evidence records found."},
             )
 
         independent_count = sum(1 for e in verified if e.is_independent)
@@ -108,17 +165,15 @@ class ConfidenceScore(BaseModel):
         has_counter = len(counter_evidence_list) > 0
 
         # Base scoring calculation
-        calculated_score = 0.3  # Base score for having verified evidence
-        calculated_score += min(0.3, verified_count * 0.1)  # Up to +0.3 for count
-        calculated_score += min(0.2, independent_count * 0.1)  # Up to +0.2 for independence
-        calculated_score += min(0.1, (distinct_types_count - 1) * 0.05)  # Diversity bonus
+        base = 0.3
+        verified_bonus = min(0.3, verified_count * 0.1)
+        indep_bonus = min(0.2, independent_count * 0.1)
+        diversity_bonus = min(0.1, (distinct_types_count - 1) * 0.05)
 
-        if has_circular:
-            calculated_score -= 0.2  # Penalty for circular duplication
+        circ_penalty = 0.2 if has_circular else 0.0
+        counter_penalty = 0.15 if has_counter else 0.0
 
-        if has_counter:
-            calculated_score -= 0.15  # Penalty for unresolved counter-evidence
-
+        calculated_score = base + verified_bonus + indep_bonus + diversity_bonus - circ_penalty - counter_penalty
         final_score = max(0.0, min(1.0, round(calculated_score, 2)))
 
         if final_score >= 0.8:
@@ -130,14 +185,26 @@ class ConfidenceScore(BaseModel):
         else:
             rating = ConfidenceRating.UNGROUNDED
 
+        breakdown = {
+            "base_credit": f"+{base:.2f}",
+            "verified_count_credit": f"+{verified_bonus:.2f} ({verified_count} verified sources)",
+            "independence_credit": f"+{indep_bonus:.2f} ({independent_count} independent sources)",
+            "diversity_credit": f"+{diversity_bonus:.2f} ({distinct_types_count} distinct source types)",
+            "duplication_penalty": f"-{circ_penalty:.2f}" if has_circular else "None",
+            "counter_evidence_penalty": f"-{counter_penalty:.2f}" if has_counter else "None",
+            "formula_status": "Provisional formula (Subject to client evaluation calibration)",
+        }
+
         return cls(
             score=final_score,
             rating=rating,
+            formula_version="provisional_v1.0",
             verified_sources_count=verified_count,
             independent_sources_count=independent_count,
             distinct_source_types=distinct_types_count,
             has_circular_duplication=has_circular,
             has_unresolved_counter_evidence=has_counter,
+            input_breakdown=breakdown,
         )
 
 
@@ -152,7 +219,7 @@ class ClaimRecord(BaseModel):
         ..., min_length=5, description="The audit claim statement"
     )
     evidence_ids: List[str] = Field(
-        ..., description="List of linked EvidenceRecord IDs supporting this claim"
+        ..., min_length=1, description="List of linked EvidenceRecord IDs supporting this claim"
     )
     counter_evidence_ids: List[str] = Field(
         default_factory=list,
@@ -177,6 +244,14 @@ class AuditRun(BaseModel):
     category: str = Field(..., description="Target product/service category")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
+    )
+    is_synthetic_fixture: bool = Field(
+        default=False,
+        description="True if run is synthetic fixture data for testing only",
+    )
+    notice: Optional[str] = Field(
+        default=None,
+        description="Notice header (e.g. SYNTHETIC FIXTURE DATA - NOT A REAL CLIENT AUDIT)",
     )
     evidence_ledger: Dict[str, EvidenceRecord] = Field(
         default_factory=dict,

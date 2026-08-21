@@ -4,7 +4,16 @@ Unit Tests for Domain Contracts and Deterministic Confidence Scoring
 
 import pytest
 from src.domain.enums import ConfidenceRating, SourceType, VerificationStatus
-from src.domain.models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord
+from src.domain.models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
+
+
+def make_artifact(quote_match: bool = True) -> VerificationArtifact:
+    return VerificationArtifact(
+        verifier_run_id="run-test-1",
+        verifier_method="DIRECT_HTTP_SNAPSHOT",
+        snapshot_sha256="1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        quote_exact_match=quote_match,
+    )
 
 
 def test_evidence_record_validation():
@@ -16,10 +25,23 @@ def test_evidence_record_validation():
         source_type=SourceType.INDEPENDENT_EDITORIAL,
         verification_status=VerificationStatus.OPENED_VERIFIED,
         is_independent=True,
+        verification_artifact=make_artifact(),
     )
     assert record.evidence_id == "ev-101"
     assert record.is_independent is True
     assert record.source_type == SourceType.INDEPENDENT_EDITORIAL
+    assert record.verification_artifact is not None
+    assert record.verification_artifact.quote_exact_match is True
+
+
+def test_invalid_url_syntax_raises_error():
+    """Test that invalid URL syntax is rejected."""
+    with pytest.raises(ValueError, match="Invalid URL syntax"):
+        EvidenceRecord(
+            evidence_id="ev-invalid-url",
+            url="not-a-valid-url",
+            opened_excerpt="Valid opened excerpt text here.",
+        )
 
 
 def test_empty_excerpt_raises_error():
@@ -41,6 +63,7 @@ def test_deterministic_confidence_score_calculation():
         source_type=SourceType.INDEPENDENT_EDITORIAL,
         verification_status=VerificationStatus.OPENED_VERIFIED,
         is_independent=True,
+        verification_artifact=make_artifact(),
     )
     ev2 = EvidenceRecord(
         evidence_id="ev-2",
@@ -49,6 +72,7 @@ def test_deterministic_confidence_score_calculation():
         source_type=SourceType.COMMUNITY_FORUM,
         verification_status=VerificationStatus.OPENED_VERIFIED,
         is_independent=True,
+        verification_artifact=make_artifact(),
     )
 
     confidence = ConfidenceScore.compute(evidence_list=[ev1, ev2])
@@ -57,6 +81,7 @@ def test_deterministic_confidence_score_calculation():
     assert confidence.distinct_source_types == 2
     assert confidence.rating in [ConfidenceRating.HIGH, ConfidenceRating.MEDIUM]
     assert 0.5 <= confidence.score <= 1.0
+    assert "formula_status" in confidence.input_breakdown
 
 
 def test_confidence_score_penalty_for_circular_duplication():
@@ -68,8 +93,8 @@ def test_confidence_score_penalty_for_circular_duplication():
         source_type=SourceType.AFFILIATE_CONTENT,
         verification_status=VerificationStatus.OPENED_VERIFIED,
         is_syndicated_duplicate=True,
+        verification_artifact=make_artifact(),
     )
     confidence = ConfidenceScore.compute(evidence_list=[ev1])
     assert confidence.has_circular_duplication is True
-    # Base 0.3 + 0.1 - 0.2 penalty = 0.20
     assert confidence.score < 0.5

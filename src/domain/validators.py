@@ -4,7 +4,7 @@ Evidence Ledger Runtime Validation Logic
 
 from typing import List
 from .enums import VerificationStatus
-from .models import AuditRun, ClaimRecord, ConfidenceScore
+from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord
 
 
 class EvidenceLedgerValidationError(Exception):
@@ -16,15 +16,45 @@ class EvidenceLedgerValidationError(Exception):
         self.ungrounded_claims = ungrounded_claims
 
 
+def validate_evidence_record(evidence_id: str, audit_run: AuditRun, is_counter: bool = False) -> EvidenceRecord:
+    """
+    Validates a single evidence record ID against the audit_run ledger.
+    Raises ValueError if missing, invalid status, or missing verification artifact.
+    """
+    if evidence_id not in audit_run.evidence_ledger:
+        raise ValueError(f"Evidence ID '{evidence_id}' is missing from evidence_ledger.")
+
+    evidence = audit_run.evidence_ledger[evidence_id]
+
+    if evidence.verification_status != VerificationStatus.OPENED_VERIFIED:
+        raise ValueError(
+            f"Evidence '{evidence_id}' ({evidence.url}) has status '{evidence.verification_status.value}', expected '{VerificationStatus.OPENED_VERIFIED.value}'."
+        )
+
+    if not evidence.verification_artifact:
+        raise ValueError(
+            f"Evidence '{evidence_id}' ({evidence.url}) is marked OPENED_VERIFIED but lacks a VerificationArtifact."
+        )
+
+    if not evidence.verification_artifact.quote_exact_match:
+        raise ValueError(
+            f"Evidence '{evidence_id}' ({evidence.url}) VerificationArtifact has quote_exact_match=False."
+        )
+
+    return evidence
+
+
 def validate_audit_run_ledger(audit_run: AuditRun) -> AuditRun:
     """
     Validates that every ClaimRecord in the AuditRun has verified evidence.
     Computes deterministic ConfidenceScore for each valid claim.
 
-    Raises EvidenceLedgerValidationError if any claim:
-    1. Has no evidence IDs linked.
-    2. References evidence IDs missing from the evidence_ledger.
-    3. References evidence IDs that are not OPENED_VERIFIED (e.g. Inaccessible or Quote Mismatch).
+    Strict Validation Rules (P0):
+    1. Every claim MUST have at least 1 supporting evidence ID.
+    2. ALL referenced supporting evidence IDs MUST exist and be OPENED_VERIFIED with a valid VerificationArtifact.
+       (If ANY supporting evidence ID is missing or invalid, the claim FAILS validation).
+    3. ALL referenced counter-evidence IDs MUST exist and be OPENED_VERIFIED.
+       (If ANY counter-evidence ID is missing or invalid, the claim FAILS validation).
     """
     if not audit_run.claims:
         raise EvidenceLedgerValidationError(
@@ -39,52 +69,50 @@ def validate_audit_run_ledger(audit_run: AuditRun) -> AuditRun:
         if not claim.evidence_ids:
             failed_claim_ids.append(claim.claim_id)
             error_messages.append(
-                f"Claim '{claim.claim_id}' ('{claim.statement}') has zero linked evidence IDs."
+                f"Claim '{claim.claim_id}' ('{claim.statement}') has zero linked supporting evidence IDs."
             )
             continue
 
-        valid_evidence_items = []
-        invalid_evidence_notes = []
+        supporting_evidence_items: List[EvidenceRecord] = []
+        claim_failed = False
+        claim_errors: List[str] = []
 
+        # Validate ALL supporting evidence IDs (Strict Rule: All must pass)
         for eid in claim.evidence_ids:
-            if eid not in audit_run.evidence_ledger:
-                invalid_evidence_notes.append(
-                    f"Evidence ID '{eid}' is missing from the evidence_ledger."
-                )
-                continue
+            try:
+                ev = validate_evidence_record(eid, audit_run, is_counter=False)
+                supporting_evidence_items.append(ev)
+            except ValueError as ve:
+                claim_failed = True
+                claim_errors.append(str(ve))
 
-            evidence_item = audit_run.evidence_ledger[eid]
-            if evidence_item.verification_status != VerificationStatus.OPENED_VERIFIED:
-                invalid_evidence_notes.append(
-                    f"Evidence '{eid}' ({evidence_item.url}) has status '{evidence_item.verification_status.value}', expected '{VerificationStatus.OPENED_VERIFIED.value}'."
-                )
-                continue
+        # Validate ALL counter-evidence IDs if provided (Strict Rule: All must pass)
+        counter_evidence_items: List[EvidenceRecord] = []
+        for ceid in claim.counter_evidence_ids:
+            try:
+                cev = validate_evidence_record(ceid, audit_run, is_counter=True)
+                counter_evidence_items.append(cev)
+            except ValueError as ve:
+                claim_failed = True
+                claim_errors.append(f"Counter-evidence error: {ve}")
 
-            valid_evidence_items.append(evidence_item)
-
-        if not valid_evidence_items:
+        if claim_failed:
             failed_claim_ids.append(claim.claim_id)
-            notes_str = " ".join(invalid_evidence_notes)
+            notes_str = " | ".join(claim_errors)
             error_messages.append(
-                f"Claim '{claim.claim_id}' lacks verified evidence. Reasons: {notes_str}"
+                f"Claim '{claim.claim_id}' failed strict evidence validation. Details: {notes_str}"
             )
         else:
-            # Gather counter-evidence if present
-            counter_evidence_items = [
-                audit_run.evidence_ledger[ceid]
-                for ceid in claim.counter_evidence_ids
-                if ceid in audit_run.evidence_ledger
-            ]
             # Compute deterministic confidence score
             claim.confidence = ConfidenceScore.compute(
-                evidence_list=valid_evidence_items,
+                evidence_list=supporting_evidence_items,
                 counter_evidence_list=counter_evidence_items,
             )
 
     if failed_claim_ids:
         summary_msg = (
-            f"AuditRun '{audit_run.run_id}' failed evidence validation. "
-            f"{len(failed_claim_ids)} ungrounded claim(s) detected:\n"
+            f"AuditRun '{audit_run.run_id}' failed strict evidence validation. "
+            f"{len(failed_claim_ids)} claim(s) rejected:\n"
             + "\n".join(f"- {msg}" for msg in error_messages)
         )
         raise EvidenceLedgerValidationError(

@@ -1,41 +1,67 @@
 {
-  "run_id": "run-fixture-001",
+  "run_id": "run-synthetic-fixture-001",
   "client_domain": "searchbloom.com",
   "category": "Enterprise SEO & AEO Services",
   "created_at": "2026-08-21T00:00:00Z",
+  "is_synthetic_fixture": true,
+  "notice": "SYNTHETIC FIXTURE DATA FOR UNIT TESTING ONLY - NOT A REAL CLIENT AUDIT",
   "evidence_ledger": {
     "ev-001": {
       "evidence_id": "ev-001",
-      "url": "https://techcrunch.com/2026/05/10/aeo-agency-landscape",
+      "url": "https://synthetic-search.example.com/tc-article-aeo-landscape",
       "opened_excerpt": "Searchbloom ranks among top 3 agencies adopting Generative Engine Optimization for enterprise clients.",
       "source_type": "independent_editorial",
       "verification_status": "opened_verified",
       "retrieval_timestamp": "2026-08-20T18:00:00Z",
       "snapshot_id": "snap-tc-001",
       "is_independent": true,
-      "is_syndicated_duplicate": false
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-99",
+        "verification_timestamp": "2026-08-20T18:05:00Z",
+        "verifier_method": "DIRECT_HTTP_SNAPSHOT",
+        "snapshot_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "quote_exact_match": true,
+        "limitations": "Synthetic test snapshot"
+      }
     },
     "ev-002": {
       "evidence_id": "ev-002",
-      "url": "https://reddit.com/r/SEO/comments/19ab82/best_aeo_agencies_2026",
+      "url": "https://synthetic-search.example.com/reddit-seo-aeo-thread",
       "opened_excerpt": "We hired Searchbloom for entity schema optimization and saw our Perplexity citations double in 90 days.",
       "source_type": "community_forum",
       "verification_status": "opened_verified",
       "retrieval_timestamp": "2026-08-20T18:30:00Z",
       "snapshot_id": "snap-red-002",
       "is_independent": true,
-      "is_syndicated_duplicate": false
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-99",
+        "verification_timestamp": "2026-08-20T18:35:00Z",
+        "verifier_method": "DIRECT_HTTP_SNAPSHOT",
+        "snapshot_sha256": "f4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149afb",
+        "quote_exact_match": true,
+        "limitations": "Synthetic test snapshot"
+      }
     },
     "ev-003": {
       "evidence_id": "ev-003",
-      "url": "https://g2.com/products/searchbloom/reviews",
+      "url": "https://synthetic-search.example.com/g2-reviews-searchbloom",
       "opened_excerpt": "Searchbloom delivers verified technical SEO and JSON-LD entity graph builds with clear ROI tracking.",
       "source_type": "review_aggregator",
       "verification_status": "opened_verified",
       "retrieval_timestamp": "2026-08-20T19:00:00Z",
       "snapshot_id": "snap-g2-003",
       "is_independent": true,
-      "is_syndicated_duplicate": false
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-99",
+        "verification_timestamp": "2026-08-20T19:05:00Z",
+        "verifier_method": "DIRECT_HTTP_SNAPSHOT",
+        "snapshot_sha256": "afbf4c8996fb92427ae41e4649b934ca495991b7852b855e3b0c44298fc1c149",
+        "quote_exact_match": true,
+        "limitations": "Synthetic test snapshot"
+      }
     }
   },
   "claims": [

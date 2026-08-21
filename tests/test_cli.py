@@ -18,4 +18,5 @@ def test_cli_audit_with_valid_fixture(tmp_path: Path):
     content = output_file.read_text(encoding="utf-8")
     assert "# 📊 GEO/AEO Evidence-Governed Audit Report" in content
     assert "searchbloom.com" in content
-    assert "TechCrunch" in content or "techcrunch.com" in content
+    assert "synthetic-search.example.com" in content
+    assert "SYNTHETIC FIXTURE DATA" in content

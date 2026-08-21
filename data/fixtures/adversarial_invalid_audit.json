@@ -1,0 +1,46 @@
+{
+  "run_id": "run-adversarial-invalid-001",
+  "client_domain": "bad-audit.example.com",
+  "category": "Adversarial Test",
+  "created_at": "2026-08-21T00:00:00Z",
+  "is_synthetic_fixture": true,
+  "notice": "ADVERSARIAL INVALID FIXTURE FOR TESTING FAILURE MODES",
+  "evidence_ledger": {
+    "ev-good": {
+      "evidence_id": "ev-good",
+      "url": "https://synthetic-search.example.com/good-source",
+      "opened_excerpt": "Valid verified excerpt for testing purposes.",
+      "source_type": "independent_editorial",
+      "verification_status": "opened_verified",
+      "retrieval_timestamp": "2026-08-20T18:00:00Z",
+      "snapshot_id": "snap-good",
+      "is_independent": true,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-99",
+        "verification_timestamp": "2026-08-20T18:05:00Z",
+        "verifier_method": "DIRECT_HTTP_SNAPSHOT",
+        "snapshot_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "quote_exact_match": true
+      }
+    },
+    "ev-no-artifact": {
+      "evidence_id": "ev-no-artifact",
+      "url": "https://synthetic-search.example.com/no-artifact-source",
+      "opened_excerpt": "Source marked opened_verified but missing VerificationArtifact.",
+      "source_type": "community_forum",
+      "verification_status": "opened_verified",
+      "retrieval_timestamp": "2026-08-20T18:00:00Z",
+      "snapshot_id": "snap-no-artifact",
+      "is_independent": true
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "claim-mixed-evidence",
+      "statement": "Claim referencing one good evidence ID and one invalid evidence ID.",
+      "evidence_ids": ["ev-good", "ev-no-artifact"],
+      "counter_evidence_ids": []
+    }
+  ]
+}
