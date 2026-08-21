@@ -24,18 +24,20 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - `EvidenceRecord` (URL, opened excerpt, source type, retrieval timestamp, snapshot ID).
   - `ClaimRecord` (Claim ID, required evidence IDs, confidence score, uncertainty flags).
   - `AuditRun` (Client domain, target query set, raw response store, ledger).
-- **Status**: IN PROGRESS
+- **Status**: COMPLETED
 
 ### Task A-2: Evidence Verification Unit Tests
-- **Goal**: Build automated tests proving that any audit report claim **fails to compile/export** if it lacks linked, verified `EvidenceRecord` IDs.
-- **Status**: PENDING Task A-1.
+- **Goal**: Build automated tests proving that any audit report claim **fails runtime export** if it lacks linked, verified `EvidenceRecord` IDs.
+- **Status**: COMPLETED (8 unit tests passing, 0 Mypy issues).
 
 ### Task A-3: Offline Fixture Auditor & Console Shell
 - **Goal**: Build the CLI audit console to run local fixture audits against sample buyer queries and export auditable client markdown reports.
-- **Status**: PENDING Task A-2.
+- **Status**: IN PROGRESS
 
 ---
 
 ## Completed Tasks
 - [x] Initial repository setup and GitHub push (`Sconiboy/GEO_AEO_AIOS_Platform`).
 - [x] Architecture review and alignment with Manus AI (`docs/MANUS_REVIEW.md`).
+- [x] Task A-1: Python foundation, exact Pydantic domain models (`EvidenceRecord`, `ClaimRecord`, `AuditRun`, `ConfidenceScore`), runtime validator, and Markdown exporter.
+- [x] Task A-2: Comprehensive unit test suite (`pytest`, `mypy`) proving report export is blocked on missing/unverified evidence.
