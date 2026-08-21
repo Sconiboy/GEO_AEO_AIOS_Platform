@@ -54,10 +54,11 @@ class CaptureArtifact(BaseModel):
     artifact_type: str = Field(..., description="Artifact category (e.g. raw_transcript_export, console_log_export, session_screenshot)")
     artifact_path_or_uri: str = Field(..., description="Relative or absolute path/URI to preserved raw capture artifact file")
     artifact_sha256: str = Field(..., min_length=64, max_length=64, description="SHA-256 digest of preserved raw capture artifact file")
+    raw_output_sha256: str = Field(..., min_length=64, max_length=64, description="SHA-256 digest of raw output stream extracted from artifact")
     operator_identity: str = Field(..., description="Authenticated operator username or key label")
     captured_at: datetime = Field(..., description="Timestamp when artifact was preserved")
 
-    @field_validator("artifact_sha256")
+    @field_validator("artifact_sha256", "raw_output_sha256")
     @classmethod
     def clean_hash_lowercase(cls, v: str) -> str:
         return v.strip().lower()
@@ -128,22 +129,50 @@ class AnswerObservation(BaseModel):
     def verify_integrity(self) -> bool:
         """
         Re-verifies raw_answer_sha256 against raw_answer_text.
-        If capture_artifact is bound, verifies artifact_sha256 against file on disk if accessible.
-        Returns True if intact, False if mutated or corrupted.
+        If capture_artifact is bound, performs strict fail-closed verification:
+        1. Checks capture_artifact.raw_output_sha256 == self.raw_answer_sha256.
+        2. Fails closed if artifact_path_or_uri is missing or unreadable on disk.
+        3. Verifies file_bytes SHA-256 == capture_artifact.artifact_sha256.
+        4. Parses raw transcript content using TranscriptParser and verifies parsed output SHA-256 == self.raw_answer_sha256.
+        5. Verifies parsed query_id, provider_name, and model_identifier match observation metadata.
+        Returns True if all checks pass, False if any check fails or is missing.
         """
         calculated_hash = hashlib.sha256(self.raw_answer_text.encode("utf-8")).hexdigest()
         if self.raw_answer_sha256.lower() != calculated_hash.lower():
             return False
 
         if self.capture_artifact is not None:
-            # Check local file content if file exists
-            from pathlib import Path
+            # Check 1: Declared raw_output_sha256 must match observation's raw_answer_sha256
+            if self.capture_artifact.raw_output_sha256.lower() != self.raw_answer_sha256.lower():
+                return False
 
+            # Check 2: File must exist on disk (fail closed!)
+            from pathlib import Path
             art_path = Path(self.capture_artifact.artifact_path_or_uri)
-            if art_path.exists() and art_path.is_file():
-                file_bytes = art_path.read_bytes()
-                file_hash = hashlib.sha256(file_bytes).hexdigest()
-                if file_hash.lower() != self.capture_artifact.artifact_sha256.lower():
+            if not (art_path.exists() and art_path.is_file()):
+                return False
+
+            # Check 3: File content SHA-256 must match artifact_sha256
+            file_bytes = art_path.read_bytes()
+            file_hash = hashlib.sha256(file_bytes).hexdigest()
+            if file_hash.lower() != self.capture_artifact.artifact_sha256.lower():
+                return False
+
+            # Check 4 & 5: Parse transcript and verify content + metadata matching
+            try:
+                from ..collector.transcript_parser import TranscriptParser
+                parsed_text = file_bytes.decode("utf-8")
+                parsed = TranscriptParser.parse_transcript(parsed_text)
+
+                if parsed.raw_output_sha256.lower() != self.raw_answer_sha256.lower():
                     return False
+                if parsed.query_id != self.query_id:
+                    return False
+                if parsed.provider_name != self.provider_name:
+                    return False
+                if parsed.model_identifier != self.model_identifier:
+                    return False
+            except Exception:
+                return False
 
         return True

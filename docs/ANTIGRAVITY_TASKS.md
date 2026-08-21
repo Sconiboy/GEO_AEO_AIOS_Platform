@@ -770,3 +770,63 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-34: CollectionAttemptRecord model, failure-path branching on VerificationStatus, Failed Candidate Collection Attempts exporter section, and 70 passing unit tests.
 - [x] Task A-35: CaptureMethod.SYNTHETIC_FIXTURE_IMPORT, Exporter warning banners for synthetic fixtures, authentic Hermes 3 manual capture dataset, and 72 passing unit tests.
 - [x] Task A-36: CaptureArtifact contract, provenance distinction (Artifact-Backed vs Self-Declared vs Synthetic Fixture), preserved raw transcript file, and 74 passing unit tests.
+
+## 🔐 Sprint 7.6.3: Fail-Closed Transcript Parser & Content-Bound Artifact Verification (Manus Review Response)
+
+### Task A-37: TranscriptParser Module, Fail-Closed Integrity Matching, and Adversarial Provenance Verification
+- **Goal**: Implement a fail-closed transcript parsing engine (`TranscriptParser`) and content-bound artifact verification in `AnswerObservation.verify_integrity()`, proving that a preserved transcript file strictly substantiates the observation's exact raw answer text, query ID, provider, model, and operator metadata:
+  - Created `TranscriptParser` module ([`src/collector/transcript_parser.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/collector/transcript_parser.py)) to parse structured header metadata (`Session ID`, `Timestamp`, `Provider`, `Model`, `Operator`, `Query ID`, `Prompt`) and extract raw output stream text bounded by `Raw Model Output Stream:` and `[END OF TRANSCRIPT EXPORT]`.
+  - Added `raw_output_sha256: str` field to `CaptureArtifact` model (`src/domain/observation.py`).
+  - Implemented strict fail-closed verification in `AnswerObservation.verify_integrity()`:
+    - **Missing File Gate**: Fails closed (returns `False`) if `artifact_path_or_uri` does not exist on disk (eliminating fail-open bug).
+    - **File SHA-256 Gate**: Verifies file bytes SHA-256 equals `artifact_sha256`.
+    - **Output SHA-256 Gate**: Verifies `capture_artifact.raw_output_sha256` equals `raw_answer_sha256`.
+    - **Transcript Content Gate**: Parses file and verifies extracted output text SHA-256 equals `raw_answer_sha256` (eliminating unrelated file binding bug).
+    - **Metadata Matching Gate**: Verifies parsed transcript `query_id`, `provider_name`, and `model_identifier` match observation metadata.
+  - Formatted [`data/captures/hermes3_q001_raw.txt`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/data/captures/hermes3_q001_raw.txt) according to parseable transcript schema and bound `raw_output_sha256` in `authentic_hermes3_observation.json`.
+  - Added unit test suite `tests/test_transcript_parser.py` and adversarial fail-closed tests (`test_missing_artifact_path_fails_closed`, `test_unrelated_hashed_artifact_fails_verify_integrity`, `test_transcript_query_id_mismatch_fails_verify_integrity`) in `tests/test_prepilot_execution.py`.
+- **Status**: COMPLETED (81 unit tests passing, 82% total code coverage, 93% coverage on `transcript_parser.py`, 94% coverage on `observation.py`, 100% coverage on `candidate_collection.py`, `gap_analysis.py`, & `enums.py`, 0 Mypy static type errors).
+
+---
+
+## Completed Tasks
+- [x] Initial repository setup and GitHub push (`Sconiboy/GEO_AEO_AIOS_Platform`).
+- [x] Architecture review and alignment with Manus AI (`docs/MANUS_REVIEW.md`).
+- [x] Task A-1: Python foundation, exact Pydantic domain models (`EvidenceRecord`, `ClaimRecord`, `AuditRun`, `ConfidenceScore`), runtime validator, and Markdown exporter.
+- [x] Task A-2: Comprehensive unit test suite (`pytest`, `mypy`) proving report export is blocked on missing/unverified evidence.
+- [x] Task A-3: Internal CLI audit console (`src/cli.py`), sample fixture data (`data/fixtures/sample_audit.json`), and verified offline report renderer (`reports/sample_report.md`).
+- [x] Task A-4: GitHub Actions CI workflow, `pyproject.toml`, `requirements.txt`, and clean clone instructions.
+- [x] Task A-5: Synthetic fixture relabeling (`is_synthetic_fixture=True`) and adversarial invalid fixture creation (`data/fixtures/adversarial_invalid_audit.json`).
+- [x] Task A-6: Strict evidence validation (ALL supporting/counter evidence must pass; `VerificationArtifact` required for `OPENED_VERIFIED` status).
+- [x] Task A-7: `VerificationArtifact` schema, URL syntax validator, score transparency breakdown, and report warning banner.
+- [x] Task A-8: Live Source Verifier (`src/collector/verifier.py`), Snapshot Store (`src/collector/snapshot.py`), `verify-source` CLI subcommand, and unit tests (`tests/test_live_collector.py`).
+- [x] Task A-9: SourcePolicy SSRF protection (`src/collector/policy.py`), HTTPS-only scheme controls, response payload limits, content-type checks, HTML text extraction, git-ignored snapshot storage (`.gitignore`), and hermetic test suite (`tests/test_source_policy.py`).
+- [x] Task A-10: Manual pre-hop redirect validation (`NoRedirectHandler`), BeautifulSoup visible text quote matching (`PARSED_VISIBLE_TEXT_BS4`), typed `FailureCategory` error handling, untracked git index artifact cleanup, and 24 passing hermetic unit tests.
+- [x] Task A-11: QueryMap domain contracts (`src/domain/query_map.py`), Dataset Manifests (`data/fixtures/controlled_dataset_manifest.json`), domain allowlist & human approval enforcement (`src/collector/query_map_runner.py`), `query-map` CLI subcommand, and 27 passing unit tests.
+- [x] Task A-12: `max_sources_per_query` cap, `blocked_domains` precedence, `is_non_client_spike=True` gate, unique blocked entry IDs, dedicated `export_source_ledger` renderer, and 33 passing unit tests.
+- [x] Task A-13: `AnswerObservation` domain model (`src/domain/observation.py`), raw text SHA-256 integrity validation, `ObservationImporter` pipeline (`src/collector/observation_importer.py`), dedicated `export_observation_record` renderer, `observation` CLI subcommand, and 37 passing unit tests.
+- [x] Task A-14: Immutable observation models (`frozen=True`), SHA-256 digest re-verification at import/render boundaries, explicit capture timestamp, nullable locale/region, frozen artifact hash bindings (`source_ledger_sha256`), OPENED_VERIFIED statement linkage enforcement, offline hermetic CLI runner, and 37 passing unit tests.
+- [x] Task A-15: Mandatory proposal-only import enforcement (`ObservationImporter`), forced `proposed_unverified` status override for all imported statements, adversarial forged status downgrade unit test, and 39 passing unit tests.
+- [x] Task A-16: Executed authorized first manual observation (`data/fixtures/authorized_first_observation.json`), hash-verified raw Hermes 3 answer capture, proposal-only statement statuses, and rendered internal observation record ([`reports/authorized_first_observation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/authorized_first_observation_record.md)).
+- [x] Task A-17: Built Claim Reconciliation Engine (`ClaimReconciler`), immutable decision contracts (`StatementReconciliation`, `ObservationReconciliation`), `export_reconciliation_record` renderer, `reconcile` CLI subcommand, exported `reports/authorized_first_reconciliation_record.md` evaluating both statements to `NOT_ASSESSABLE`, and 43 passing unit tests.
+- [x] Task A-18: Raw source-ledger SHA-256 hash preservation, canonical reconciliation digest calculation, fail-closed exporter verification, CLI raw bytes pass-through, consolidated enum definitions, and 45 passing unit tests.
+- [x] Task A-19: Implemented versioned ObservationReconciliation JSON artifact persistence (`--reconciliation-json`), pre-existing JSON artifact loading pipeline, original timestamp preservation, and 46 passing unit tests.
+- [x] Task A-20: Built official PEP 20 evidence ledger (`data/fixtures/pep20_source_ledger.json`), semantic relevance evaluator (`evaluate_semantic_support`), second real reconciliation (`data/fixtures/pep20_observation.json`), and exported [`reports/pep20_reconciliation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/pep20_reconciliation_record.md) evaluating both statements to `[SUPPORTED]`.
+- [x] Task A-21: Replay attack gate validating `observation_id`, `raw_answer_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, and statement IDs on pre-stored JSON loading, adversarial replay unit test, and 47 passing unit tests.
+- [x] Task A-22: Authentic live verifier snapshot hash (`1e2b8d7404d38ac6...`) from `https://peps.python.org/pep-0020/`, `is_synthetic_fixture: true` wrapper label, `is_independent: false` authoritative documentation label, and 47 passing unit tests.
+- [x] Task A-23: End-to-end live source-ledger emission pipeline (`QueryMapRunner` $\rightarrow$ `SourceVerifier` $\rightarrow$ `emitted_pep20_source_ledger.json` $\rightarrow$ `emitted_pep20_observation.json` $\rightarrow$ `emitted_pep20_reconciliation.json`), proving 100% automated live evidence verification to `SUPPORTED` claims.
+- [x] Task A-24: Persisted live dataset manifest `data/fixtures/live_pep20_manifest.json`, manifest hash binding, domain allowlist subdomain addition `peps.python.org`, complete removal of keyword auto-support logic, default `NOT_ASSESSABLE` status for all evidence matches, and 49 passing unit tests.
+- [x] Task A-25: Immutable `HumanDecisionRecord` contracts (`src/domain/human_decision.py`), `human-decision` CLI subcommand (`src/cli.py`), canonical decision digest calculation over all 6 context bindings, dedicated `export_human_decision_record()` Markdown renderer, and 52 passing unit tests.
+- [x] Task A-26: Verbatim quote verification against `opened_excerpt`, explicit `QuotedEvidencePassage` quote-evidence pairing, inclusion of `decision_timestamp` and `reconciliation_method` in canonical digest, adversarial fabricated quote unit test, and 52 passing unit tests.
+- [x] Task A-27: SubjectProfile contracts (`SubjectProfile`, `ClientProfile`, `CompetitorProfile`), `SourceRelationship` classification, `AnswerCitation` extraction, elimination of false gaps on supported human decisions, immutable `FindingBasis` tracing, total canonical digest protection over all rendered fields, and 58 passing unit tests.
+- [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.
+- [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
+- [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
+- [x] Task A-31: Exact URL + query ID manifest authorization gate, matched manifest query ID provenance tracing, domain scope bypass elimination, and 64 passing unit tests.
+- [x] Task A-32: CandidateCollector execution engine, execution-time authorization gate, collect-candidate CLI subcommand, and 67 passing unit tests.
+- [x] Task A-33: CollectionExecutionRecord provenance model, 7-binding context re-validation prior to fetch, Executed Candidate Collections exporter section, non-mocked loopback HTTP integration test, and 69 passing unit tests.
+- [x] Task A-34: CollectionAttemptRecord model, failure-path branching on VerificationStatus, Failed Candidate Collection Attempts exporter section, and 70 passing unit tests.
+- [x] Task A-35: CaptureMethod.SYNTHETIC_FIXTURE_IMPORT, Exporter warning banners for synthetic fixtures, authentic Hermes 3 manual capture dataset, and 72 passing unit tests.
+- [x] Task A-36: CaptureArtifact contract, provenance distinction (Artifact-Backed vs Self-Declared vs Synthetic Fixture), preserved raw transcript file, and 74 passing unit tests.
+- [x] Task A-37: TranscriptParser module, fail-closed content matching (raw_output_sha256 == raw_answer_sha256), missing file fail-closed gate, metadata verification, and 81 passing unit tests.
+

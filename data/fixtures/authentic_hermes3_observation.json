@@ -15,6 +15,7 @@
     "artifact_type": "raw_transcript_export",
     "artifact_path_or_uri": "data/captures/hermes3_q001_raw.txt",
     "artifact_sha256": "7b1c1cabb0f8fda0a6764015b932f7a61f9fa8c812d07500b23e24af008cf976",
+    "raw_output_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
     "operator_identity": "operator-benjamin",
     "captured_at": "2026-08-21T02:55:00Z"
   },

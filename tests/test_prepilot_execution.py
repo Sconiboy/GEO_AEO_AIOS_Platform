@@ -150,3 +150,83 @@ def test_corrupted_artifact_sha256_fails_verify_integrity(tmp_path: Path) -> Non
     assert corrupted_obs.verify_integrity() is False
 
 
+def test_missing_artifact_path_fails_closed() -> None:
+    """Proves verify_integrity fails closed (returns False) when capture_artifact path does not exist."""
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+    obs_dict["capture_artifact"]["artifact_path_or_uri"] = "non_existent_file_path_12345.txt"
+
+    missing_obs = AnswerObservation.model_validate(obs_dict)
+    assert missing_obs.verify_integrity() is False
+
+
+def test_unrelated_hashed_artifact_fails_verify_integrity(tmp_path: Path) -> None:
+    """
+    Proves verify_integrity fails closed when artifact file exists and has valid artifact_sha256,
+    but contains unrelated transcript text not matching the observation's raw answer.
+    """
+    unrelated_text = (
+        "[OPERATOR CONSOLE RAW TRANSCRIPT EXPORT]\n"
+        "Session ID: sess-unrelated-001\n"
+        "Timestamp: 2026-08-21T02:55:00Z\n"
+        "Provider: Ollama / Local Operator Console\n"
+        "Model: hermes-3-llama-3.1-8b\n"
+        "Operator: operator-benjamin\n"
+        "Query ID: q-001\n"
+        "Prompt: \"What are the core design principles of Python?\"\n\n"
+        "Raw Model Output Stream:\n"
+        "Unrelated model answer about Rust memory safety and ownership model.\n"
+        "[END OF TRANSCRIPT EXPORT]\n"
+    )
+    unrelated_bytes = unrelated_text.encode("utf-8")
+    unrelated_file = tmp_path / "unrelated_raw.txt"
+    unrelated_file.write_text(unrelated_text)
+
+    unrelated_sha256 = hashlib.sha256(unrelated_bytes).hexdigest()
+    unrelated_output_sha256 = hashlib.sha256("Unrelated model answer about Rust memory safety and ownership model.".encode("utf-8")).hexdigest()
+
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+
+    # Update artifact file path, file hash, and output hash to match unrelated file
+    obs_dict["capture_artifact"]["artifact_path_or_uri"] = str(unrelated_file)
+    obs_dict["capture_artifact"]["artifact_sha256"] = unrelated_sha256
+    obs_dict["capture_artifact"]["raw_output_sha256"] = unrelated_output_sha256
+
+    unrelated_obs = AnswerObservation.model_validate(obs_dict)
+    # verify_integrity MUST fail closed because transcript output text does NOT match raw_answer_text!
+    assert unrelated_obs.verify_integrity() is False
+
+
+def test_transcript_query_id_mismatch_fails_verify_integrity(tmp_path: Path) -> None:
+    """Proves verify_integrity fails closed when transcript header query_id does not match observation query_id."""
+    mismatched_text = (
+        "[OPERATOR CONSOLE RAW TRANSCRIPT EXPORT]\n"
+        "Session ID: sess-hermes3-20260821-001\n"
+        "Timestamp: 2026-08-21T02:55:00Z\n"
+        "Provider: Ollama / Local Operator Console\n"
+        "Model: hermes-3-llama-3.1-8b\n"
+        "Operator: operator-benjamin\n"
+        "Query ID: q-unrelated-999\n"
+        "Prompt: \"What are the core design principles of Python?\"\n\n"
+        "Raw Model Output Stream:\n"
+        "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20).\n"
+        "[END OF TRANSCRIPT EXPORT]\n"
+    )
+    mismatched_bytes = mismatched_text.encode("utf-8")
+    mismatched_file = tmp_path / "mismatched_query_raw.txt"
+    mismatched_file.write_text(mismatched_text)
+
+    mismatched_sha256 = hashlib.sha256(mismatched_bytes).hexdigest()
+
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+
+    obs_dict["capture_artifact"]["artifact_path_or_uri"] = str(mismatched_file)
+    obs_dict["capture_artifact"]["artifact_sha256"] = mismatched_sha256
+
+    mismatched_obs = AnswerObservation.model_validate(obs_dict)
+    assert mismatched_obs.verify_integrity() is False
+
+
+
