@@ -32,7 +32,7 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 
 ### Task A-3: Offline Fixture Auditor & Console Shell
 - **Goal**: Build the CLI audit console to run local fixture audits against sample buyer queries and export auditable client markdown reports.
-- **Status**: IN PROGRESS
+- **Status**: COMPLETED (CLI tool `src/cli.py` built and tested against `data/fixtures/sample_audit.json`, producing validated report `reports/sample_report.md`).
 
 ---
 
@@ -41,3 +41,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Architecture review and alignment with Manus AI (`docs/MANUS_REVIEW.md`).
 - [x] Task A-1: Python foundation, exact Pydantic domain models (`EvidenceRecord`, `ClaimRecord`, `AuditRun`, `ConfidenceScore`), runtime validator, and Markdown exporter.
 - [x] Task A-2: Comprehensive unit test suite (`pytest`, `mypy`) proving report export is blocked on missing/unverified evidence.
+- [x] Task A-3: Internal CLI audit console (`src/cli.py`), sample fixture data (`data/fixtures/sample_audit.json`), and verified offline report renderer (`reports/sample_report.md`).

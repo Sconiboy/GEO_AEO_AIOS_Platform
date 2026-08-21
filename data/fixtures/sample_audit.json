@@ -1,0 +1,50 @@
+{
+  "run_id": "run-fixture-001",
+  "client_domain": "searchbloom.com",
+  "category": "Enterprise SEO & AEO Services",
+  "created_at": "2026-08-21T00:00:00Z",
+  "evidence_ledger": {
+    "ev-001": {
+      "evidence_id": "ev-001",
+      "url": "https://techcrunch.com/2026/05/10/aeo-agency-landscape",
+      "opened_excerpt": "Searchbloom ranks among top 3 agencies adopting Generative Engine Optimization for enterprise clients.",
+      "source_type": "independent_editorial",
+      "verification_status": "opened_verified",
+      "retrieval_timestamp": "2026-08-20T18:00:00Z",
+      "snapshot_id": "snap-tc-001",
+      "is_independent": true,
+      "is_syndicated_duplicate": false
+    },
+    "ev-002": {
+      "evidence_id": "ev-002",
+      "url": "https://reddit.com/r/SEO/comments/19ab82/best_aeo_agencies_2026",
+      "opened_excerpt": "We hired Searchbloom for entity schema optimization and saw our Perplexity citations double in 90 days.",
+      "source_type": "community_forum",
+      "verification_status": "opened_verified",
+      "retrieval_timestamp": "2026-08-20T18:30:00Z",
+      "snapshot_id": "snap-red-002",
+      "is_independent": true,
+      "is_syndicated_duplicate": false
+    },
+    "ev-003": {
+      "evidence_id": "ev-003",
+      "url": "https://g2.com/products/searchbloom/reviews",
+      "opened_excerpt": "Searchbloom delivers verified technical SEO and JSON-LD entity graph builds with clear ROI tracking.",
+      "source_type": "review_aggregator",
+      "verification_status": "opened_verified",
+      "retrieval_timestamp": "2026-08-20T19:00:00Z",
+      "snapshot_id": "snap-g2-003",
+      "is_independent": true,
+      "is_syndicated_duplicate": false
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "claim-001",
+      "statement": "Searchbloom has strong third-party independent consensus as a leader in Generative Engine Optimization.",
+      "evidence_ids": ["ev-001", "ev-002", "ev-003"],
+      "counter_evidence_ids": [],
+      "uncertainty_notes": "Off-page consensus is strong in North America; European coverage remains unexamined."
+    }
+  ]
+}
