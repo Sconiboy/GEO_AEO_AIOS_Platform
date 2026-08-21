@@ -3,7 +3,7 @@
   "query_id": "q-001",
   "query_map_id": "qm-python-pub-001",
   "source_ledger_run_id": "run-qm-qm-python-pub-001",
-  "query_map_sha256": "0a4df77c0f695ba2aa32e3249f263fd18c8721464249b2d5042758e677950a8a",
+  "query_map_sha256": "ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
   "manifest_sha256": "ac7f4dc06c1c9658e45a2b824f8015a659a928683ddcdf873afb65ca86d6c592",
   "source_ledger_sha256": "76a7ec3969b423ba3bf3917c2bec1d1a842e6dff84d8e8621108cc9056e23c86",
   "provider_name": "Ollama / Local Operator Console",

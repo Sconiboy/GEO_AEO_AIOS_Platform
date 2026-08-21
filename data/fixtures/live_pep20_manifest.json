@@ -1,0 +1,14 @@
+{
+  "manifest_id": "manifest-pep20-live-001",
+  "description": "Controlled Dataset Manifest containing official Python Enhancement Proposal 20 (PEP 20 - The Zen of Python) source candidate",
+  "is_non_client_spike": true,
+  "candidates": [
+    {
+      "query_id": "q-001",
+      "url": "https://peps.python.org/pep-0020/",
+      "candidate_excerpt": "Explicit is better than implicit. Simple is better than complex.",
+      "source_type": "official_documentation",
+      "is_independent": false
+    }
+  ]
+}

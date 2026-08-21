@@ -3,12 +3,15 @@ Unit Tests for Claim Reconciliation Engine and CLI Subcommand (Sprint 5.1 Remedi
 """
 
 import hashlib
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from src.cli import run_cli_reconcile
+from src.cli import load_audit_run_from_json, run_cli_reconcile
+from src.collector.observation_importer import ObservationImporter
+from src.collector.query_map_runner import DatasetManifest
 from src.collector.reconciler import ClaimReconciler
 from src.domain.enums import (
     QueryIntent,
@@ -18,7 +21,12 @@ from src.domain.enums import (
     VerificationStatus,
 )
 from src.domain.models import AuditRun, EvidenceRecord, VerificationArtifact
-from src.domain.observation import AnswerObservation, CaptureMethod, ExtractedStatement
+from src.domain.observation import (
+    AnswerObservation,
+    CaptureMethod,
+    ExtractedStatement,
+    ExtractionStatus,
+)
 from src.domain.query_map import CollectionPolicyProfile, QueryMap, SourceScope, TargetQuery
 from src.domain.reconciliation import ObservationReconciliation, StatementReconciliation
 from src.exporter.report import ReportExporter
@@ -282,7 +290,7 @@ def test_reconciliation_default_not_assessable_for_irrelevant_evidence():
     assert len(result.reconciliations) == 1
     rec = result.reconciliations[0]
     assert rec.status == ReconciliationStatus.NOT_ASSESSABLE
-    assert "semantically irrelevant" in rec.semantic_rationale
+    assert "requires explicit human auditor review" in rec.semantic_rationale
     assert result.verify_integrity() is True
 
 
@@ -390,5 +398,82 @@ def test_cli_reconcile_refuses_replayed_mismatched_reconciliation_json(tmp_path:
         reconciliation_json_path=reconciliation_json,
     )
     assert exit_code_replay == 1
+
+
+def test_reconciler_refuses_unsafe_keyword_auto_supported():
+    """P0 ADVERSARIAL TEST: Verify that keyword overlaps (e.g. 'Python design' vs 'Beautiful is better than ugly') NEVER auto-evaluates as SUPPORTED."""
+    import json
+    raw_text = "Python design guarantees that every program is easy to learn."
+    raw_sha256 = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+    ledger = load_audit_run_from_json(Path("data/fixtures/emitted_pep20_source_ledger.json"))
+    raw_ledger_bytes = Path("data/fixtures/emitted_pep20_source_ledger.json").read_bytes()
+    ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
+    ev_id = list(ledger.evidence_ledger.keys())[0]
+
+    obs = AnswerObservation(
+        observation_id="obs-adv-001",
+        query_id="q-001",
+        query_map_id="qm-python-pub-001",
+        source_ledger_run_id=ledger.run_id,
+        query_map_sha256="ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
+        manifest_sha256="71333fd91a308167fac7a2b457f62f07314687d2cf01b8cfedf92d49cc569d0c",
+        source_ledger_sha256=ledger_sha256,
+        provider_name="Ollama / Local Operator Console",
+        model_identifier="hermes-3-llama-3.1-8b",
+        capture_timestamp="2026-08-21T04:00:00Z",
+        capture_method=CaptureMethod.HUMAN_OPERATOR_CONSOLE,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=raw_sha256,
+        extracted_statements=[
+            ExtractedStatement(
+                statement_id="stmt-adv-001",
+                text="Python design guarantees that every program is easy to learn.",
+                extraction_status=ExtractionStatus.PROPOSED_UNVERIFIED,
+                linked_evidence_id=ev_id,
+            )
+        ],
+    )
+
+    reconciliation = ClaimReconciler.reconcile_observation(
+        observation=obs, source_ledger=ledger, raw_ledger_bytes=raw_ledger_bytes
+    )
+
+    # Must default to NOT_ASSESSABLE, NEVER SUPPORTED!
+    assert reconciliation.reconciliations[0].status == ReconciliationStatus.NOT_ASSESSABLE
+    assert "requires explicit human auditor review" in reconciliation.reconciliations[0].semantic_rationale
+
+
+def test_observation_importer_validates_exact_manifest_sha256():
+    """P0 TEST: Verify ObservationImporter rejects observation with mismatched manifest_sha256 digest."""
+    qm_file = Path("data/fixtures/sample_query_map.json")
+    man_file = Path("data/fixtures/controlled_dataset_manifest.json")
+    ledger_file = Path("data/fixtures/emitted_pep20_source_ledger.json")
+
+    qm_bytes = qm_file.read_bytes()
+    man_bytes = man_file.read_bytes()
+    ledger_bytes = ledger_file.read_bytes()
+
+    qm = QueryMap.model_validate_json(qm_bytes)
+    man = DatasetManifest.model_validate_json(man_bytes)
+    ledger = AuditRun.model_validate_json(ledger_bytes)
+
+    # Supply invalid manifest_sha256 in observation
+    obs_file = Path("data/fixtures/emitted_pep20_observation.json")
+    obs_dict = json.loads(obs_file.read_text(encoding="utf-8"))
+    obs_dict["manifest_sha256"] = "0000000000000000000000000000000000000000000000000000000000000000"
+    invalid_obs = AnswerObservation.model_validate(obs_dict)
+
+    with pytest.raises(ValueError, match="manifest_sha256"):
+        ObservationImporter.import_observation(
+            observation=invalid_obs,
+            query_map=qm,
+            manifest=man,
+            source_ledger=ledger,
+            raw_qm_bytes=qm_bytes,
+            raw_manifest_bytes=man_bytes,
+            raw_ledger_bytes=ledger_bytes,
+        )
+
 
 

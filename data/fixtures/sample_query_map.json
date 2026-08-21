@@ -13,7 +13,7 @@
     "timeout_seconds": 10.0,
     "source_scope": {
       "scope_id": "scope-pub-001",
-      "allowed_domains": ["python.org", "w3.org", "httpbin.org"],
+      "allowed_domains": ["python.org", "peps.python.org", "w3.org", "httpbin.org"],
       "blocked_domains": [],
       "max_sources_per_query": 5
     }

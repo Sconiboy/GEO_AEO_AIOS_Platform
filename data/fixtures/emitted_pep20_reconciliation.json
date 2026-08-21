@@ -3,32 +3,32 @@
   "observation_id": "obs-emitted-pep20-001",
   "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
   "source_ledger_run_id": "run-qm-qm-python-pub-001",
-  "source_ledger_sha256": "a85a9198395b17962bfe6d5efcbb04774e61a75e67c14b386c54dcdcf6af08cc",
+  "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
   "reconciliations": [
     {
       "reconciliation_id": "rec-obs-emitted-pep20-001-001",
       "statement_id": "stmt-001",
-      "status": "supported",
+      "status": "not_assessable",
       "evaluated_evidence_ids": [
-        "ev-b6868a371278"
+        "ev-2968acf27391"
       ],
-      "semantic_rationale": "Statement 'stmt-001' is semantically SUPPORTED by verified opened evidence 'ev-b6868a371278' ('https://peps.python.org/pep-0020/') with excerpt quote: \"Explicit is better than implicit. Simple is better than complex.\".",
+      "semantic_rationale": "Statement 'stmt-001' references verified opened evidence record 'ev-2968acf27391' ('https://peps.python.org/pep-0020/'), but requires explicit human auditor review to confirm semantic support.",
       "reviewer_role": "Lead Systems Architect & Auditor",
-      "reconciliation_timestamp": "2026-08-21T03:59:45.428497Z",
-      "reconciliation_method": "heuristic_exact_fact_match"
+      "reconciliation_timestamp": "2026-08-21T04:07:13.723394Z",
+      "reconciliation_method": "human_auditor_review"
     },
     {
       "reconciliation_id": "rec-obs-emitted-pep20-001-002",
       "statement_id": "stmt-002",
-      "status": "supported",
+      "status": "not_assessable",
       "evaluated_evidence_ids": [
-        "ev-b6868a371278"
+        "ev-2968acf27391"
       ],
-      "semantic_rationale": "Statement 'stmt-002' is semantically SUPPORTED by verified opened evidence 'ev-b6868a371278' ('https://peps.python.org/pep-0020/') with excerpt quote: \"Explicit is better than implicit. Simple is better than complex.\".",
+      "semantic_rationale": "Statement 'stmt-002' references verified opened evidence record 'ev-2968acf27391' ('https://peps.python.org/pep-0020/'), but requires explicit human auditor review to confirm semantic support.",
       "reviewer_role": "Lead Systems Architect & Auditor",
-      "reconciliation_timestamp": "2026-08-21T03:59:45.428497Z",
-      "reconciliation_method": "heuristic_exact_fact_match"
+      "reconciliation_timestamp": "2026-08-21T04:07:13.723394Z",
+      "reconciliation_method": "human_auditor_review"
     }
   ],
-  "reconciliation_sha256": "eba28ce8c0b82f3cb4d8076c56beb5c3677ea83806cf929b7c3bf87abd61a946"
+  "reconciliation_sha256": "6b9efd2aabd2ac1b8f0a6ebb72d5384af5e8da6cbf5352729b11d6e9580f264d"
 }
