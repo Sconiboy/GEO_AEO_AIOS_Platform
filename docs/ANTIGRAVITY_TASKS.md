@@ -504,3 +504,18 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-24: Persisted live dataset manifest `data/fixtures/live_pep20_manifest.json`, manifest hash binding, domain allowlist subdomain addition `peps.python.org`, complete removal of keyword auto-support logic, default `NOT_ASSESSABLE` status for all evidence matches, and 49 passing unit tests.
 - [x] Task A-25: Immutable `HumanDecisionRecord` contracts (`src/domain/human_decision.py`), `human-decision` CLI subcommand (`src/cli.py`), canonical decision digest calculation over all 6 context bindings, dedicated `export_human_decision_record()` Markdown renderer, and 52 passing unit tests.
 - [x] Task A-26: Verbatim quote verification against `opened_excerpt`, explicit `QuotedEvidencePassage` quote-evidence pairing, inclusion of `decision_timestamp` and `reconciliation_method` in canonical digest, adversarial fabricated quote unit test, and 52 passing unit tests.
+
+---
+
+## 🎯 Sprint 7: Forensic Competitor Evidence-Gap Workflow & Action-Plan Engine (Manus Directed Milestone)
+
+### Overview
+As authorized by Manus in `docs/MANUS_SPRINT641_REVIEW.md`, the core evidence-governance layer is now frozen and approved. Sprint 7 focuses on building the **Forensic Competitor Evidence-Gap Workflow**:
+`Observed Buyer Question → Competitor/Source Citation Pattern → Client Evidence Gap → Confidence-Bounded Priority Action`
+
+### Task A-27: Evidence Gap Analysis & Forensic Competitor Pattern Models
+- **Goal**: Implement domain models and analysis contracts (`src/domain/gap_analysis.py`):
+  - `CompetitorCitationPattern`: Tracks competitor domains cited in model responses for target queries.
+  - `ClientEvidenceGap`: Identifies missing client evidence records and ungrounded model statements.
+  - `EthicalActionPriority`: Calculates confidence-bounded, non-manipulative client evidence generation recommendations.
+- **Status**: BACKLOG
