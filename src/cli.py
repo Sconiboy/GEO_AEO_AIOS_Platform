@@ -508,6 +508,99 @@ def run_cli_human_decision(
         return 1
 
 
+def run_cli_analyze_gaps(
+    query_map_path: Path,
+    manifest_path: Path,
+    source_ledger_path: Path,
+    observation_path: Path,
+    human_decision_path: Optional[Path] = None,
+    output_json_path: Optional[Path] = None,
+    output_path: Optional[Path] = None,
+) -> int:
+    """
+    Executes Forensic Competitor Evidence-Gap Analysis.
+    Detects competitor citation patterns, client evidence gaps, and confidence-bounded ethical action plans.
+    Persists versioned ForensicGapAnalysisRecord JSON and exports Markdown report.
+    """
+    from .collector.gap_analyzer import ForensicGapAnalyzer
+    from .domain.human_decision import HumanDecisionRecord
+
+    print(f"🎯 Executing Forensic Evidence-Gap Analysis for observation: {observation_path}")
+    print(f"🎯 QueryMap: {query_map_path}")
+    print(f"📜 Manifest: {manifest_path}")
+    print(f"🏛️ Source Ledger: {source_ledger_path}")
+
+    try:
+        raw_qm_bytes = query_map_path.read_bytes()
+        query_map = QueryMap.model_validate(json.loads(raw_qm_bytes.decode("utf-8")))
+
+        raw_manifest_bytes = manifest_path.read_bytes()
+        manifest = DatasetManifest.model_validate(json.loads(raw_manifest_bytes.decode("utf-8")))
+
+        raw_ledger_bytes = source_ledger_path.read_bytes()
+        source_ledger = AuditRun.model_validate(json.loads(raw_ledger_bytes.decode("utf-8")))
+
+        raw_obs_bytes = observation_path.read_bytes()
+        observation = AnswerObservation.model_validate(json.loads(raw_obs_bytes.decode("utf-8")))
+
+        # Validate observation import pipeline
+        validated_obs = ObservationImporter.import_observation(
+            observation=observation,
+            query_map=query_map,
+            manifest=manifest,
+            source_ledger=source_ledger,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+        )
+
+        human_decision: Optional[HumanDecisionRecord] = None
+        if human_decision_path and human_decision_path.exists():
+            hdec_bytes = human_decision_path.read_bytes()
+            human_decision = HumanDecisionRecord.model_validate(json.loads(hdec_bytes.decode("utf-8")))
+            if not human_decision.verify_integrity():
+                raise ValueError(f"HumanDecisionRecord '{human_decision_path}' failed integrity verification.")
+
+        gap_record = ForensicGapAnalyzer.analyze_gaps(
+            observation=validated_obs,
+            source_ledger=source_ledger,
+            query_map=query_map,
+            manifest=manifest,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            human_decision=human_decision,
+        )
+
+        if output_json_path:
+            output_json_path.parent.mkdir(parents=True, exist_ok=True)
+            serialized = json.dumps(gap_record.model_dump(mode="json"), indent=2)
+            output_json_path.write_text(serialized, encoding="utf-8")
+            print(f"💾 Saved versioned ForensicGapAnalysisRecord JSON artifact to: {output_json_path}")
+
+        markdown_content = ReportExporter.export_gap_analysis_record(
+            gap_record=gap_record,
+            observation=validated_obs,
+            query_map=query_map,
+            source_ledger=source_ledger,
+        )
+
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(markdown_content, encoding="utf-8")
+            print(f"📄 Forensic Gap Analysis Record exported to: {output_path}")
+        else:
+            print("\n" + "=" * 50)
+            print(markdown_content)
+            print("=" * 50)
+
+        return 0
+
+    except Exception as e:
+        print(f"\n❌ FORENSIC GAP ANALYSIS FAILED: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="GEO/AEO Platform - Evidence-Governed Audit Console CLI"
@@ -640,6 +733,7 @@ def main() -> None:
         required=False,
         help="Optional path to write generated Claim Reconciliation Record Markdown",
     )
+
     # 'human-decision' subcommand
     hdec_parser = subparsers.add_parser(
         "human-decision", help="Execute formal Human Auditor Semantic Adjudication operation"
@@ -656,6 +750,18 @@ def main() -> None:
     hdec_parser.add_argument("--auditor-identity", type=str, default="Lead Systems Architect & Auditor", help="Auditor identity or role")
     hdec_parser.add_argument("--output-json", type=Path, required=False, help="Optional path to write HumanDecisionRecord JSON")
     hdec_parser.add_argument("--output", type=Path, required=False, help="Optional path to write Markdown report")
+
+    # 'analyze-gaps' subcommand
+    gap_parser = subparsers.add_parser(
+        "analyze-gaps", help="Execute Forensic Competitor Evidence-Gap Analysis"
+    )
+    gap_parser.add_argument("--query-map", type=Path, required=True, help="Path to QueryMap JSON definition")
+    gap_parser.add_argument("--manifest", type=Path, required=True, help="Path to pre-approved DatasetManifest JSON")
+    gap_parser.add_argument("--source-ledger", type=Path, required=True, help="Path to frozen Source Ledger JSON artifact")
+    gap_parser.add_argument("--observation", type=Path, required=True, help="Path to AnswerObservation JSON definition")
+    gap_parser.add_argument("--human-decision", type=Path, required=False, help="Optional path to HumanDecisionRecord JSON artifact")
+    gap_parser.add_argument("--output-json", type=Path, required=False, help="Optional path to write ForensicGapAnalysisRecord JSON")
+    gap_parser.add_argument("--output", type=Path, required=False, help="Optional path to write Markdown report")
 
     args = parser.parse_args()
 
@@ -699,6 +805,18 @@ def main() -> None:
                 quotes=args.quote,
                 rationale=args.rationale,
                 auditor_identity=args.auditor_identity,
+                output_json_path=args.output_json,
+                output_path=args.output,
+            )
+        )
+    elif args.command == "analyze-gaps":
+        sys.exit(
+            run_cli_analyze_gaps(
+                query_map_path=args.query_map,
+                manifest_path=args.manifest,
+                source_ledger_path=args.source_ledger,
+                observation_path=args.observation,
+                human_decision_path=args.human_decision,
                 output_json_path=args.output_json,
                 output_path=args.output,
             )

@@ -3,12 +3,21 @@ Domain Models and Evidence Ledger Contracts
 """
 
 from .enums import (
+    ActionSeverity,
     ConfidenceRating,
     FailureCategory,
+    GapCategory,
     HumanApprovalState,
     QueryIntent,
     SourceType,
     VerificationStatus,
+)
+from .gap_analysis import (
+    ClientEvidenceGap,
+    CompetitorCitation,
+    CompetitorCitationPattern,
+    ForensicGapAnalysisRecord,
+    PrioritizedActionPlan,
 )
 from .human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
@@ -26,6 +35,8 @@ __all__ = [
     "VerificationStatus",
     "ConfidenceRating",
     "FailureCategory",
+    "GapCategory",
+    "ActionSeverity",
     "QueryIntent",
     "HumanApprovalState",
     "EvidenceRecord",
@@ -46,4 +57,9 @@ __all__ = [
     "HumanStatementDecision",
     "HumanDecisionRecord",
     "QuotedEvidencePassage",
+    "CompetitorCitation",
+    "CompetitorCitationPattern",
+    "ClientEvidenceGap",
+    "PrioritizedActionPlan",
+    "ForensicGapAnalysisRecord",
 ]

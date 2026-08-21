@@ -4,6 +4,7 @@ Auditable Report, Source Ledger, and Observation Record Exporter
 
 from typing import List
 from ..domain.enums import VerificationStatus
+from ..domain.gap_analysis import ForensicGapAnalysisRecord
 from ..domain.human_decision import HumanDecisionRecord
 from ..domain.models import AuditRun
 from ..domain.observation import AnswerObservation
@@ -186,6 +187,109 @@ class ReportExporter:
                 snap_str = f" (Snapshot: `{qe.snapshot_sha256[:12]}...`)" if qe.snapshot_sha256 else ""
                 lines.append(f"  - **Evidence ID**: `{qe.evidence_id}`{snap_str}")
                 lines.append(f"    > *\"{qe.quoted_passage}\"*")
+            lines.append("")
+
+        lines.append("---")
+        return "\n".join(lines)
+
+    @classmethod
+    def export_gap_analysis_record(
+        cls,
+        gap_record: ForensicGapAnalysisRecord,
+        observation: AnswerObservation,
+        query_map: QueryMap,
+        source_ledger: AuditRun,
+    ) -> str:
+        """
+        Renders a Forensic Competitor Evidence-Gap Analysis Record Markdown document.
+        Displays competitor citation patterns, identified client evidence gaps,
+        and confidence-bounded ethical priority action recommendations.
+        Fails closed if gap_record or observation fails SHA-256 integrity verification.
+        """
+        if not observation.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: observation raw_answer_sha256 ('{observation.raw_answer_sha256}') does not match raw_answer_text digest."
+            )
+
+        if not gap_record.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: ForensicGapAnalysisRecord canonical_digest ('{gap_record.canonical_digest}') does not match calculated digest."
+            )
+
+        query_text = "Unknown Query"
+        for q in query_map.queries:
+            if q.query_id == observation.query_id:
+                query_text = q.text
+                break
+
+        lines: List[str] = [
+            "> [!NOTE]",
+            "> **FORENSIC COMPETITOR EVIDENCE-GAP ANALYSIS RECORD**",
+            "> Identifies model citation patterns, client evidence gaps, and confidence-bounded ethical priority actions.",
+            "> All action recommendations create genuine, verifiable public evidence. Non-manipulative.",
+            "",
+            f"# 🎯 Forensic Competitor Evidence-Gap Analysis",
+            f"**Subject Entity**: `{query_map.entity_name}`  ",
+            f"**Target Query**: *\"{query_text}\"* (`{observation.query_id}`)  ",
+            f"**Model Provider / Identifier**: `{observation.provider_name}` (`{observation.model_identifier}`)  ",
+            f"**Analysis Record ID**: `{gap_record.analysis_id}`  ",
+            f"**Canonical Analysis Digest**: `{gap_record.canonical_digest[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 🔒 Content-Addressed Artifact Bindings",
+            f"- **Observation ID**: `{gap_record.observation_id}` (Raw Answer SHA256: `{gap_record.raw_answer_sha256[:16]}...`)",
+            f"- **Source Ledger Run ID**: `{gap_record.source_ledger_run_id}` (Raw Ledger SHA256: `{gap_record.source_ledger_sha256[:16]}...`)",
+            f"- **QueryMap SHA256**: `{gap_record.query_map_sha256[:16]}...`",
+            f"- **Dataset Manifest SHA256**: `{gap_record.manifest_sha256[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 📊 Competitor & Domain Citation Distribution",
+            "",
+        ]
+
+        for pat in gap_record.competitor_patterns:
+            cited_str = "Yes" if pat.client_domain_cited else "No (Client Evidence Gap)"
+            lines.append(f"- **Total Sources Evaluated**: {pat.total_sources_evaluated}")
+            lines.append(f"- **Client Domain Cited**: `{cited_str}`")
+            lines.append("- **Top Cited Domains**:")
+            for cit in pat.top_cited_domains:
+                lines.append(f"  - `{cit.domain}`: {cit.citation_count} citation(s) (`{cit.source_type.value}`)")
+            lines.append("")
+
+        lines.extend([
+            "---",
+            "",
+            "## 🚨 Identified Client Evidence Gaps",
+            "",
+        ])
+
+        for gap in gap_record.evidence_gaps:
+            badge = f"**`[{gap.severity.value.upper()}]`**"
+            stmts_str = ", ".join([f"`{sid}`" for sid in gap.affected_statement_ids])
+            lines.append(f"### Gap `{gap.gap_id}`: {gap.gap_category.value} {badge}")
+            lines.append(f"- **Target Query**: `{gap.target_query_id}`")
+            lines.append(f"- **Affected Statement Proposals**: {stmts_str}")
+            lines.append(f"- **Description**: {gap.description}")
+            lines.append("")
+
+        lines.extend([
+            "---",
+            "",
+            "## ⚡ Prioritized Ethical Action Plan",
+            "",
+        ])
+
+        for act in gap_record.prioritized_actions:
+            score_fmt = f"{act.confidence_score:.2f}"
+            lines.append(f"### Action `{act.action_id}` (Bound Gap: `{act.gap_id}`)")
+            lines.append(f"- **Recommended Action**: **{act.recommended_action}**")
+            lines.append(f"- **Target Publishing Domain**: `{act.target_domain}`")
+            lines.append(f"- **Suggested Source Type**: `{act.suggested_source_type.value}`")
+            lines.append(f"- **Expected Evidence Impact**: {act.expected_evidence_impact}")
+            lines.append(f"- **Confidence Score**: `{score_fmt}`")
+            lines.append(f"- **Ethical Boundary Notes**: *\"{act.ethical_boundary_notes}\"*")
             lines.append("")
 
         lines.append("---")

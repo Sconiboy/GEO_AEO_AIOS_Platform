@@ -1,0 +1,50 @@
+{
+  "analysis_id": "fga-rec-obs-emitted-pep20-001",
+  "observation_id": "obs-emitted-pep20-001",
+  "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
+  "query_map_sha256": "ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
+  "manifest_sha256": "71333fd91a308167fac7a2b457f62f07314687d2cf01b8cfedf92d49cc569d0c",
+  "competitor_patterns": [
+    {
+      "pattern_id": "pat-q-001",
+      "target_query_id": "q-001",
+      "total_sources_evaluated": 1,
+      "top_cited_domains": [
+        {
+          "domain": "peps.python.org",
+          "citation_count": 1,
+          "source_type": "official_documentation"
+        }
+      ],
+      "client_domain_cited": true
+    }
+  ],
+  "evidence_gaps": [
+    {
+      "gap_id": "gap-q-001-001",
+      "target_query_id": "q-001",
+      "gap_category": "missing_official_docs",
+      "affected_statement_ids": [
+        "stmt-001",
+        "stmt-002"
+      ],
+      "description": "Model response extracted 2 statement proposal(s) lacking authoritative opened evidence in client source ledger.",
+      "severity": "high"
+    }
+  ],
+  "prioritized_actions": [
+    {
+      "action_id": "act-q-001-001",
+      "gap_id": "gap-q-001-001",
+      "recommended_action": "Publish official technical documentation and design specification on python.org covering statement claims.",
+      "target_domain": "python.org",
+      "suggested_source_type": "official_documentation",
+      "expected_evidence_impact": "Establishes OPENED_VERIFIED evidence status and enables human auditor semantic support adjudication.",
+      "confidence_score": 0.85,
+      "ethical_boundary_notes": "Action creates genuine, verifiable public documentation. Non-manipulative, no keyword stuffing, no automated synthetic spam."
+    }
+  ],
+  "canonical_digest": "899470c7baa3dbf070a4b9788d093a1ee53b4de79491bdafbb907489f5c55d11"
+}

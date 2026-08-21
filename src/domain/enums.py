@@ -83,3 +83,21 @@ class ReconciliationMethod(str, Enum):
     HUMAN_AUDITOR_REVIEW = "human_auditor_review"
     HEURISTIC_EXACT_FACT_MATCH = "heuristic_exact_fact_match"
     STRUCTURED_LLM_ASSISTED_REVIEW = "structured_llm_assisted_review"
+
+
+class GapCategory(str, Enum):
+    """Classification of client evidence gaps."""
+
+    MISSING_OFFICIAL_DOCS = "missing_official_docs"
+    MISSING_THIRD_PARTY_COMPARISON = "missing_third_party_comparison"
+    UNGROUNDED_MODEL_CLAIM = "ungrounded_model_claim"
+    COMPETITOR_DOMINANCE = "competitor_dominance"
+
+
+class ActionSeverity(str, Enum):
+    """Priority severity classification for recommended client actions."""
+
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
