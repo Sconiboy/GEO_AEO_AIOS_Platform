@@ -30,6 +30,24 @@ class VerificationArtifact(BaseModel):
     quote_exact_match: bool = Field(
         ..., description="True if opened_excerpt matches snapshot text verbatim"
     )
+    final_url: Optional[str] = Field(
+        default=None, description="Final canonical URL after redirects"
+    )
+    http_status: Optional[int] = Field(
+        default=None, description="HTTP status code (e.g. 200)"
+    )
+    content_type: Optional[str] = Field(
+        default=None, description="Response Content-Type header"
+    )
+    content_length_bytes: Optional[int] = Field(
+        default=None, description="Response payload size in bytes"
+    )
+    retrieval_duration_ms: Optional[float] = Field(
+        default=None, description="HTTP request duration in milliseconds"
+    )
+    policy_warnings: List[str] = Field(
+        default_factory=list, description="Non-fatal policy warnings during retrieval"
+    )
     limitations: Optional[str] = Field(
         default=None, description="Known limitations (e.g. paywall, geo-location restriction)"
     )

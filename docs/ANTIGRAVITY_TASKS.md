@@ -63,6 +63,19 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - CLI subcommand `verify-source` (`python -m src.cli verify-source --url ... --excerpt ...`).
 - **Status**: COMPLETED (Tested on non-client public test endpoints; 17 unit tests passing, 83% coverage, 0 Mypy issues).
 
+## 🔒 Sprint 2.1: Safe Source Policy & Verifier Hardening (Manus Review Response)
+
+### Task A-9: SourcePolicy Contract, SSRF Protection, and Hermetic Testing
+- **Goal**: Implement strict security, transport, and content controls (`src/collector/policy.py`):
+  - DNS resolution and SSRF protection blocking loopback (`127.0.0.1`, `localhost`), AWS metadata (`169.254.169.254`), private IP ranges (`10.0.0.0/8`, `192.168.0.0/16`), link-local, and reserved IPs.
+  - HTTPS-only scheme validation by default.
+  - Response size limit (5MB max) and Content-Type whitelist (`text/html`, `text/plain`, `application/json`).
+  - Recorded in `VerificationArtifact`: `final_url`, `http_status`, `content_type`, `content_length_bytes`, `retrieval_duration_ms`, `policy_warnings`.
+  - HTML tag/script stripping for visible text quote alignment.
+  - Uncommitted snapshot policy (`data/snapshots/` added to `.gitignore`).
+  - Hermetic unit tests with offline mocks (`tests/test_source_policy.py` and `tests/test_live_collector.py`).
+- **Status**: COMPLETED (24 unit tests passing, 84% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -76,3 +89,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-6: Strict evidence validation (ALL supporting/counter evidence must pass; `VerificationArtifact` required for `OPENED_VERIFIED` status).
 - [x] Task A-7: `VerificationArtifact` schema, URL syntax validation, score transparency breakdown, and report warning banner.
 - [x] Task A-8: Live Source Verifier (`src/collector/verifier.py`), Snapshot Store (`src/collector/snapshot.py`), `verify-source` CLI subcommand, and unit tests (`tests/test_live_collector.py`).
+- [x] Task A-9: SourcePolicy SSRF protection (`src/collector/policy.py`), HTTPS-only scheme controls, response payload limits, content-type checks, HTML text extraction, git-ignored snapshot storage (`.gitignore`), and hermetic test suite (`tests/test_source_policy.py`).
