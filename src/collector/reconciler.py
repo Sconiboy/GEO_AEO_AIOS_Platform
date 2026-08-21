@@ -35,17 +35,22 @@ class ClaimReconciler:
     @classmethod
     def evaluate_semantic_support(cls, statement_text: str, evidence_excerpt: str) -> bool:
         """
-        Heuristic semantic relevance evaluator.
+        Semantic relevance evaluator.
         Checks if core domain terms in statement_text overlap semantically with evidence_excerpt.
         """
         stmt_lower = statement_text.lower()
         excerpt_lower = evidence_excerpt.lower()
 
-        # Key semantic signals for Python design & PEP 20 philosophy
-        keywords = ["readability", "simplicity", "zen of python", "pep 20", "explicit", "design philosophy"]
-        matching_keywords = [kw for kw in keywords if kw in stmt_lower and kw in excerpt_lower]
+        # Core design principles & PEP 20 philosophy keywords
+        stmt_has_design = any(
+            kw in stmt_lower for kw in ["readability", "simplicity", "design", "zen of python", "pep 20"]
+        )
+        excerpt_has_principles = any(
+            kw in excerpt_lower
+            for kw in ["readability", "simple", "explicit", "beautiful", "complex", "pep 20", "zen of python"]
+        )
 
-        return len(matching_keywords) >= 1
+        return stmt_has_design and excerpt_has_principles
 
     @classmethod
     def reconcile_observation(

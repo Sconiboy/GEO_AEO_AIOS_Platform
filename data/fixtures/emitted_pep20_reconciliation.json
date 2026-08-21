@@ -1,0 +1,34 @@
+{
+  "reconciliation_run_id": "rec-run-obs-emitted-pep20-001",
+  "observation_id": "obs-emitted-pep20-001",
+  "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "source_ledger_sha256": "a85a9198395b17962bfe6d5efcbb04774e61a75e67c14b386c54dcdcf6af08cc",
+  "reconciliations": [
+    {
+      "reconciliation_id": "rec-obs-emitted-pep20-001-001",
+      "statement_id": "stmt-001",
+      "status": "supported",
+      "evaluated_evidence_ids": [
+        "ev-b6868a371278"
+      ],
+      "semantic_rationale": "Statement 'stmt-001' is semantically SUPPORTED by verified opened evidence 'ev-b6868a371278' ('https://peps.python.org/pep-0020/') with excerpt quote: \"Explicit is better than implicit. Simple is better than complex.\".",
+      "reviewer_role": "Lead Systems Architect & Auditor",
+      "reconciliation_timestamp": "2026-08-21T03:59:45.428497Z",
+      "reconciliation_method": "heuristic_exact_fact_match"
+    },
+    {
+      "reconciliation_id": "rec-obs-emitted-pep20-001-002",
+      "statement_id": "stmt-002",
+      "status": "supported",
+      "evaluated_evidence_ids": [
+        "ev-b6868a371278"
+      ],
+      "semantic_rationale": "Statement 'stmt-002' is semantically SUPPORTED by verified opened evidence 'ev-b6868a371278' ('https://peps.python.org/pep-0020/') with excerpt quote: \"Explicit is better than implicit. Simple is better than complex.\".",
+      "reviewer_role": "Lead Systems Architect & Auditor",
+      "reconciliation_timestamp": "2026-08-21T03:59:45.428497Z",
+      "reconciliation_method": "heuristic_exact_fact_match"
+    }
+  ],
+  "reconciliation_sha256": "eba28ce8c0b82f3cb4d8076c56beb5c3677ea83806cf929b7c3bf87abd61a946"
+}

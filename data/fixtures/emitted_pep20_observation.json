@@ -1,0 +1,34 @@
+{
+  "observation_id": "obs-emitted-pep20-001",
+  "query_id": "q-001",
+  "query_map_id": "qm-python-pub-001",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "query_map_sha256": "0a4df77c0f695ba2aa32e3249f263fd18c8721464249b2d5042758e677950a8a",
+  "manifest_sha256": "ac7f4dc06c1c9658e45a2b824f8015a659a928683ddcdf873afb65ca86d6c592",
+  "source_ledger_sha256": "a85a9198395b17962bfe6d5efcbb04774e61a75e67c14b386c54dcdcf6af08cc",
+  "provider_name": "Ollama / Local Operator Console",
+  "model_identifier": "hermes-3-llama-3.1-8b",
+  "capture_timestamp": "2026-08-21T03:59:00Z",
+  "capture_method": "human_operator_console",
+  "raw_answer_text": "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20).",
+  "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
+  "extracted_statements": [
+    {
+      "statement_id": "stmt-001",
+      "text": "Python's core language design philosophy emphasizes code readability and simplicity.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": "ev-b6868a371278",
+      "human_notes": "Statement proposal linked to live emitted PEP 20 evidence record."
+    },
+    {
+      "statement_id": "stmt-002",
+      "text": "The Zen of Python (PEP 20) summarizes Python's design philosophy.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": "ev-b6868a371278",
+      "human_notes": "Statement proposal linked to live emitted PEP 20 evidence record."
+    }
+  ],
+  "operator_notes": "Observation evaluated against live emitted PEP 20 evidence ledger.",
+  "locale": "en-US",
+  "region": "US"
+}
