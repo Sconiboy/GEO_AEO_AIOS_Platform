@@ -1,0 +1,27 @@
+{
+  "observation_id": "obs-prepilot-001",
+  "query_id": "q-001",
+  "query_map_id": "qm-python-pub-001",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "query_map_sha256": "2665a94652e466f7edbc45fcd0c1fcae74e9c3fc7475c120ddc954a69166364b",
+  "manifest_sha256": "77be9bb0c3341fe0d79417d854b0234c16585cc1f0c550c65323761ce2d63af2",
+  "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
+  "provider_name": "Ollama / Local Operator Console",
+  "model_identifier": "hermes-3-llama-3.1-8b",
+  "capture_timestamp": "2026-08-21T04:06:00Z",
+  "capture_method": "human_operator_console",
+  "raw_answer_text": "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20).\n\nFor systems programming alternatives, see https://doc.rust-lang.org/book/ for Rust design goals.",
+  "raw_answer_sha256": "7cc5e16b9435179563b5a61ac68a562f1121cf2da93636d67635f32c7afd1bb0",
+  "extracted_statements": [
+    {
+      "statement_id": "stmt-001",
+      "text": "Python's core language design philosophy emphasizes code readability and simplicity.",
+      "extraction_status": "proposed_unverified",
+      "linked_evidence_id": null,
+      "human_notes": "Statement proposal for pre-pilot observation."
+    }
+  ],
+  "operator_notes": "Pre-pilot observation citing public competitor URL doc.rust-lang.org.",
+  "locale": "en-US",
+  "region": "US"
+}

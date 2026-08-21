@@ -1,0 +1,80 @@
+{
+  "run_id": "run-qm-qm-python-pub-001",
+  "client_domain": "Python Software Foundation (Public Test Entity)",
+  "category": "Open Source Programming Languages",
+  "created_at": "2026-08-21T04:07:07.856512Z",
+  "is_synthetic_fixture": true,
+  "notice": "CONTROLLED NON-CLIENT DATASET SPIKE - NOT A COMMERCIAL CLIENT AUDIT",
+  "evidence_ledger": {
+    "ev-2968acf27391": {
+      "evidence_id": "ev-2968acf27391",
+      "url": "https://peps.python.org/pep-0020/",
+      "opened_excerpt": "Explicit is better than implicit. Simple is better than complex.",
+      "source_type": "official_documentation",
+      "verification_status": "opened_verified",
+      "failure_category": null,
+      "failure_reason": null,
+      "retrieval_timestamp": "2026-08-21T04:07:07.855790Z",
+      "snapshot_id": "snap-1e2b8d7404d38ac6",
+      "is_independent": false,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-6d24c055",
+        "verification_timestamp": "2026-08-21T04:07:07.855458Z",
+        "verifier_method": "PARSED_VISIBLE_TEXT_BS4",
+        "snapshot_sha256": "1e2b8d7404d38ac66e3f685c06490787fdd60391b79c338f20b390901aab899d",
+        "quote_exact_match": true,
+        "final_url": "https://peps.python.org/pep-0020/",
+        "http_status": 200,
+        "content_type": "text/html",
+        "content_length_bytes": 10668,
+        "retrieval_duration_ms": 312.21,
+        "policy_warnings": [],
+        "failure_category": null,
+        "failure_reason": null,
+        "limitations": "Manual pre-hop redirect validation under SourcePolicy rules (PARSED_VISIBLE_TEXT_BS4)"
+      }
+    },
+    "ev-39706daa66cf": {
+      "evidence_id": "ev-39706daa66cf",
+      "url": "https://doc.rust-lang.org/book/",
+      "opened_excerpt": "The Rust Programming Language",
+      "source_type": "official_documentation",
+      "verification_status": "opened_verified",
+      "failure_category": null,
+      "failure_reason": null,
+      "retrieval_timestamp": "2026-08-21T20:55:22.637004Z",
+      "snapshot_id": "snap-28f3d4fdf19c73fe",
+      "is_independent": true,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-71dfce2d",
+        "verification_timestamp": "2026-08-21T20:55:22.636961Z",
+        "verifier_method": "PARSED_VISIBLE_TEXT_BS4",
+        "snapshot_sha256": "28f3d4fdf19c73fee9e20b06ff7de292a4265ed1db8e3f0c2de96f3c35768811",
+        "quote_exact_match": true,
+        "final_url": "https://doc.rust-lang.org/book/",
+        "http_status": 200,
+        "content_type": "text/html",
+        "content_length_bytes": 22496,
+        "retrieval_duration_ms": 133.06,
+        "policy_warnings": [],
+        "failure_category": null,
+        "failure_reason": null,
+        "limitations": "Manual pre-hop redirect validation under SourcePolicy rules (PARSED_VISIBLE_TEXT_BS4)"
+      }
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "claim-q-001",
+      "statement": "Verified public source evidence exists for query 'What is Python core language design philosophy?' (Intent: informational_evaluation).",
+      "evidence_ids": [
+        "ev-2968acf27391"
+      ],
+      "counter_evidence_ids": [],
+      "uncertainty_notes": "Controlled non-client public dataset run. Rationale: Evaluates core language design principles and open source documentation.",
+      "confidence": null
+    }
+  ]
+}

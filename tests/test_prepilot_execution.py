@@ -1,0 +1,92 @@
+"""
+Integration test for Sprint 7.6 Controlled Public Competitor Evidence Collection Pre-Pilot
+"""
+
+import hashlib
+from pathlib import Path
+
+from src.collector.candidate_collector import CandidateCollector
+from src.collector.gap_analyzer import ForensicGapAnalyzer
+from src.collector.query_map_runner import DatasetManifest
+from src.collector.snapshot import SnapshotStore
+from src.domain.models import AuditRun
+from src.domain.observation import AnswerObservation
+from src.domain.profile import SubjectProfile
+from src.domain.query_map import QueryMap
+from src.exporter.report import ReportExporter
+
+
+def test_prepilot_controlled_competitor_collection_execution(tmp_path: Path) -> None:
+    """
+    Executes and validates the Sprint 7.6 controlled public competitor evidence collection pre-pilot.
+    1. Loads prepilot subject profile, query map, manifest, and observation.
+    2. Runs initial ForensicGapAnalyzer to emit ObservedCitationCollectionCandidate.
+    3. Runs CandidateCollector to execute live collection against https://doc.rust-lang.org/book/.
+    4. Asserts real HTML snapshot saved, CollectionExecutionRecord created, and gap record digest verified.
+    """
+    qm_path = Path("data/fixtures/prepilot_query_map.json")
+    manifest_path = Path("data/fixtures/prepilot_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/prepilot_observation.json")
+    profile_path = Path("data/fixtures/prepilot_subject_profile.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    observation = AnswerObservation.model_validate_json(raw_obs_bytes)
+    raw_profile_bytes = profile_path.read_bytes()
+    subject_profile = SubjectProfile.model_validate_json(raw_profile_bytes)
+
+    # 1. Execute initial gap analysis
+    initial_gap_record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=subject_profile,
+        observation=observation,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    assert initial_gap_record.verify_integrity() is True
+    assert len(initial_gap_record.collection_candidates) == 1
+    cand = initial_gap_record.collection_candidates[0]
+    assert cand.cited_url == "https://doc.rust-lang.org/book/"
+    assert cand.requires_human_manifest_approval is False
+
+    # 2. Execute candidate collection
+    store = SnapshotStore(base_dir=tmp_path / "snapshots")
+    collector = CandidateCollector(snapshot_store=store)
+
+    updated_ledger, updated_gap_record = collector.collect_candidate(
+        candidate_id=cand.candidate_id,
+        subject_profile=subject_profile,
+        observation=observation,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest,
+        gap_record=initial_gap_record,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    # 3. Assert execution results
+    assert updated_gap_record.verify_integrity() is True
+    assert len(updated_gap_record.collection_executions) == 1
+    ce = updated_gap_record.collection_executions[0]
+    assert ce.candidate_id == cand.candidate_id
+    assert ce.cited_url == "https://doc.rust-lang.org/book/"
+    assert ce.verify_integrity() is True
+
+    # 4. Assert report export succeeds
+    report_md = ReportExporter.export_gap_analysis_record(updated_gap_record, observation, query_map, updated_ledger)
+    assert "Executed Candidate Collections (Provenance Tracing)" in report_md
+    assert "doc.rust-lang.org" in report_md

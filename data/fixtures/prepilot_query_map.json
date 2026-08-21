@@ -1,0 +1,36 @@
+{
+  "query_map_id": "qm-python-pub-001",
+  "entity_name": "Python Software Foundation",
+  "category": "Programming Languages & Runtime Environment",
+  "target_buyer_persona": "Software Architect",
+  "queries": [
+    {
+      "query_id": "q-001",
+      "text": "What are the core design principles of Python?",
+      "intent": "informational_evaluation",
+      "rationale": "Core design principles evaluation",
+      "approval_state": "approved"
+    }
+  ],
+  "policy_profile": {
+    "profile_id": "pol-default-001",
+    "max_sources_per_query": 5,
+    "allowed_schemes": [
+      "https"
+    ],
+    "source_scope": {
+      "scope_id": "scope-default-001",
+      "allowed_domains": [
+        "python.org",
+        "peps.python.org",
+        "docs.python.org",
+        "rust-lang.org",
+        "doc.rust-lang.org",
+        "www.rust-lang.org"
+      ],
+      "blocked_domains": [
+        "spam-seo-farm.com"
+      ]
+    }
+  }
+}

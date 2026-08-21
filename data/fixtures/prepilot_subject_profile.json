@@ -1,0 +1,31 @@
+{
+  "profile_id": "prof-python-psf-001",
+  "client_profile": {
+    "entity_name": "Python Software Foundation",
+    "client_domain": "python.org",
+    "offering_category": "Programming Languages & Runtime Environment",
+    "owned_domains": [
+      "python.org",
+      "peps.python.org",
+      "docs.python.org",
+      "pypi.org"
+    ]
+  },
+  "competitor_profiles": [
+    {
+      "competitor_entity_name": "Rust Foundation",
+      "competitor_domains": [
+        "rust-lang.org",
+        "doc.rust-lang.org",
+        "www.rust-lang.org"
+      ]
+    },
+    {
+      "competitor_entity_name": "Go (Google Open Source)",
+      "competitor_domains": [
+        "go.dev",
+        "golang.org"
+      ]
+    }
+  ]
+}

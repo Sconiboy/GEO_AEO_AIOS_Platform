@@ -1,0 +1,69 @@
+{
+  "analysis_id": "fga-rec-obs-prepilot-001",
+  "observation_id": "obs-prepilot-001",
+  "raw_answer_sha256": "7cc5e16b9435179563b5a61ac68a562f1121cf2da93636d67635f32c7afd1bb0",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "source_ledger_sha256": "2eea6cc00fb98db6084bcbc6582ea58e5d0aec7fc1669d570f98d6f66ede6891",
+  "query_map_sha256": "2665a94652e466f7edbc45fcd0c1fcae74e9c3fc7475c120ddc954a69166364b",
+  "manifest_sha256": "77be9bb0c3341fe0d79417d854b0234c16585cc1f0c550c65323761ce2d63af2",
+  "profile_id": "prof-python-psf-001",
+  "profile_sha256": "5fca0885634338552b5fa6b190ba6433b8595dcb9ab2c998626d416035edae7c",
+  "attribution_status": "cited_competitor_observed",
+  "competitor_patterns": [
+    {
+      "pattern_id": "pat-q-001",
+      "target_query_id": "q-001",
+      "total_sources_evaluated": 2,
+      "top_cited_domains": [
+        {
+          "domain": "peps.python.org",
+          "citation_count": 1,
+          "source_type": "official_documentation",
+          "source_relationship": "client_owned"
+        },
+        {
+          "domain": "doc.rust-lang.org",
+          "citation_count": 1,
+          "source_type": "official_documentation",
+          "source_relationship": "competitor_owned"
+        }
+      ],
+      "client_domain_cited": true,
+      "answer_citations": [
+        {
+          "url": "https://doc.rust-lang.org/book/",
+          "domain": "doc.rust-lang.org",
+          "is_explicit_citation": true,
+          "source_relationship": "competitor_owned",
+          "matched_competitor_entity": "Rust Foundation"
+        }
+      ],
+      "attribution_status": "cited_competitor_observed"
+    }
+  ],
+  "collection_candidates": [],
+  "collection_executions": [
+    {
+      "execution_id": "cer-occ-q-001-f4441b18",
+      "candidate_id": "occ-q-001-f4441b18",
+      "target_query_id": "q-001",
+      "cited_url": "https://doc.rust-lang.org/book/",
+      "observation_id": "obs-prepilot-001",
+      "raw_answer_sha256": "7cc5e16b9435179563b5a61ac68a562f1121cf2da93636d67635f32c7afd1bb0",
+      "profile_id": "prof-python-psf-001",
+      "profile_sha256": "5fca0885634338552b5fa6b190ba6433b8595dcb9ab2c998626d416035edae7c",
+      "manifest_sha256": "77be9bb0c3341fe0d79417d854b0234c16585cc1f0c550c65323761ce2d63af2",
+      "query_map_sha256": "2665a94652e466f7edbc45fcd0c1fcae74e9c3fc7475c120ddc954a69166364b",
+      "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
+      "evidence_id": "ev-39706daa66cf",
+      "verifier_run_id": "verifier-run-71dfce2d",
+      "snapshot_sha256": "28f3d4fdf19c73fee9e20b06ff7de292a4265ed1db8e3f0c2de96f3c35768811",
+      "execution_timestamp": "2026-08-21T20:55:22.637083Z",
+      "canonical_digest": "a63d47a00da6156b6d5c3cd18065ac7897959ac4ee5830744b9bb74ee538231f"
+    }
+  ],
+  "collection_attempts": [],
+  "evidence_gaps": [],
+  "prioritized_actions": [],
+  "canonical_digest": "a398e51195292e083433d70646ba6b7211d14ffcb408d2bdb4a827a7783ca57b"
+}
