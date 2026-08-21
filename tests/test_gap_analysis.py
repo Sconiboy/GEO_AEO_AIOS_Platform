@@ -513,6 +513,7 @@ def test_profile_sha256_digest_tamper_detection(sample_subject_profile: SubjectP
         competitor_patterns=[pattern],
         collection_candidates=[],
         collection_executions=[],
+        collection_attempts=[],
         evidence_gaps=[],
         prioritized_actions=[],
     )

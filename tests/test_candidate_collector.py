@@ -179,6 +179,7 @@ def test_mismatched_query_id_candidate_fails_closed(
         competitor_patterns=cand_basis.competitor_patterns,
         collection_candidates=[tampered_cand],
         collection_executions=cand_basis.collection_executions,
+        collection_attempts=cand_basis.collection_attempts,
         evidence_gaps=cand_basis.evidence_gaps,
         prioritized_actions=cand_basis.prioritized_actions,
     )
@@ -397,6 +398,7 @@ def test_tampered_or_mismatched_gap_record_fails_closed(
         competitor_patterns=gap_record.competitor_patterns,
         collection_candidates=gap_record.collection_candidates,
         collection_executions=gap_record.collection_executions,
+        collection_attempts=gap_record.collection_attempts,
         evidence_gaps=gap_record.evidence_gaps,
         prioritized_actions=gap_record.prioritized_actions,
     )
@@ -416,6 +418,130 @@ def test_tampered_or_mismatched_gap_record_fails_closed(
             raw_ledger_bytes=raw_ledger_bytes,
             raw_profile_bytes=raw_profile_bytes,
         )
+
+
+def test_failed_candidate_collection_creates_attempt_record_not_execution(
+    sample_subject_profile: SubjectProfile,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Proves that when SourceVerifier returns a non-success status (e.g. INACCESSIBLE):
+    1. A CollectionAttemptRecord is created capturing verification_status, failure_category, and failure_reason.
+    2. NO CollectionExecutionRecord is created.
+    3. No dummy snapshot_sha256="unknown" is stored in execution provenance.
+    4. ForensicGapAnalysisRecord digest passes verification.
+    """
+    from src.collector.verifier import SourceVerifier
+    from src.domain.enums import FailureCategory
+    from src.domain.models import EvidenceRecord
+
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    orig_manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+
+    # Authorize https://rust-lang.org/learn for query q-001 in manifest
+    authorized_manifest = orig_manifest.model_copy(
+        update={
+            "candidates": orig_manifest.candidates + [
+                ManifestSourceCandidate(
+                    url="https://rust-lang.org/learn",
+                    candidate_excerpt="Rust is a language empowering everyone to build reliable software.",
+                    source_type=SourceType.OFFICIAL_DOCUMENTATION,
+                    query_id="q-001",
+                )
+            ]
+        }
+    )
+    auth_manifest_bytes = authorized_manifest.model_dump_json().encode("utf-8")
+
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    orig_obs = AnswerObservation.model_validate_json(raw_obs_bytes)
+
+    # Answer cites unverified competitor URL https://rust-lang.org/learn
+    competitor_answer_text = (
+        orig_obs.raw_answer_text + "\n\nLearn Rust at https://rust-lang.org/learn."
+    )
+    competitor_obs = orig_obs.model_copy(
+        update={
+            "raw_answer_text": competitor_answer_text,
+            "raw_answer_sha256": hashlib.sha256(competitor_answer_text.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+
+    initial_gap_record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=competitor_obs,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=authorized_manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=auth_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    cand = initial_gap_record.collection_candidates[0]
+
+    # Monkeypatch SourceVerifier.verify_url to simulate HTTP 404 INACCESSIBLE failure
+    def mock_verify_url_failed(self: SourceVerifier, url: str, candidate_excerpt: str, source_type: SourceType, is_independent: bool = False) -> EvidenceRecord:
+        return EvidenceRecord(
+            evidence_id="ev-rust-learn-failed",
+            url=url,
+            opened_excerpt=candidate_excerpt,
+            verification_status=VerificationStatus.INACCESSIBLE,
+            failure_category=FailureCategory.HTTP_STATUS_ERROR,
+            failure_reason="HTTP 404 Not Found",
+            source_type=source_type,
+            is_independent=is_independent,
+            retrieval_timestamp=datetime(2026, 8, 21, 0, 0, 0, tzinfo=timezone.utc),
+            verification_artifact=None,
+        )
+
+    monkeypatch.setattr(SourceVerifier, "verify_url", mock_verify_url_failed)
+
+    store = SnapshotStore(base_dir=tmp_path / "snapshots")
+    collector = CandidateCollector(snapshot_store=store)
+
+    updated_ledger, updated_gap_record = collector.collect_candidate(
+        candidate_id=cand.candidate_id,
+        subject_profile=sample_subject_profile,
+        observation=competitor_obs,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=authorized_manifest,
+        gap_record=initial_gap_record,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=auth_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    # 1. Assert NO CollectionExecutionRecord was created
+    assert len(updated_gap_record.collection_executions) == 0
+
+    # 2. Assert CollectionAttemptRecord WAS created
+    assert len(updated_gap_record.collection_attempts) == 1
+    attempt = updated_gap_record.collection_attempts[0]
+    assert attempt.candidate_id == cand.candidate_id
+    assert attempt.cited_url == "https://rust-lang.org/learn"
+    assert attempt.verification_status == VerificationStatus.INACCESSIBLE
+    assert attempt.failure_category == FailureCategory.HTTP_STATUS_ERROR
+    assert attempt.failure_reason == "HTTP 404 Not Found"
+    assert attempt.verify_integrity() is True
+
+    # 3. Assert updated gap record canonical digest passes verification
+    assert updated_gap_record.verify_integrity() is True
 
 
 def test_non_mocked_real_http_candidate_collection(

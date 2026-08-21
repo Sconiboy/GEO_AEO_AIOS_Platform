@@ -611,3 +611,56 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-31: Exact URL + query ID manifest authorization gate, matched manifest query ID provenance tracing, domain scope bypass elimination, and 64 passing unit tests.
 - [x] Task A-32: CandidateCollector execution engine, execution-time authorization gate, collect-candidate CLI subcommand, and 67 passing unit tests.
 - [x] Task A-33: CollectionExecutionRecord provenance model, 7-binding context re-validation prior to fetch, Executed Candidate Collections exporter section, non-mocked loopback HTTP integration test, and 69 passing unit tests.
+
+## 🔐 Sprint 7.5.2: Typed Collection Attempt Records & Failed Fetch Handling (Manus Review Response)
+
+### Task A-34: CollectionAttemptRecord Model, Failure-Path Branching, and Attempt Provenance Tracing
+- **Goal**: Differentiate successful collection executions (`OPENED_VERIFIED` with valid snapshot) from failed attempts (`INACCESSIBLE`, quote mismatch, policy blocked):
+  - Created immutable `CollectionAttemptRecord` (`src/domain/candidate_collection.py`) binding `attempt_id`, `candidate_id`, `target_query_id`, `cited_url`, `observation_id`, `raw_answer_sha256`, `profile_id`, `profile_sha256`, `manifest_sha256`, `query_map_sha256`, `source_ledger_sha256`, `evidence_id`, `verification_status`, `failure_category`, `failure_reason`, `attempt_timestamp`, and `canonical_digest`.
+  - Added `collection_attempts: List[CollectionAttemptRecord]` to `ForensicGapAnalysisRecord`, bound into `compute_canonical_digest()` and `verify_integrity()`.
+  - Updated `CandidateCollector` (`src/collector/candidate_collector.py`) to branch on `VerificationStatus.OPENED_VERIFIED`:
+    - Success (`OPENED_VERIFIED` + snapshot) $\rightarrow$ Creates `CollectionExecutionRecord`.
+    - Failure (`INACCESSIBLE`, policy blocked, quote error) $\rightarrow$ Creates `CollectionAttemptRecord` with typed failure details, claiming NO success and emitting NO dummy snapshot hash.
+  - Added `## 🚫 Failed Candidate Collection Attempts` rendering section to exporter (`src/exporter/report.py`).
+  - Added unit test `test_failed_candidate_collection_creates_attempt_record_not_execution` proving `CollectionAttemptRecord` is emitted on `INACCESSIBLE` verifier returns without emitting false `CollectionExecutionRecord` or `snapshot_sha256="unknown"`.
+- **Status**: COMPLETED (70 unit tests passing, 81% total code coverage, 90% coverage on `candidate_collector.py`, 100% coverage on `candidate_collection.py` & `gap_analysis.py`, 0 Mypy static type errors).
+
+---
+
+## Completed Tasks
+- [x] Initial repository setup and GitHub push (`Sconiboy/GEO_AEO_AIOS_Platform`).
+- [x] Architecture review and alignment with Manus AI (`docs/MANUS_REVIEW.md`).
+- [x] Task A-1: Python foundation, exact Pydantic domain models (`EvidenceRecord`, `ClaimRecord`, `AuditRun`, `ConfidenceScore`), runtime validator, and Markdown exporter.
+- [x] Task A-2: Comprehensive unit test suite (`pytest`, `mypy`) proving report export is blocked on missing/unverified evidence.
+- [x] Task A-3: Internal CLI audit console (`src/cli.py`), sample fixture data (`data/fixtures/sample_audit.json`), and verified offline report renderer (`reports/sample_report.md`).
+- [x] Task A-4: GitHub Actions CI workflow, `pyproject.toml`, `requirements.txt`, and clean clone instructions.
+- [x] Task A-5: Synthetic fixture relabeling (`is_synthetic_fixture=True`) and adversarial invalid fixture creation (`data/fixtures/adversarial_invalid_audit.json`).
+- [x] Task A-6: Strict evidence validation (ALL supporting/counter evidence must pass; `VerificationArtifact` required for `OPENED_VERIFIED` status).
+- [x] Task A-7: `VerificationArtifact` schema, URL syntax validator, score transparency breakdown, and report warning banner.
+- [x] Task A-8: Live Source Verifier (`src/collector/verifier.py`), Snapshot Store (`src/collector/snapshot.py`), `verify-source` CLI subcommand, and unit tests (`tests/test_live_collector.py`).
+- [x] Task A-9: SourcePolicy SSRF protection (`src/collector/policy.py`), HTTPS-only scheme controls, response payload limits, content-type checks, HTML text extraction, git-ignored snapshot storage (`.gitignore`), and hermetic test suite (`tests/test_source_policy.py`).
+- [x] Task A-10: Manual pre-hop redirect validation (`NoRedirectHandler`), BeautifulSoup visible text quote matching (`PARSED_VISIBLE_TEXT_BS4`), typed `FailureCategory` error handling, untracked git index artifact cleanup, and 24 passing hermetic unit tests.
+- [x] Task A-11: QueryMap domain contracts (`src/domain/query_map.py`), Dataset Manifests (`data/fixtures/controlled_dataset_manifest.json`), domain allowlist & human approval enforcement (`src/collector/query_map_runner.py`), `query-map` CLI subcommand, and 27 passing unit tests.
+- [x] Task A-12: `max_sources_per_query` cap, `blocked_domains` precedence, `is_non_client_spike=True` gate, unique blocked entry IDs, dedicated `export_source_ledger` renderer, and 33 passing unit tests.
+- [x] Task A-13: `AnswerObservation` domain model (`src/domain/observation.py`), raw text SHA-256 integrity validation, `ObservationImporter` pipeline (`src/collector/observation_importer.py`), dedicated `export_observation_record` renderer, `observation` CLI subcommand, and 37 passing unit tests.
+- [x] Task A-14: Immutable observation models (`frozen=True`), SHA-256 digest re-verification at import/render boundaries, explicit capture timestamp, nullable locale/region, frozen artifact hash bindings (`source_ledger_sha256`), OPENED_VERIFIED statement linkage enforcement, offline hermetic CLI runner, and 37 passing unit tests.
+- [x] Task A-15: Mandatory proposal-only import enforcement (`ObservationImporter`), forced `proposed_unverified` status override for all imported statements, adversarial forged status downgrade unit test, and 39 passing unit tests.
+- [x] Task A-16: Executed authorized first manual observation (`data/fixtures/authorized_first_observation.json`), hash-verified raw Hermes 3 answer capture, proposal-only statement statuses, and rendered internal observation record ([`reports/authorized_first_observation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/authorized_first_observation_record.md)).
+- [x] Task A-17: Built Claim Reconciliation Engine (`ClaimReconciler`), immutable decision contracts (`StatementReconciliation`, `ObservationReconciliation`), `export_reconciliation_record` renderer, `reconcile` CLI subcommand, exported `reports/authorized_first_reconciliation_record.md` evaluating both statements to `NOT_ASSESSABLE`, and 43 passing unit tests.
+- [x] Task A-18: Raw source-ledger SHA-256 hash preservation, canonical reconciliation digest calculation, fail-closed exporter verification, CLI raw bytes pass-through, consolidated enum definitions, and 45 passing unit tests.
+- [x] Task A-19: Implemented versioned ObservationReconciliation JSON artifact persistence (`--reconciliation-json`), pre-existing JSON artifact loading pipeline, original timestamp preservation, and 46 passing unit tests.
+- [x] Task A-20: Built official PEP 20 evidence ledger (`data/fixtures/pep20_source_ledger.json`), semantic relevance evaluator (`evaluate_semantic_support`), second real reconciliation (`data/fixtures/pep20_observation.json`), and exported [`reports/pep20_reconciliation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/pep20_reconciliation_record.md) evaluating both statements to `[SUPPORTED]`.
+- [x] Task A-21: Replay attack gate validating `observation_id`, `raw_answer_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, and statement IDs on pre-stored JSON loading, adversarial replay unit test, and 47 passing unit tests.
+- [x] Task A-22: Authentic live verifier snapshot hash (`1e2b8d7404d38ac6...`) from `https://peps.python.org/pep-0020/`, `is_synthetic_fixture: true` wrapper label, `is_independent: false` authoritative documentation label, and 47 passing unit tests.
+- [x] Task A-23: End-to-end live source-ledger emission pipeline (`QueryMapRunner` $\rightarrow$ `SourceVerifier` $\rightarrow$ `emitted_pep20_source_ledger.json` $\rightarrow$ `emitted_pep20_observation.json` $\rightarrow$ `emitted_pep20_reconciliation.json`), proving 100% automated live evidence verification to `SUPPORTED` claims.
+- [x] Task A-24: Persisted live dataset manifest `data/fixtures/live_pep20_manifest.json`, manifest hash binding, domain allowlist subdomain addition `peps.python.org`, complete removal of keyword auto-support logic, default `NOT_ASSESSABLE` status for all evidence matches, and 49 passing unit tests.
+- [x] Task A-25: Immutable `HumanDecisionRecord` contracts (`src/domain/human_decision.py`), `human-decision` CLI subcommand (`src/cli.py`), canonical decision digest calculation over all 6 context bindings, dedicated `export_human_decision_record()` Markdown renderer, and 52 passing unit tests.
+- [x] Task A-26: Verbatim quote verification against `opened_excerpt`, explicit `QuotedEvidencePassage` quote-evidence pairing, inclusion of `decision_timestamp` and `reconciliation_method` in canonical digest, adversarial fabricated quote unit test, and 52 passing unit tests.
+- [x] Task A-27: SubjectProfile contracts (`SubjectProfile`, `ClientProfile`, `CompetitorProfile`), `SourceRelationship` classification, `AnswerCitation` extraction, elimination of false gaps on supported human decisions, immutable `FindingBasis` tracing, total canonical digest protection over all rendered fields, and 58 passing unit tests.
+- [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.
+- [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
+- [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
+- [x] Task A-31: Exact URL + query ID manifest authorization gate, matched manifest query ID provenance tracing, domain scope bypass elimination, and 64 passing unit tests.
+- [x] Task A-32: CandidateCollector execution engine, execution-time authorization gate, collect-candidate CLI subcommand, and 67 passing unit tests.
+- [x] Task A-33: CollectionExecutionRecord provenance model, 7-binding context re-validation prior to fetch, Executed Candidate Collections exporter section, non-mocked loopback HTTP integration test, and 69 passing unit tests.
+- [x] Task A-34: CollectionAttemptRecord model, failure-path branching on VerificationStatus, Failed Candidate Collection Attempts exporter section, and 70 passing unit tests.

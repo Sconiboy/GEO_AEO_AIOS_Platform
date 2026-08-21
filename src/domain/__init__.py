@@ -27,6 +27,7 @@ from .gap_analysis import (
     ObservedCitationCollectionCandidate,
     PrioritizedActionPlan,
 )
+from .candidate_collection import CollectionAttemptRecord, CollectionExecutionRecord
 from .human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
 from .observation import AnswerObservation, CaptureMethod, ExtractedStatement, ExtractionStatus
@@ -42,6 +43,7 @@ from .validators import EvidenceLedgerValidationError, validate_audit_run_ledger
 
 __all__ = [
     "CollectionExecutionRecord",
+    "CollectionAttemptRecord",
     "SourceType",
     "VerificationStatus",
     "ConfidenceRating",

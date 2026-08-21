@@ -161,51 +161,105 @@ class CandidateCollector:
             is_independent=manifest_matched_cs.is_independent if hasattr(manifest_matched_cs, "is_independent") else False,
         )
 
-        # Step 3: Create CollectionExecutionRecord binding candidate-to-evidence provenance
+        # Step 3: Branch on VerificationStatus to generate CollectionExecutionRecord vs CollectionAttemptRecord
         from datetime import datetime, timezone
-        from ..domain.candidate_collection import CollectionExecutionRecord
+        from ..domain.candidate_collection import CollectionAttemptRecord, CollectionExecutionRecord
 
-        exec_id = f"cer-{cand.candidate_id}"
-        snap_sha256 = ev_record.verification_artifact.snapshot_sha256 if ev_record.verification_artifact else "unknown"
-        verifier_run = ev_record.verification_artifact.verifier_run_id if ev_record.verification_artifact else "unknown"
+        existing_execs = list(gap_record.collection_executions)
+        existing_attempts = list(gap_record.collection_attempts)
         exec_ts = datetime.now(timezone.utc)
 
-        exec_digest = CollectionExecutionRecord.compute_canonical_digest(
-            execution_id=exec_id,
-            candidate_id=cand.candidate_id,
-            target_query_id=cand.target_query_id,
-            cited_url=cand.cited_url,
-            observation_id=observation.observation_id,
-            raw_answer_sha256=observation.raw_answer_sha256,
-            profile_id=subject_profile.profile_id,
-            profile_sha256=profile_sha256,
-            manifest_sha256=manifest_sha256,
-            query_map_sha256=qm_sha256,
-            source_ledger_sha256=ledger_sha256,
-            evidence_id=ev_record.evidence_id,
-            verifier_run_id=verifier_run,
-            snapshot_sha256=snap_sha256,
-            execution_timestamp=exec_ts,
+        is_verified_success = (
+            ev_record.verification_status == VerificationStatus.OPENED_VERIFIED
+            and ev_record.verification_artifact is not None
+            and ev_record.verification_artifact.snapshot_sha256 != "unknown"
         )
 
-        execution_record = CollectionExecutionRecord(
-            execution_id=exec_id,
-            candidate_id=cand.candidate_id,
-            target_query_id=cand.target_query_id,
-            cited_url=cand.cited_url,
-            observation_id=observation.observation_id,
-            raw_answer_sha256=observation.raw_answer_sha256,
-            profile_id=subject_profile.profile_id,
-            profile_sha256=profile_sha256,
-            manifest_sha256=manifest_sha256,
-            query_map_sha256=qm_sha256,
-            source_ledger_sha256=ledger_sha256,
-            evidence_id=ev_record.evidence_id,
-            verifier_run_id=verifier_run,
-            snapshot_sha256=snap_sha256,
-            execution_timestamp=exec_ts,
-            canonical_digest=exec_digest,
-        )
+        if is_verified_success and ev_record.verification_artifact is not None:
+            exec_id = f"cer-{cand.candidate_id}"
+            snap_sha256 = ev_record.verification_artifact.snapshot_sha256
+            verifier_run = ev_record.verification_artifact.verifier_run_id
+
+            exec_digest = CollectionExecutionRecord.compute_canonical_digest(
+                execution_id=exec_id,
+                candidate_id=cand.candidate_id,
+                target_query_id=cand.target_query_id,
+                cited_url=cand.cited_url,
+                observation_id=observation.observation_id,
+                raw_answer_sha256=observation.raw_answer_sha256,
+                profile_id=subject_profile.profile_id,
+                profile_sha256=profile_sha256,
+                manifest_sha256=manifest_sha256,
+                query_map_sha256=qm_sha256,
+                source_ledger_sha256=ledger_sha256,
+                evidence_id=ev_record.evidence_id,
+                verifier_run_id=verifier_run,
+                snapshot_sha256=snap_sha256,
+                execution_timestamp=exec_ts,
+            )
+
+            existing_execs.append(
+                CollectionExecutionRecord(
+                    execution_id=exec_id,
+                    candidate_id=cand.candidate_id,
+                    target_query_id=cand.target_query_id,
+                    cited_url=cand.cited_url,
+                    observation_id=observation.observation_id,
+                    raw_answer_sha256=observation.raw_answer_sha256,
+                    profile_id=subject_profile.profile_id,
+                    profile_sha256=profile_sha256,
+                    manifest_sha256=manifest_sha256,
+                    query_map_sha256=qm_sha256,
+                    source_ledger_sha256=ledger_sha256,
+                    evidence_id=ev_record.evidence_id,
+                    verifier_run_id=verifier_run,
+                    snapshot_sha256=snap_sha256,
+                    execution_timestamp=exec_ts,
+                    canonical_digest=exec_digest,
+                )
+            )
+        else:
+            attempt_id = f"car-{cand.candidate_id}"
+            att_digest = CollectionAttemptRecord.compute_canonical_digest(
+                attempt_id=attempt_id,
+                candidate_id=cand.candidate_id,
+                target_query_id=cand.target_query_id,
+                cited_url=cand.cited_url,
+                observation_id=observation.observation_id,
+                raw_answer_sha256=observation.raw_answer_sha256,
+                profile_id=subject_profile.profile_id,
+                profile_sha256=profile_sha256,
+                manifest_sha256=manifest_sha256,
+                query_map_sha256=qm_sha256,
+                source_ledger_sha256=ledger_sha256,
+                evidence_id=ev_record.evidence_id,
+                verification_status=ev_record.verification_status,
+                failure_category=ev_record.failure_category,
+                failure_reason=ev_record.failure_reason,
+                attempt_timestamp=exec_ts,
+            )
+
+            existing_attempts.append(
+                CollectionAttemptRecord(
+                    attempt_id=attempt_id,
+                    candidate_id=cand.candidate_id,
+                    target_query_id=cand.target_query_id,
+                    cited_url=cand.cited_url,
+                    observation_id=observation.observation_id,
+                    raw_answer_sha256=observation.raw_answer_sha256,
+                    profile_id=subject_profile.profile_id,
+                    profile_sha256=profile_sha256,
+                    manifest_sha256=manifest_sha256,
+                    query_map_sha256=qm_sha256,
+                    source_ledger_sha256=ledger_sha256,
+                    evidence_id=ev_record.evidence_id,
+                    verification_status=ev_record.verification_status,
+                    failure_category=ev_record.failure_category,
+                    failure_reason=ev_record.failure_reason,
+                    attempt_timestamp=exec_ts,
+                    canonical_digest=att_digest,
+                )
+            )
 
         # Step 4: Append new evidence record to source ledger
         updated_ledger_map = dict(source_ledger.evidence_ledger)
@@ -216,10 +270,7 @@ class CandidateCollector:
         )
         updated_ledger_bytes = updated_source_ledger.model_dump_json().encode("utf-8")
 
-        existing_execs = list(gap_record.collection_executions)
-        existing_execs.append(execution_record)
-
-        # Step 5: Re-analyze gaps with updated source ledger & collection_executions
+        # Step 5: Re-analyze gaps with updated source ledger, collection_executions, & collection_attempts
         updated_gap_record = ForensicGapAnalyzer.analyze_gaps(
             subject_profile=subject_profile,
             observation=observation,
@@ -232,6 +283,7 @@ class CandidateCollector:
             raw_profile_bytes=raw_profile_bytes,
             human_decision=human_decision,
             collection_executions=existing_execs,
+            collection_attempts=existing_attempts,
         )
 
         return updated_source_ledger, updated_gap_record

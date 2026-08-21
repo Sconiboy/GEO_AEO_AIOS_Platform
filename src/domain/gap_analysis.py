@@ -9,7 +9,7 @@ import json
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from ..domain.candidate_collection import CollectionExecutionRecord
+from ..domain.candidate_collection import CollectionAttemptRecord, CollectionExecutionRecord
 from .enums import ActionSeverity, AttributionStatus, GapCategory, SourceRelationship, SourceType, StatementEvidenceState
 
 
@@ -175,6 +175,7 @@ class ForensicGapAnalysisRecord(BaseModel):
     competitor_patterns: List[CompetitorCitationPattern] = Field(default_factory=list)
     collection_candidates: List[ObservedCitationCollectionCandidate] = Field(default_factory=list)
     collection_executions: List[CollectionExecutionRecord] = Field(default_factory=list)
+    collection_attempts: List[CollectionAttemptRecord] = Field(default_factory=list)
     evidence_gaps: List[ClientEvidenceGap] = Field(default_factory=list)
     prioritized_actions: List[PrioritizedActionPlan] = Field(default_factory=list)
     canonical_digest: str = Field(..., description="Content-addressed SHA-256 digest over ALL context bindings and findings")
@@ -195,10 +196,11 @@ class ForensicGapAnalysisRecord(BaseModel):
         competitor_patterns: List[CompetitorCitationPattern],
         collection_candidates: List[ObservedCitationCollectionCandidate],
         collection_executions: List[CollectionExecutionRecord],
+        collection_attempts: List[CollectionAttemptRecord],
         evidence_gaps: List[ClientEvidenceGap],
         prioritized_actions: List[PrioritizedActionPlan],
     ) -> str:
-        """Computes deterministic SHA-256 canonical digest over ALL context bindings including profile_sha256, attribution_status, collection_candidates, collection_executions, total counts, descriptions, evidence bases, impact statements, and ethical notes."""
+        """Computes deterministic SHA-256 canonical digest over ALL context bindings including profile_sha256, attribution_status, collection_candidates, collection_executions, collection_attempts, total counts, descriptions, evidence bases, impact statements, and ethical notes."""
         payload = {
             "analysis_id": analysis_id,
             "observation_id": observation_id,
@@ -279,6 +281,27 @@ class ForensicGapAnalysisRecord(BaseModel):
                 }
                 for ce in sorted(collection_executions, key=lambda x: x.execution_id)
             ],
+            "collection_attempts": [
+                {
+                    "attempt_id": ca.attempt_id,
+                    "candidate_id": ca.candidate_id,
+                    "target_query_id": ca.target_query_id,
+                    "cited_url": ca.cited_url,
+                    "observation_id": ca.observation_id,
+                    "raw_answer_sha256": ca.raw_answer_sha256.lower(),
+                    "profile_id": ca.profile_id,
+                    "profile_sha256": ca.profile_sha256.lower(),
+                    "manifest_sha256": ca.manifest_sha256.lower(),
+                    "query_map_sha256": ca.query_map_sha256.lower(),
+                    "source_ledger_sha256": ca.source_ledger_sha256.lower(),
+                    "evidence_id": ca.evidence_id,
+                    "verification_status": ca.verification_status.value,
+                    "failure_category": ca.failure_category.value if ca.failure_category else None,
+                    "failure_reason": ca.failure_reason,
+                    "canonical_digest": ca.canonical_digest.lower(),
+                }
+                for ca in sorted(collection_attempts, key=lambda x: x.attempt_id)
+            ],
             "evidence_gaps": [
                 {
                     "gap_id": g.gap_id,
@@ -337,6 +360,7 @@ class ForensicGapAnalysisRecord(BaseModel):
             competitor_patterns=self.competitor_patterns,
             collection_candidates=self.collection_candidates,
             collection_executions=self.collection_executions,
+            collection_attempts=self.collection_attempts,
             evidence_gaps=self.evidence_gaps,
             prioritized_actions=self.prioritized_actions,
         )

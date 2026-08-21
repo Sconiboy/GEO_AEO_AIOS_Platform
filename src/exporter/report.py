@@ -325,6 +325,29 @@ class ReportExporter:
                 lines.append(f"- **Canonical Digest**: {dig_fmt}")
                 lines.append("")
 
+        if gap_record.collection_attempts:
+            lines.extend([
+                "---",
+                "",
+                "## 🚫 Failed Candidate Collection Attempts",
+                "",
+            ])
+            for ca in gap_record.collection_attempts:
+                cat_str = f" ({ca.failure_category.value})" if ca.failure_category else ""
+                reason_str = f" Reason: *\"{ca.failure_reason}\"*" if ca.failure_reason else ""
+                dig_fmt = f"`{ca.canonical_digest[:16]}...`"
+                lines.append(f"### Attempt `{ca.attempt_id}` (Candidate: `{ca.candidate_id}`)")
+                lines.append(f"- **Target Query**: `{ca.target_query_id}`")
+                lines.append(f"- **Target URL**: [{ca.cited_url}]({ca.cited_url})")
+                lines.append(f"- **Bound Observation ID**: `{ca.observation_id}`")
+                lines.append(f"- **Evidence Record ID**: `{ca.evidence_id}`")
+                lines.append(f"- **Verification Status**: `{ca.verification_status.value}`{cat_str}")
+                if reason_str:
+                    lines.append(f"- **Failure Details**:{reason_str}")
+                lines.append(f"- **Attempt Timestamp**: `{ca.attempt_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`")
+                lines.append(f"- **Canonical Digest**: {dig_fmt}")
+                lines.append("")
+
         lines.extend([
             "---",
             "",
