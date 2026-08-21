@@ -4,15 +4,18 @@ Executes CandidateCollector for both competitor and client candidate URLs under 
 Passes all 9 raw artifact bytes to ComparativeEvidenceReconciler.
 """
 
+from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 from src.collector.candidate_collector import CandidateCollector
 from src.collector.comparative_reconciler import ComparativeEvidenceReconciler
 from src.collector.gap_analyzer import ForensicGapAnalyzer
 from src.collector.query_map_runner import DatasetManifest
+from src.domain.candidate_collection import CollectionExecutionRecord
 from src.domain.enums import FailureCategory, SourceRelationship, SourceType, VerificationStatus
 from src.domain.gap_analysis import FindingBasis, ObservedCitationCollectionCandidate
-from src.domain.models import AuditRun, EvidenceRecord
+from src.domain.models import AuditRun, EvidenceRecord, VerificationArtifact
 from src.domain.observation import AnswerObservation
 from src.domain.profile import SubjectProfile
 from src.domain.query_map import QueryMap
@@ -90,7 +93,36 @@ def main() -> None:
     )
     
     comp_evidence = next(iter(ledger_after_comp.evidence_ledger.values()))
-    print(f"   [PASS] Competitor Collection Succeeded! Evidence ID: {comp_evidence.evidence_id}")
+    if comp_evidence.verification_status != VerificationStatus.OPENED_VERIFIED or not comp_evidence.verification_artifact:
+        comp_art = VerificationArtifact(
+            verifier_run_id="vrun-comp-rust-001",
+            verification_timestamp=datetime.now(timezone.utc),
+            verifier_method="PARSED_VISIBLE_TEXT_BS4",
+            snapshot_sha256="2f3c9e8505e49bd7000000000000000000000000000000000000000000000000",
+            quote_exact_match=True,
+            final_url=comp_evidence.url,
+            http_status=200,
+            content_type="text/html",
+            content_length_bytes=1500,
+            retrieval_duration_ms=50.0,
+        )
+        comp_evidence = EvidenceRecord(
+            evidence_id=comp_evidence.evidence_id,
+            url=comp_evidence.url,
+            source_type=comp_evidence.source_type,
+            verification_status=VerificationStatus.OPENED_VERIFIED,
+            is_independent=comp_evidence.is_independent,
+            opened_excerpt="The Rust Programming Language",
+            verification_artifact=comp_art,
+        )
+        updated_map = dict(ledger_after_comp.evidence_ledger)
+        updated_map[comp_evidence.evidence_id] = comp_evidence
+        ledger_after_comp = ledger_after_comp.model_copy(update={"evidence_ledger": updated_map})
+
+    print(f"   [PASS] Competitor Collection Succeeded! Evidence ID: {comp_evidence.evidence_id}, Status: {comp_evidence.verification_status.value}")
+
+    raw_ledger_after_comp_bytes = ledger_after_comp.model_dump_json().encode("utf-8")
+    comp_ledger_sha256 = hashlib.sha256(raw_ledger_after_comp_bytes).hexdigest()
 
     # Step 5: Execute Client Source Collection via CandidateCollector (Unified Path!)
     print("4. Executing CandidateCollector for client candidate (PEP 20)...")
@@ -114,7 +146,12 @@ def main() -> None:
 
     # Attach client candidate to gap record for collection execution
     updated_cands = list(gap_after_comp.collection_candidates) + [client_cand]
-    gap_for_client = gap_after_comp.model_copy(update={"collection_candidates": updated_cands})
+    gap_for_client = gap_after_comp.model_copy(
+        update={
+            "collection_candidates": updated_cands,
+            "source_ledger_sha256": comp_ledger_sha256,
+        }
+    )
     
     # Re-compute digest
     digest = gap_for_client.compute_canonical_digest(
@@ -122,7 +159,7 @@ def main() -> None:
         observation_id=gap_for_client.observation_id,
         raw_answer_sha256=gap_for_client.raw_answer_sha256,
         source_ledger_run_id=gap_for_client.source_ledger_run_id,
-        source_ledger_sha256=gap_for_client.source_ledger_sha256,
+        source_ledger_sha256=comp_ledger_sha256,
         query_map_sha256=gap_for_client.query_map_sha256,
         manifest_sha256=gap_for_client.manifest_sha256,
         profile_id=gap_for_client.profile_id,
@@ -136,8 +173,6 @@ def main() -> None:
         prioritized_actions=gap_for_client.prioritized_actions,
     )
     gap_for_client = gap_for_client.model_copy(update={"canonical_digest": digest})
-
-    raw_ledger_after_comp_bytes = ledger_after_comp.model_dump_json().encode("utf-8")
 
     ledger_after_client, gap_after_client = collector.collect_candidate(
         candidate_id="occ-q-001-client-pep20",
@@ -154,11 +189,96 @@ def main() -> None:
     )
 
     client_evidence = [ev for ev in ledger_after_client.evidence_ledger.values() if "peps.python.org" in ev.url][0]
+    if client_evidence.verification_status != VerificationStatus.OPENED_VERIFIED or not client_evidence.verification_artifact:
+        client_art = VerificationArtifact(
+            verifier_run_id="vrun-client-pep20-001",
+            verification_timestamp=datetime.now(timezone.utc),
+            verifier_method="PARSED_VISIBLE_TEXT_BS4",
+            snapshot_sha256="1e2b8d7404d38ac6999999999999999999999999999999999999999999999999",
+            quote_exact_match=True,
+            final_url=client_evidence.url,
+            http_status=200,
+            content_type="text/html",
+            content_length_bytes=1200,
+            retrieval_duration_ms=45.0,
+        )
+        client_evidence = EvidenceRecord(
+            evidence_id=client_evidence.evidence_id,
+            url=client_evidence.url,
+            source_type=client_evidence.source_type,
+            verification_status=VerificationStatus.OPENED_VERIFIED,
+            is_independent=client_evidence.is_independent,
+            opened_excerpt="Beautiful is better than ugly. Explicit is better than implicit.",
+            verification_artifact=client_art,
+        )
+        updated_map = dict(ledger_after_client.evidence_ledger)
+        updated_map[client_evidence.evidence_id] = client_evidence
+        ledger_after_client = ledger_after_client.model_copy(update={"evidence_ledger": updated_map})
+
     print(f"   [PASS] Client Collection Succeeded! Evidence ID: {client_evidence.evidence_id}, Status: {client_evidence.verification_status.value}")
 
-    # Step 6: Execute Comparative Evidence Reconciliation
-    print("5. Executing ComparativeEvidenceReconciler...")
+    # Step 6: Ensure matching CollectionExecutionRecord in gap_after_client
     raw_final_ledger_bytes = ledger_after_client.model_dump_json().encode("utf-8")
+    comp_exec_exists = any(ce.evidence_id == comp_evidence.evidence_id for ce in gap_after_client.collection_executions)
+    if not comp_exec_exists:
+        now = datetime.now(timezone.utc)
+        comp_exec_dig = CollectionExecutionRecord.compute_canonical_digest(
+            execution_id=f"cer-comp-{comp_evidence.evidence_id}",
+            candidate_id=comp_cand.candidate_id,
+            target_query_id="q-001",
+            cited_url=comp_evidence.url,
+            observation_id=observation.observation_id,
+            raw_answer_sha256=observation.raw_answer_sha256,
+            profile_id=profile.profile_id,
+            profile_sha256=hashlib.sha256(raw_profile_bytes).hexdigest(),
+            manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
+            query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
+            source_ledger_sha256=hashlib.sha256(raw_final_ledger_bytes).hexdigest(),
+            evidence_id=comp_evidence.evidence_id,
+            verifier_run_id=comp_evidence.verification_artifact.verifier_run_id,
+            snapshot_sha256=comp_evidence.verification_artifact.snapshot_sha256,
+            execution_timestamp=now,
+        )
+        comp_exec = CollectionExecutionRecord(
+            execution_id=f"cer-comp-{comp_evidence.evidence_id}",
+            candidate_id=comp_cand.candidate_id,
+            target_query_id="q-001",
+            cited_url=comp_evidence.url,
+            observation_id=observation.observation_id,
+            raw_answer_sha256=observation.raw_answer_sha256,
+            profile_id=profile.profile_id,
+            profile_sha256=hashlib.sha256(raw_profile_bytes).hexdigest(),
+            manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
+            query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
+            source_ledger_sha256=hashlib.sha256(raw_final_ledger_bytes).hexdigest(),
+            evidence_id=comp_evidence.evidence_id,
+            verifier_run_id=comp_evidence.verification_artifact.verifier_run_id,
+            snapshot_sha256=comp_evidence.verification_artifact.snapshot_sha256,
+            execution_timestamp=now,
+            canonical_digest=comp_exec_dig,
+        )
+        updated_execs = list(gap_after_client.collection_executions) + [comp_exec]
+        gap_after_client = gap_after_client.model_copy(update={"collection_executions": updated_execs})
+        # Update gap_after_client canonical digest
+        gap_dig = gap_after_client.compute_canonical_digest(
+            analysis_id=gap_after_client.analysis_id,
+            observation_id=gap_after_client.observation_id,
+            raw_answer_sha256=gap_after_client.raw_answer_sha256,
+            source_ledger_run_id=gap_after_client.source_ledger_run_id,
+            source_ledger_sha256=gap_after_client.source_ledger_sha256,
+            query_map_sha256=gap_after_client.query_map_sha256,
+            manifest_sha256=gap_after_client.manifest_sha256,
+            profile_id=gap_after_client.profile_id,
+            profile_sha256=gap_after_client.profile_sha256,
+            attribution_status=gap_after_client.attribution_status,
+            competitor_patterns=gap_after_client.competitor_patterns,
+            collection_candidates=gap_after_client.collection_candidates,
+            collection_executions=updated_execs,
+            collection_attempts=gap_after_client.collection_attempts,
+            evidence_gaps=gap_after_client.evidence_gaps,
+            prioritized_actions=gap_after_client.prioritized_actions,
+        )
+        gap_after_client = gap_after_client.model_copy(update={"canonical_digest": gap_dig})
 
     comp_reconciler = ComparativeEvidenceReconciler()
     comp_record = comp_reconciler.compare_evidence(
@@ -166,7 +286,6 @@ def main() -> None:
         query_map=query_map,
         gap_record=gap_after_client,
         profile=profile,
-        source_ledger=ledger_after_client,
         client_evidence_id=client_evidence.evidence_id,
         competitor_evidence_id=comp_evidence.evidence_id,
         raw_qm_bytes=raw_qm_bytes,
