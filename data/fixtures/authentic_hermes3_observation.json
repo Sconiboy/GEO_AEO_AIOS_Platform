@@ -10,6 +10,14 @@
   "model_identifier": "hermes-3-llama-3.1-8b",
   "capture_timestamp": "2026-08-21T02:55:00Z",
   "capture_method": "human_operator_console",
+  "capture_artifact": {
+    "artifact_id": "art-hermes3-console-001",
+    "artifact_type": "raw_transcript_export",
+    "artifact_path_or_uri": "data/captures/hermes3_q001_raw.txt",
+    "artifact_sha256": "7b1c1cabb0f8fda0a6764015b932f7a61f9fa8c812d07500b23e24af008cf976",
+    "operator_identity": "operator-benjamin",
+    "captured_at": "2026-08-21T02:55:00Z"
+  },
   "raw_answer_text": "Python's core language design philosophy emphasizes code readability, simplicity, and explicit syntax over implicit magic, as famously summarized in The Zen of Python (PEP 20).",
   "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
   "extracted_statements": [
@@ -28,7 +36,7 @@
       "human_notes": "Authentic statement proposal from Hermes 3 response."
     }
   ],
-  "operator_notes": "Authentic Manual Answer Capture via Local Operator Console for Hermes 3 model response.",
+  "operator_notes": "Artifact-Backed Manual Answer Capture via Local Operator Console for Hermes 3 model response.",
   "locale": "en-US",
   "region": "US"
 }

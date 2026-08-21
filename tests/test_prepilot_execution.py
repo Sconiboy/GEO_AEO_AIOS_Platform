@@ -94,7 +94,7 @@ def test_prepilot_controlled_competitor_collection_execution(tmp_path: Path) -> 
 
 
 def test_authentic_hermes3_observation_provenance() -> None:
-    """Proves authentic manual Hermes 3 capture has honest human_operator_console provenance and does NOT render synthetic warning."""
+    """Proves authentic manual Hermes 3 capture has honest human_operator_console provenance and is artifact-backed."""
     from src.domain.enums import CaptureMethod
 
     auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
@@ -104,11 +104,49 @@ def test_authentic_hermes3_observation_provenance() -> None:
     query_map = QueryMap.model_validate_json(qm_path.read_bytes())
 
     assert auth_obs.verify_integrity() is True
+    assert auth_obs.is_artifact_backed is True
+    assert auth_obs.capture_artifact is not None
+    assert auth_obs.capture_artifact.artifact_id == "art-hermes3-console-001"
+    assert auth_obs.capture_artifact.operator_identity == "operator-benjamin"
     assert auth_obs.capture_method == CaptureMethod.HUMAN_OPERATOR_CONSOLE
     assert auth_obs.provider_name == "Ollama / Local Operator Console"
     assert auth_obs.model_identifier == "hermes-3-llama-3.1-8b"
 
     rendered_obs = ReportExporter.export_observation_record(auth_obs, query_map)
     assert "SYNTHETIC FIXTURE OBSERVATION" not in rendered_obs
-    assert "MANUAL ANSWER-SURFACE OBSERVATION RECORD" in rendered_obs
+    assert "ARTIFACT-BACKED MANUAL CAPTURE" in rendered_obs
+    assert "Bound Raw Capture Artifact" in rendered_obs
+    assert "art-hermes3-console-001" in rendered_obs
+
+
+def test_unbacked_self_declared_observation_provenance() -> None:
+    """Proves observation without capture_artifact is recognized as unbacked / self-declared."""
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    qm_path = Path("data/fixtures/sample_query_map.json")
+
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+    obs_dict["capture_artifact"] = None
+    unbacked_obs = AnswerObservation.model_validate(obs_dict)
+    query_map = QueryMap.model_validate_json(qm_path.read_bytes())
+
+    assert unbacked_obs.verify_integrity() is True
+    assert unbacked_obs.is_artifact_backed is False
+
+    rendered_obs = ReportExporter.export_observation_record(unbacked_obs, query_map)
+    assert "UNBACKED / SELF-DECLARED MANUAL CAPTURE" in rendered_obs
+    assert "ARTIFACT-BACKED MANUAL CAPTURE" not in rendered_obs
+
+
+def test_corrupted_artifact_sha256_fails_verify_integrity(tmp_path: Path) -> None:
+    """Proves verify_integrity returns False if artifact file content SHA256 does not match artifact_sha256."""
+    fake_art_file = tmp_path / "corrupted_raw.txt"
+    fake_art_file.write_text("Mutated raw text content")
+
+    auth_obs_path = Path("data/fixtures/authentic_hermes3_observation.json")
+    obs_dict = AnswerObservation.model_validate_json(auth_obs_path.read_bytes()).model_dump()
+    obs_dict["capture_artifact"]["artifact_path_or_uri"] = str(fake_art_file)
+
+    corrupted_obs = AnswerObservation.model_validate(obs_dict)
+    assert corrupted_obs.verify_integrity() is False
+
 

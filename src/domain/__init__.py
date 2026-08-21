@@ -31,7 +31,7 @@ from .gap_analysis import (
 from .candidate_collection import CollectionAttemptRecord, CollectionExecutionRecord
 from .human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
-from .observation import AnswerObservation, ExtractedStatement, ExtractionStatus
+from .observation import AnswerObservation, CaptureArtifact, ExtractedStatement, ExtractionStatus
 from .profile import ClientProfile, CompetitorProfile, SubjectProfile
 from .query_map import (
     CollectionPolicyProfile,

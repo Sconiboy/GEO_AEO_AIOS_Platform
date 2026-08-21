@@ -231,6 +231,20 @@ class ReportExporter:
                 "> This observation text was imported from a synthetic test fixture and does not represent an authentic live model response.",
                 "",
             ])
+        elif not observation.is_artifact_backed:
+            lines.extend([
+                "> [!NOTE]",
+                "> **UNBACKED / SELF-DECLARED MANUAL CAPTURE**",
+                "> Factual record of raw model response capture. Self-declared without a bound raw transcript artifact.",
+                "",
+            ])
+        else:
+            lines.extend([
+                "> [!NOTE]",
+                "> **ARTIFACT-BACKED MANUAL CAPTURE**",
+                "> Verified raw model response capture bound to an immutable raw transcript/console artifact.",
+                "",
+            ])
 
         lines.extend([
             "> [!NOTE]",
@@ -255,6 +269,19 @@ class ReportExporter:
             f"- **Dataset Manifest SHA256**: `{gap_record.manifest_sha256[:16]}...`",
             f"- **Subject Profile SHA256**: `{gap_record.profile_sha256[:16]}...`",
             f"- **Competitor Attribution Status**: `{gap_record.attribution_status.value}`",
+        ])
+
+        if observation.is_artifact_backed and observation.capture_artifact is not None:
+            art = observation.capture_artifact
+            lines.extend([
+                f"- **Bound Capture Artifact ID**: `{art.artifact_id}`",
+                f"- **Artifact Type**: `{art.artifact_type}`",
+                f"- **Artifact File Path**: `{art.artifact_path_or_uri}`",
+                f"- **Artifact SHA256**: `{art.artifact_sha256[:16]}...`",
+                f"- **Operator Identity**: `{art.operator_identity}`",
+            ])
+
+        lines.extend([
             "",
             "---",
             "",
@@ -447,6 +474,20 @@ class ReportExporter:
                 "> This observation text was imported from a synthetic test fixture and does not represent an authentic live model response.",
                 "",
             ])
+        elif not observation.is_artifact_backed:
+            lines.extend([
+                "> [!NOTE]",
+                "> **UNBACKED / SELF-DECLARED MANUAL CAPTURE**",
+                "> Factual record of raw model response capture. Self-declared without a bound raw transcript artifact.",
+                "",
+            ])
+        else:
+            lines.extend([
+                "> [!NOTE]",
+                "> **ARTIFACT-BACKED MANUAL CAPTURE**",
+                "> Verified raw model response capture bound to an immutable raw transcript/console artifact.",
+                "",
+            ])
 
         lines.extend([
             "> [!NOTE]",
@@ -462,6 +503,24 @@ class ReportExporter:
             f"**Capture Timestamp**: `{observation.capture_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`  ",
             f"**Locale / Region**: `{locale_str}` / `{region_str}`  ",
             f"**Raw Answer Digest**: `{observation.raw_answer_sha256[:16]}...`",
+        ])
+
+        if observation.is_artifact_backed and observation.capture_artifact is not None:
+            art = observation.capture_artifact
+            lines.extend([
+                "",
+                "---",
+                "",
+                "## 📎 Bound Raw Capture Artifact",
+                f"- **Artifact ID**: `{art.artifact_id}`",
+                f"- **Artifact Category**: `{art.artifact_type}`",
+                f"- **Artifact File Path**: `{art.artifact_path_or_uri}`",
+                f"- **Artifact SHA256**: `{art.artifact_sha256[:16]}...`",
+                f"- **Operator Identity**: `{art.operator_identity}`",
+                f"- **Preserved At**: `{art.captured_at.strftime('%Y-%m-%d %H:%M:%S UTC')}`",
+            ])
+
+        lines.extend([
             "",
             "---",
             "",

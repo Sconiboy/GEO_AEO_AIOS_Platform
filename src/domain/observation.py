@@ -43,10 +43,31 @@ class ExtractedStatement(BaseModel):
     )
 
 
+class CaptureArtifact(BaseModel):
+    """
+    Immutable capture artifact contract binding a preserved raw transcript, console export, or screenshot.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    artifact_id: str = Field(..., description="Unique capture artifact identifier")
+    artifact_type: str = Field(..., description="Artifact category (e.g. raw_transcript_export, console_log_export, session_screenshot)")
+    artifact_path_or_uri: str = Field(..., description="Relative or absolute path/URI to preserved raw capture artifact file")
+    artifact_sha256: str = Field(..., min_length=64, max_length=64, description="SHA-256 digest of preserved raw capture artifact file")
+    operator_identity: str = Field(..., description="Authenticated operator username or key label")
+    captured_at: datetime = Field(..., description="Timestamp when artifact was preserved")
+
+    @field_validator("artifact_sha256")
+    @classmethod
+    def clean_hash_lowercase(cls, v: str) -> str:
+        return v.strip().lower()
+
+
 class AnswerObservation(BaseModel):
     """
     Immutable observation record capturing a raw answer surface response from a named model.
     Binds directly to an approved TargetQuery, QueryMap hash, Manifest hash, and frozen Source Ledger hash.
+    Optionally binds an immutable CaptureArtifact for artifact-backed provenance verification.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -74,6 +95,11 @@ class AnswerObservation(BaseModel):
     capture_timestamp: datetime = Field(..., description="Operator-provided capture timestamp")
     capture_method: CaptureMethod = Field(..., description="Capture method used")
 
+    # Optional bound transcript/export capture artifact
+    capture_artifact: Optional[CaptureArtifact] = Field(
+        default=None, description="Bound raw transcript export or screenshot capture artifact"
+    )
+
     raw_answer_text: str = Field(..., min_length=10, description="Unmodified raw answer text")
     raw_answer_sha256: str = Field(
         ..., min_length=64, max_length=64, description="SHA-256 digest of raw_answer_text"
@@ -92,10 +118,32 @@ class AnswerObservation(BaseModel):
     def clean_hash_lowercase(cls, v: str) -> str:
         return v.strip().lower()
 
+    @property
+    def is_artifact_backed(self) -> bool:
+        """
+        Returns True if observation has a valid bound CaptureArtifact.
+        """
+        return self.capture_artifact is not None
+
     def verify_integrity(self) -> bool:
         """
-        Re-verifies that raw_answer_sha256 exactly matches the SHA-256 digest of raw_answer_text.
+        Re-verifies raw_answer_sha256 against raw_answer_text.
+        If capture_artifact is bound, verifies artifact_sha256 against file on disk if accessible.
         Returns True if intact, False if mutated or corrupted.
         """
         calculated_hash = hashlib.sha256(self.raw_answer_text.encode("utf-8")).hexdigest()
-        return self.raw_answer_sha256.lower() == calculated_hash.lower()
+        if self.raw_answer_sha256.lower() != calculated_hash.lower():
+            return False
+
+        if self.capture_artifact is not None:
+            # Check local file content if file exists
+            from pathlib import Path
+
+            art_path = Path(self.capture_artifact.artifact_path_or_uri)
+            if art_path.exists() and art_path.is_file():
+                file_bytes = art_path.read_bytes()
+                file_hash = hashlib.sha256(file_bytes).hexdigest()
+                if file_hash.lower() != self.capture_artifact.artifact_sha256.lower():
+                    return False
+
+        return True
