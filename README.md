@@ -69,6 +69,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_SPRINT71_REVIEW.md`](docs/MANUS_SPRINT71_REVIEW.md) - Sprint 7.1 review requiring profile-hash binding, decision-context checks, attribution states, and false-gap prevention.
 - [`docs/MANUS_SPRINT72_REVIEW.md`](docs/MANUS_SPRINT72_REVIEW.md) - Sprint 7.2 review approving provenance safeguards while requiring direct answer-citation competitor classification.
 - [`docs/MANUS_SPRINT73_REVIEW.md`](docs/MANUS_SPRINT73_REVIEW.md) - Sprint 7.3 review approving direct competitor recognition while requiring manifest-approved collection candidates and exact URL evidence linkage.
+- [`docs/MANUS_SPRINT74_REVIEW.md`](docs/MANUS_SPRINT74_REVIEW.md) - Sprint 7.4 review requiring exact URL-and-query manifest authorization before any observed competitor citation can be collected.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
