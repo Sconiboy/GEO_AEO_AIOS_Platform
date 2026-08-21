@@ -79,6 +79,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_SPRINT762_REVIEW.md`](docs/MANUS_SPRINT762_REVIEW.md) - Sprint 7.6.2 review requiring the preserved transcript itself to prove the observation’s raw answer and capture metadata.
 - [`docs/MANUS_SPRINT763_REVIEW.md`](docs/MANUS_SPRINT763_REVIEW.md) - Sprint 7.6.3 review accepting transcript-to-answer binding while requiring capture timestamp and declared operator bindings.
 - [`docs/MANUS_SPRINT764_REVIEW.md`](docs/MANUS_SPRINT764_REVIEW.md) - Sprint 7.6.4 approval for an artifact-backed, operator-declared controlled observation.
+- [`docs/MANUS_SPRINT8_REVIEW.md`](docs/MANUS_SPRINT8_REVIEW.md) - Sprint 8 review accepting the citation-bearing capture and source retrieval while rejecting the hard-coded comparative artifact.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
