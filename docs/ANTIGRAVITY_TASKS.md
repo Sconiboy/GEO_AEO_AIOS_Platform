@@ -943,5 +943,18 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-38: Full capture header verification (Session ID, UTC timestamp, operator identity matching), precise disclosure badges, and 84 passing unit tests.
 - [x] Task A-39: Sprint 8 comparative evidence workflow (competitor citation answer capture, CandidateCollector execution, PEP 20 client evidence collection, ComparativeEvidenceReconciler, and non-causal action hypothesis report).
 
+## ⚖️ Sprint 8.1: Forensic Comparative Evidence Engine & Complete Context Binding
 
+### Task A-40: Dynamic Profile Ownership, Source-to-Claim Semantic Assessment, 9-Hash Context Binding, and Unified Candidate Provenance
+- **Goal**: Implement Sprint 8.1 forensic comparative engine remediations based on Manus's review ([`docs/MANUS_SPRINT8_REVIEW.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/docs/MANUS_SPRINT8_REVIEW.md)):
+  - Built `ComparativeEvidenceRecord` and `ClaimExcerptAssessment` contracts ([`src/domain/comparative.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/domain/comparative.py)) with complete 9-hash context binding (`observation_id`, `raw_answer_sha256`, `profile_id`, `profile_sha256`, `query_map_sha256`, `manifest_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, client/competitor evidence IDs, snapshot hashes, verifier runs, and collection execution IDs), protected by `compute_canonical_digest()` and `verify_integrity()`.
+  - Updated `ComparativeEvidenceReconciler` ([`src/collector/comparative_reconciler.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/collector/comparative_reconciler.py)) to dynamically classify client (`CLIENT_OWNED`) and competitor (`COMPETITOR_OWNED`) domain ownership via `SubjectProfile`, rejecting unknown/mismatched domains.
+  - Implemented source-to-claim semantic evaluation (`evaluate_claim_support`) mapping raw model statements to verified source excerpts into `ClaimExcerptAssessment` records (`SUPPORTED`, `UNSUPPORTED`, `CONTRADICTED`, or `NOT_ASSESSABLE`).
+  - Enforced `record.verify_integrity()` gate in `ReportExporter.export_comparative_analysis_record()` ([`src/exporter/report.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/exporter/report.py)).
+  - Unified candidate execution provenance path in [`scripts/run_comparative_prepilot.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/scripts/run_comparative_prepilot.py) executing `CandidateCollector` for both competitor (`https://doc.rust-lang.org/book/`) and client (`https://peps.python.org/pep-0020/`) candidates under exact manifest authorization.
+  - Added unit test suite `tests/test_comparative_reconciler.py` covering dynamic ownership classification, tampering rejection, and semantic claim assessment.
+- **Status**: COMPLETED (88 unit tests passing, 84% total code coverage, 100% coverage on `domain/comparative.py`, 0 Mypy static type errors).
 
+---
+
+## Completed Tasks

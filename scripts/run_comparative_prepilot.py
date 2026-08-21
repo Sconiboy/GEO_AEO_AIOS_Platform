@@ -1,5 +1,7 @@
 """
-Standalone Execution Script for Sprint 8 Bounded Comparative Evidence Pre-Pilot Workflow
+Standalone Execution Script for Sprint 8.1 Forensic Comparative Evidence Pre-Pilot Workflow
+Executes CandidateCollector for both competitor and client candidate URLs under exact manifest authorization.
+Passes all 9 raw artifact bytes to ComparativeEvidenceReconciler.
 """
 
 import json
@@ -8,9 +10,9 @@ from src.collector.candidate_collector import CandidateCollector
 from src.collector.comparative_reconciler import ComparativeEvidenceReconciler
 from src.collector.gap_analyzer import ForensicGapAnalyzer
 from src.collector.query_map_runner import DatasetManifest
-from src.collector.verifier import SourceVerifier
-from src.domain.enums import FailureCategory, SourceType, VerificationStatus
-from src.domain.models import AuditRun, EvidenceRecord, VerificationArtifact
+from src.domain.enums import FailureCategory, SourceRelationship, SourceType, VerificationStatus
+from src.domain.gap_analysis import FindingBasis, ObservedCitationCollectionCandidate
+from src.domain.models import AuditRun, EvidenceRecord
 from src.domain.observation import AnswerObservation
 from src.domain.profile import SubjectProfile
 from src.domain.query_map import QueryMap
@@ -18,7 +20,7 @@ from src.exporter.report import ReportExporter
 
 
 def main() -> None:
-    print("=== Starting Sprint 8 Bounded Comparative Evidence Pre-Pilot ===")
+    print("=== Starting Sprint 8.1 Forensic Comparative Evidence Pre-Pilot ===")
 
     # Step 1: Load inputs and raw bytes
     qm_path = Path("data/fixtures/sample_query_map.json")
@@ -37,7 +39,7 @@ def main() -> None:
 
     # Create empty initial source ledger AuditRun
     initial_ledger = AuditRun(
-        run_id="run-sprint8-prepilot-001",
+        run_id="run-sprint81-prepilot-001",
         client_domain=profile.client_profile.client_domain,
         category="python_programming",
         evidence_ledger={},
@@ -67,14 +69,14 @@ def main() -> None:
 
     print(f"   [PASS] Attribution Status: {gap_record.attribution_status.value}")
     print(f"   [PASS] Identified {len(gap_record.collection_candidates)} collection candidate(s).")
-    cand = gap_record.collection_candidates[0]
-    print(f"          Candidate ID: {cand.candidate_id}, URL: {cand.cited_url}, Requires Human Approval: {cand.requires_human_manifest_approval}")
+    comp_cand = gap_record.collection_candidates[0]
+    print(f"          Competitor Candidate ID: {comp_cand.candidate_id}, URL: {comp_cand.cited_url}")
 
     # Step 4: Execute Competitor Source Collection via CandidateCollector
-    print("3. Executing CandidateCollector for competitor URL...")
+    print("3. Executing CandidateCollector for competitor candidate...")
     collector = CandidateCollector()
-    updated_ledger, updated_gap_record = collector.collect_candidate(
-        candidate_id=cand.candidate_id,
+    ledger_after_comp, gap_after_comp = collector.collect_candidate(
+        candidate_id=comp_cand.candidate_id,
         subject_profile=profile,
         observation=observation,
         source_ledger=initial_ledger,
@@ -87,39 +89,95 @@ def main() -> None:
         raw_profile_bytes=raw_profile_bytes,
     )
     
-    comp_evidence = next(iter(updated_ledger.evidence_ledger.values()))
-    print(f"   [PASS] Competitor Collection Succeeded!")
-    print(f"          Evidence ID: {comp_evidence.evidence_id}, Status: {comp_evidence.verification_status.value}")
+    comp_evidence = next(iter(ledger_after_comp.evidence_ledger.values()))
+    print(f"   [PASS] Competitor Collection Succeeded! Evidence ID: {comp_evidence.evidence_id}")
 
-    # Step 5: Collect Matched Client Evidence (PEP 20)
-    print("4. Collecting Matched Client Evidence (PEP 20)...")
-    verifier = SourceVerifier()
-    client_url = "https://peps.python.org/pep-0020/"
-    client_quote = "Beautiful is better than ugly. Explicit is better than implicit. Simple is better than complex."
-    client_evidence = verifier.verify_url(
-        url=client_url,
-        candidate_excerpt=client_quote,
-        source_type=SourceType.OFFICIAL_DOCUMENTATION,
-        is_independent=False,
-        evidence_id="ev-pep20-client-001",
+    # Step 5: Execute Client Source Collection via CandidateCollector (Unified Path!)
+    print("4. Executing CandidateCollector for client candidate (PEP 20)...")
+    client_cand = ObservedCitationCollectionCandidate(
+        candidate_id="occ-q-001-client-pep20",
+        target_query_id="q-001",
+        cited_url="https://peps.python.org/pep-0020/",
+        cited_domain="peps.python.org",
+        source_relationship=SourceRelationship.CLIENT_OWNED,
+        matched_competitor_entity=None,
+        matched_manifest_query_id="q-001",
+        requires_human_manifest_approval=False,
+        finding_basis=FindingBasis(
+            observation_id=observation.observation_id,
+            statement_id="stmt-001",
+            evidence_ids=[],
+            source_relationships=[SourceRelationship.CLIENT_OWNED],
+        ),
+        action_hypothesis="Collection candidate proposal for client-owned PEP 20 documentation.",
     )
-    print(f"   [PASS] Client Evidence Status: {client_evidence.verification_status.value}")
+
+    # Attach client candidate to gap record for collection execution
+    updated_cands = list(gap_after_comp.collection_candidates) + [client_cand]
+    gap_for_client = gap_after_comp.model_copy(update={"collection_candidates": updated_cands})
+    
+    # Re-compute digest
+    digest = gap_for_client.compute_canonical_digest(
+        analysis_id=gap_for_client.analysis_id,
+        observation_id=gap_for_client.observation_id,
+        raw_answer_sha256=gap_for_client.raw_answer_sha256,
+        source_ledger_run_id=gap_for_client.source_ledger_run_id,
+        source_ledger_sha256=gap_for_client.source_ledger_sha256,
+        query_map_sha256=gap_for_client.query_map_sha256,
+        manifest_sha256=gap_for_client.manifest_sha256,
+        profile_id=gap_for_client.profile_id,
+        profile_sha256=gap_for_client.profile_sha256,
+        attribution_status=gap_for_client.attribution_status,
+        competitor_patterns=gap_for_client.competitor_patterns,
+        collection_candidates=updated_cands,
+        collection_executions=gap_for_client.collection_executions,
+        collection_attempts=gap_for_client.collection_attempts,
+        evidence_gaps=gap_for_client.evidence_gaps,
+        prioritized_actions=gap_for_client.prioritized_actions,
+    )
+    gap_for_client = gap_for_client.model_copy(update={"canonical_digest": digest})
+
+    raw_ledger_after_comp_bytes = ledger_after_comp.model_dump_json().encode("utf-8")
+
+    ledger_after_client, gap_after_client = collector.collect_candidate(
+        candidate_id="occ-q-001-client-pep20",
+        subject_profile=profile,
+        observation=observation,
+        source_ledger=ledger_after_comp,
+        query_map=query_map,
+        manifest=manifest,
+        gap_record=gap_for_client,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_after_comp_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    client_evidence = [ev for ev in ledger_after_client.evidence_ledger.values() if "peps.python.org" in ev.url][0]
+    print(f"   [PASS] Client Collection Succeeded! Evidence ID: {client_evidence.evidence_id}, Status: {client_evidence.verification_status.value}")
 
     # Step 6: Execute Comparative Evidence Reconciliation
     print("5. Executing ComparativeEvidenceReconciler...")
+    raw_final_ledger_bytes = ledger_after_client.model_dump_json().encode("utf-8")
+
     comp_reconciler = ComparativeEvidenceReconciler()
     comp_record = comp_reconciler.compare_evidence(
         observation=observation,
         query_map=query_map,
-        gap_record=updated_gap_record,
+        gap_record=gap_after_client,
         profile=profile,
         client_evidence=client_evidence,
         competitor_evidence=comp_evidence,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_final_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
     )
 
     print(f"   [PASS] Comparative Record Generated! ID: {comp_record.comparative_id}")
-    print(f"          Digest: {comp_record.canonical_digest[:16]}...")
-    print(f"          Gap Identified: {comp_record.evidence_gap_identified}")
+    print(f"          Canonical Digest: {comp_record.canonical_digest[:16]}...")
+    print(f"          Verify Integrity: {comp_record.verify_integrity()}")
+    print(f"          Evidence Gap Identified: {comp_record.evidence_gap_identified}")
 
     # Step 7: Export Markdown Report
     print("6. Exporting Comparative Analysis Report...")
@@ -130,7 +188,7 @@ def main() -> None:
     report_file = reports_dir / "prepilot_comparative_analysis_report.md"
     report_file.write_text(report_md)
 
-    print(f"=== Sprint 8 Pre-Pilot Execution Complete! Report saved to '{report_file}' ===")
+    print(f"=== Sprint 8.1 Pre-Pilot Execution Complete! Report saved to '{report_file}' ===")
 
 
 if __name__ == "__main__":

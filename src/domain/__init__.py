@@ -30,6 +30,7 @@ from .gap_analysis import (
 )
 from .candidate_collection import CollectionAttemptRecord, CollectionExecutionRecord
 from .human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
+from .comparative import ClaimExcerptAssessment, ComparativeEvidenceRecord, ComparativeSourceSummary
 from .models import AuditRun, ClaimRecord, ConfidenceScore, EvidenceRecord, VerificationArtifact
 from .observation import AnswerObservation, CaptureArtifact, ExtractedStatement, ExtractionStatus
 from .profile import ClientProfile, CompetitorProfile, SubjectProfile
@@ -89,4 +90,7 @@ __all__ = [
     "ClientEvidenceGap",
     "PrioritizedActionPlan",
     "ForensicGapAnalysisRecord",
+    "ClaimExcerptAssessment",
+    "ComparativeSourceSummary",
+    "ComparativeEvidenceRecord",
 ]

@@ -8,7 +8,8 @@ from .observation_importer import ObservationImporter
 from .policy import SourcePolicy
 from .query_map_runner import DatasetManifest, ManifestSourceCandidate, QueryMapRunner
 from .reconciler import ClaimReconciler
-from .comparative_reconciler import ComparativeEvidenceRecord, ComparativeEvidenceReconciler
+from .comparative_reconciler import ComparativeEvidenceReconciler
+from ..domain.comparative import ComparativeEvidenceRecord
 from .snapshot import SnapshotStore
 from .transcript_parser import ParsedTranscriptRecord, TranscriptParser
 from .verifier import SourceVerifier

@@ -9,7 +9,7 @@ from ..domain.reconciliation import ObservationReconciliation
 from ..domain.validators import validate_audit_run_ledger
 
 if TYPE_CHECKING:
-    from ..collector.comparative_reconciler import ComparativeEvidenceRecord
+    from ..domain.comparative import ComparativeEvidenceRecord
 
 
 class ReportExporter:
@@ -712,8 +712,21 @@ class ReportExporter:
     ) -> str:
         """
         Renders a Bounded Comparative Evidence Analysis Markdown document.
+        Fails closed if record fails SHA-256 integrity verification.
         Does NOT state causal LLM ranking claims or commercial visibility ranks.
         """
+        if not record.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: ComparativeEvidenceRecord canonical_digest ('{record.canonical_digest}') "
+                f"does not match calculated digest over 9 context bindings and claim assessments."
+            )
+
+        query_text = "Unknown Query"
+        for q in query_map.queries:
+            if q.query_id == record.query_id:
+                query_text = q.text
+                break
+
         lines: List[str] = [
             "> [!NOTE]",
             "> **BOUNDED COMPARATIVE EVIDENCE ANALYSIS RECORD**",
@@ -722,10 +735,19 @@ class ReportExporter:
             "",
             f"# ⚖️ Bounded Comparative Evidence Analysis",
             f"**Subject Entity**: `{query_map.entity_name}`  ",
-            f"**Target Query ID**: `{record.query_id}`  ",
+            f"**Target Query**: *\"{query_text}\"* (`{record.query_id}`)  ",
             f"**Bound Observation ID**: `{record.observation_id}`  ",
             f"**Comparative Record ID**: `{record.comparative_id}`  ",
             f"**Canonical Analysis Digest**: `{record.canonical_digest[:16]}...`",
+            "",
+            "---",
+            "",
+            "## 🔒 Content-Addressed 9-Hash Artifact Bindings",
+            f"- **Observation Raw Answer SHA256**: `{record.raw_answer_sha256[:16]}...`",
+            f"- **Subject Profile ID**: `{record.profile_id}` (Profile SHA256: `{record.profile_sha256[:16]}...`)",
+            f"- **QueryMap SHA256**: `{record.query_map_sha256[:16]}...`",
+            f"- **Dataset Manifest SHA256**: `{record.manifest_sha256[:16]}...`",
+            f"- **Source Ledger Run ID**: `{record.source_ledger_run_id}` (Ledger SHA256: `{record.source_ledger_sha256[:16]}...`)",
             "",
             "---",
             "",
@@ -734,16 +756,48 @@ class ReportExporter:
             "### 🟢 Client Evidence Summary",
             f"- **Domain**: `{record.client_evidence.domain}` (Entity: `{record.client_evidence.entity_name}`)",
             f"- **URL**: [{record.client_evidence.url}]({record.client_evidence.url})",
+            f"- **Evidence ID**: `{record.client_evidence.evidence_id}`",
+            f"- **Execution ID**: `{record.client_evidence.execution_id}`",
+            f"- **Verifier Run ID**: `{record.client_evidence.verifier_run_id}`",
             f"- **Status**: `{'OPENED_VERIFIED' if record.client_evidence.is_verified else 'UNVERIFIED'}`",
-            f"- **Snapshot Hash**: `{record.client_evidence.snapshot_sha256[:16] if record.client_evidence.snapshot_sha256 else 'N/A'}...`",
+            f"- **Snapshot Hash**: `{record.client_evidence.snapshot_sha256[:16]}...`",
             f"- **Extracted Excerpt**: *\"{record.client_evidence.opened_excerpt}\"*",
             "",
             "### 🔴 Competitor Evidence Summary",
             f"- **Domain**: `{record.competitor_evidence.domain}` (Entity: `{record.competitor_evidence.entity_name}`)",
             f"- **URL**: [{record.competitor_evidence.url}]({record.competitor_evidence.url})",
+            f"- **Evidence ID**: `{record.competitor_evidence.evidence_id}`",
+            f"- **Execution ID**: `{record.competitor_evidence.execution_id}`",
+            f"- **Verifier Run ID**: `{record.competitor_evidence.verifier_run_id}`",
             f"- **Status**: `{'OPENED_VERIFIED' if record.competitor_evidence.is_verified else 'UNVERIFIED'}`",
-            f"- **Snapshot Hash**: `{record.competitor_evidence.snapshot_sha256[:16] if record.competitor_evidence.snapshot_sha256 else 'N/A'}...`",
+            f"- **Snapshot Hash**: `{record.competitor_evidence.snapshot_sha256[:16]}...`",
             f"- **Extracted Excerpt**: *\"{record.competitor_evidence.opened_excerpt}\"*",
+            "",
+            "---",
+            "",
+            "## 🧪 Source-to-Claim Semantic Assessments",
+            "",
+            "### Client-Side Claim Assessments",
+            "| Statement ID | Statement Proposal | Assessment Status | Semantic Rationale |",
+            "|---|---|---|---|",
+        ]
+
+        for ca in record.client_claim_assessments:
+            badge = f"**`[{ca.assessment_status.value.upper()}]`**"
+            lines.append(f"| `{ca.statement_id}` | \"{ca.statement_text}\" | {badge} | {ca.semantic_rationale} |")
+
+        lines.extend([
+            "",
+            "### Competitor-Side Claim Assessments",
+            "| Statement ID | Statement Proposal | Assessment Status | Semantic Rationale |",
+            "|---|---|---|---|",
+        ])
+
+        for ca in record.competitor_claim_assessments:
+            badge = f"**`[{ca.assessment_status.value.upper()}]`**"
+            lines.append(f"| `{ca.statement_id}` | \"{ca.statement_text}\" | {badge} | {ca.semantic_rationale} |")
+
+        lines.extend([
             "",
             "---",
             "",
@@ -755,8 +809,10 @@ class ReportExporter:
             "## ⚡ Action Hypothesis for Human Operator Review",
             f"> [!IMPORTANT]",
             f"> **ACTION HYPOTHESIS**: {record.action_hypothesis}",
+            f"> **Finding Basis**: Observation `{record.finding_basis.observation_id}`, Statements `{record.finding_basis.statement_id}`, Evidence `{record.finding_basis.evidence_ids}`",
+            f"> **Human Review Required**: `{record.human_review_required}`",
             "> *All action hypotheses create genuine, verifiable public evidence. Non-manipulative.*",
             "",
             "---",
-        ]
+        ])
         return "\n".join(lines)
