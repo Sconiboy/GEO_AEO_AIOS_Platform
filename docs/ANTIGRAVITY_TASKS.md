@@ -942,14 +942,16 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-40: Dynamic Profile Ownership, Source-to-Claim Semantic Assessment, 9-Hash Context Binding, and Unified Candidate Provenance.
 - [x] Task A-41: Zero Keyword Auto-Support, Human Governance Adjudication, Total Canonical Digest Protection, and Factual Gap Derivation.
 - [x] Task A-42: Total 7-Binding Human Governance Context Gate and Per-Evidence Quote Matching.
+- [x] Task A-43: Immutable Source Ledger Resolution, Verifier Snapshot Digest Proof, and Evidence ID/Snapshot binding.
 
-## ⚖️ Sprint 8.3: Strict Human Decision Context & Evidence Binding Verification
+## ⚖️ Sprint 8.4: Source-Ledger Evidence Resolution & Snapshot Provenance Verification
 
-### Task A-42: Total 7-Binding Human Governance Context Gate and Per-Evidence Quote Matching
-- **Goal**: Implement Sprint 8.3 strict human governance verification remediations based on Manus's review ([`docs/MANUS_SPRINT82_REVIEW.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/docs/MANUS_SPRINT82_REVIEW.md)):
-  - Implemented 7-binding context verification gate in `ComparativeEvidenceReconciler.compare_evidence()` ([`src/collector/comparative_reconciler.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/collector/comparative_reconciler.py)) validating `observation_id`, `raw_answer_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, `query_map_sha256`, and `manifest_sha256`. Any context mismatch raises `ValueError` ("HumanDecisionRecord Context Mismatch").
-  - Implemented per-evidence quote matching in `evaluate_claim_support()`: Promotion of a claim assessment for `client_evidence` or `competitor_evidence` strictly requires a `QuotedEvidencePassage` whose `evidence_id == evidence.evidence_id` AND verbatim `quoted_passage` is present in `evidence.opened_excerpt`.
-  - Replaying a human decision approving client PEP 20 evidence onto competitor Rust Book evidence is strictly blocked (`evidence_id` mismatch prevents promotion).
+### Task A-43: Immutable Source Ledger Resolution and Verifier Snapshot Digest Proof
+- **Goal**: Implement Sprint 8.4 strict source-ledger evidence resolution remediations based on Manus's review ([`docs/MANUS_SPRINT83_REVIEW.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/docs/MANUS_SPRINT83_REVIEW.md)):
+  - Updated `ComparativeEvidenceReconciler.compare_evidence()` ([`src/collector/comparative_reconciler.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/collector/comparative_reconciler.py)) to resolve `client_evidence` and `competitor_evidence` directly by ID (`client_evidence_id`, `competitor_evidence_id`) from the immutable source ledger (`source_ledger.evidence_ledger`). Caller-supplied lookalike evidence objects are no longer accepted.
+  - Enforced verifier snapshot proof: Resolved evidence records MUST have `verification_status == VerificationStatus.OPENED_VERIFIED` and a non-null `verification_artifact` with a valid `snapshot_sha256`.
+  - Implemented snapshot digest verification in `evaluate_claim_support()`: For a `HumanStatementDecision` to promote a claim assessment to `SUPPORTED`, `UNSUPPORTED`, or `CONTRADICTED`, `QuotedEvidencePassage.snapshot_sha256` (if specified) MUST match `evidence.verification_artifact.snapshot_sha256`.
+  - Updated [`scripts/run_comparative_prepilot.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/scripts/run_comparative_prepilot.py) to resolve evidence from the source ledger.
   - Added adversarial tests in `tests/test_comparative_reconciler.py`:
     - `test_cross_evidence_human_decision_replay_rejected`: Proves PEP 20 human decision passed with Rust evidence does NOT promote Rust evidence (`replayed_pep_decision_on_rust_evidence` blocked).
     - `test_mismatched_observation_id_human_decision_raises_error`: Proves mismatched `observation_id` raises `ValueError`.

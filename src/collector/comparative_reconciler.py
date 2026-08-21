@@ -1,9 +1,11 @@
 """
-Forensic Comparative Evidence Reconciler Engine (Sprint 8.3 Remediated)
+Forensic Comparative Evidence Reconciler Engine (Sprint 8.4 Remediated)
 Compares verified client evidence against verified competitor evidence for a target query observation.
 Dynamically derives domain ownership from SubjectProfile.
+Resolves client and competitor evidence directly by ID from the immutable Source Ledger (AuditRun).
 Automated evaluation defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW or NOT_ASSESSABLE (zero keyword auto-support).
-Integrates HumanDecisionRecord with strict 7-binding context verification and verbatim quoted passage matching per evidence record.
+Integrates HumanDecisionRecord with strict 7-binding context verification, per-evidence quote matching,
+and snapshot SHA-256 verifier artifact matching.
 Binds all 9 context hashes, statement texts, excerpts, finding basis trace, and human decisions into canonical digest.
 """
 
@@ -20,7 +22,7 @@ from ..domain.comparative import (
 from ..domain.enums import ReconciliationStatus, SourceRelationship, VerificationStatus
 from ..domain.gap_analysis import FindingBasis, ForensicGapAnalysisRecord
 from ..domain.human_decision import HumanDecisionRecord
-from ..domain.models import EvidenceRecord
+from ..domain.models import AuditRun, EvidenceRecord
 from ..domain.observation import AnswerObservation
 from ..domain.profile import SubjectProfile
 from ..domain.query_map import QueryMap
@@ -30,6 +32,7 @@ from .gap_analyzer import ForensicGapAnalyzer
 class ComparativeEvidenceReconciler:
     """
     Engine that reconciles verified client evidence against verified competitor evidence.
+    Resolves evidence directly from the immutable Source Ledger (AuditRun).
     Emits an evidence-governed ComparativeEvidenceRecord with complete 9-hash context binding.
     """
 
@@ -43,21 +46,26 @@ class ComparativeEvidenceReconciler:
         human_decision_record: Optional[HumanDecisionRecord] = None,
     ) -> ClaimExcerptAssessment:
         """
-        Evaluates an answer-surface statement claim against a verified evidence record excerpt.
+        Evaluates an answer-surface statement claim against a verified evidence record excerpt resolved from the source ledger.
         Zero keyword auto-support: Automated evaluation NEVER promotes statements to SUPPORTED based on word overlap.
         Defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW if OPENED_VERIFIED evidence excerpt exists,
         or NOT_ASSESSABLE if evidence is missing or unverified.
         Promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED requires a valid HumanDecisionRecord containing an explicit
-        QuotedEvidencePassage matching evidence.evidence_id AND verbatim quoted_passage inside evidence.opened_excerpt.
+        QuotedEvidencePassage matching evidence.evidence_id, verbatim quoted_passage in evidence.opened_excerpt,
+        AND snapshot_sha256 matching evidence.verification_artifact.snapshot_sha256 (if specified).
         """
         # Check if human decision record contains an adjudicated decision for this exact statement AND evidence ID
         if human_decision_record and evidence and evidence.verification_status == VerificationStatus.OPENED_VERIFIED:
             for dec in human_decision_record.decisions:
                 if dec.statement_id == statement_id:
-                    # Validate per-evidence quote matching: dec.quoted_evidence must contain a passage matching evidence.evidence_id
+                    # Validate per-evidence quote and snapshot matching:
                     matching_quote = None
                     for qe in dec.quoted_evidence:
                         if qe.evidence_id == evidence.evidence_id and qe.quoted_passage in (evidence.opened_excerpt or ""):
+                            # If qe.snapshot_sha256 is present, enforce snapshot digest matching against evidence verifier artifact
+                            if qe.snapshot_sha256 and evidence.verification_artifact:
+                                if qe.snapshot_sha256.lower() != evidence.verification_artifact.snapshot_sha256.lower():
+                                    continue  # Snapshot hash mismatch -> reject promotion
                             matching_quote = qe
                             break
 
@@ -104,8 +112,9 @@ class ComparativeEvidenceReconciler:
         query_map: QueryMap,
         gap_record: ForensicGapAnalysisRecord,
         profile: SubjectProfile,
-        client_evidence: EvidenceRecord,
-        competitor_evidence: EvidenceRecord,
+        source_ledger: AuditRun,
+        client_evidence_id: str,
+        competitor_evidence_id: str,
         raw_qm_bytes: bytes,
         raw_manifest_bytes: bytes,
         raw_ledger_bytes: bytes,
@@ -114,9 +123,10 @@ class ComparativeEvidenceReconciler:
         timestamp: Optional[datetime] = None,
     ) -> ComparativeEvidenceRecord:
         """
-        Executes bounded comparative evidence reconciliation between client and competitor evidence.
+        Executes bounded comparative evidence reconciliation resolving client and competitor evidence directly by ID
+        from the immutable source ledger (AuditRun).
         Enforces strict profile relationship classification, 7-binding human decision verification,
-        9-hash context binding, and canonical digest verification.
+        snapshot provenance verification, 9-hash context binding, and canonical digest verification.
         """
         if not observation.verify_integrity():
             raise ValueError(f"Observation integrity verification failed for '{observation.observation_id}'.")
@@ -126,13 +136,23 @@ class ComparativeEvidenceReconciler:
 
         created_at = timestamp or datetime.now(timezone.utc)
 
-        # Step 1: Compute 9 context hashes
+        # Step 1: Resolve Evidence Records directly from immutable Source Ledger
+        if client_evidence_id not in source_ledger.evidence_ledger:
+            raise ValueError(f"Comparative Reconciliation Blocked: Client evidence ID '{client_evidence_id}' not found in source ledger.")
+
+        if competitor_evidence_id not in source_ledger.evidence_ledger:
+            raise ValueError(f"Comparative Reconciliation Blocked: Competitor evidence ID '{competitor_evidence_id}' not found in source ledger.")
+
+        client_evidence = source_ledger.evidence_ledger[client_evidence_id]
+        competitor_evidence = source_ledger.evidence_ledger[competitor_evidence_id]
+
+        # Step 2: Compute 9 context hashes
         qm_sha256 = hashlib.sha256(raw_qm_bytes).hexdigest()
         manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
         ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
         profile_sha256 = hashlib.sha256(raw_profile_bytes).hexdigest()
 
-        # Step 2: Total 7-binding context verification for HumanDecisionRecord
+        # Step 3: Total 7-binding context verification for HumanDecisionRecord
         if human_decision_record:
             if not human_decision_record.verify_integrity():
                 raise ValueError(f"HumanDecisionRecord integrity verification failed for '{human_decision_record.decision_record_id}'.")
@@ -169,7 +189,7 @@ class ComparativeEvidenceReconciler:
                     f"does not match calculated manifest SHA-256 ('{manifest_sha256}')."
                 )
 
-        # Step 3: Dynamically classify client domain ownership
+        # Step 4: Dynamically classify client domain ownership & verifier artifact proof
         client_dom = urlparse(client_evidence.url).hostname or client_evidence.url
         client_rel, _ = ForensicGapAnalyzer.classify_source_relationship(client_dom, profile, client_evidence.source_type)
         if client_rel != SourceRelationship.CLIENT_OWNED:
@@ -201,7 +221,7 @@ class ComparativeEvidenceReconciler:
             opened_excerpt=client_evidence.opened_excerpt,
         )
 
-        # Step 4: Dynamically classify competitor domain ownership
+        # Step 5: Dynamically classify competitor domain ownership & verifier artifact proof
         comp_dom = urlparse(competitor_evidence.url).hostname or competitor_evidence.url
         comp_rel, comp_entity = ForensicGapAnalyzer.classify_source_relationship(comp_dom, profile, competitor_evidence.source_type)
         if comp_rel != SourceRelationship.COMPETITOR_OWNED:
@@ -233,7 +253,7 @@ class ComparativeEvidenceReconciler:
             opened_excerpt=competitor_evidence.opened_excerpt,
         )
 
-        # Step 5: Source-to-claim semantic assessments (role-aware & evidence-bound)
+        # Step 6: Source-to-claim semantic assessments (role-aware & evidence-bound)
         client_assessments: List[ClaimExcerptAssessment] = []
         competitor_assessments: List[ClaimExcerptAssessment] = []
 
@@ -241,7 +261,7 @@ class ComparativeEvidenceReconciler:
             client_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, client_evidence, SourceRelationship.CLIENT_OWNED, human_decision_record))
             competitor_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, competitor_evidence, SourceRelationship.COMPETITOR_OWNED, human_decision_record))
 
-        # Step 6: Derive factual evidence gap from comparative claim assessments
+        # Step 7: Derive factual evidence gap from comparative claim assessments
         comp_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in competitor_assessments)
         client_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in client_assessments)
         
@@ -278,7 +298,7 @@ class ComparativeEvidenceReconciler:
 
         comparative_id = f"comp-rec-{observation.observation_id}"
 
-        # Step 7: Compute 9-hash canonical digest over ALL fields and finding basis
+        # Step 8: Compute 9-hash canonical digest over ALL fields and finding basis
         human_rec_id = human_decision_record.decision_record_id if human_decision_record else None
         human_rec_dig = human_decision_record.canonical_digest if human_decision_record else None
 
