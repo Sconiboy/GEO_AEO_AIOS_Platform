@@ -92,6 +92,7 @@ class GapCategory(str, Enum):
     MISSING_THIRD_PARTY_COMPARISON = "missing_third_party_comparison"
     UNGROUNDED_MODEL_CLAIM = "ungrounded_model_claim"
     COMPETITOR_DOMINANCE = "competitor_dominance"
+    SEMANTIC_REVIEW_PENDING = "semantic_review_pending"
 
 
 class ActionSeverity(str, Enum):
@@ -114,3 +115,19 @@ class SourceRelationship(str, Enum):
     COMMUNITY = "community"
     OFFICIAL_REFERENCE = "official_reference"
     UNKNOWN = "unknown"
+
+
+class AttributionStatus(str, Enum):
+    """Competitor attribution evaluation status for an observed model response surface."""
+
+    CITED_COMPETITOR_OBSERVED = "cited_competitor_observed"
+    NO_ANSWER_CITATIONS_NOT_ASSESSABLE = "no_answer_citations_not_assessable"
+    CLIENT_ONLY_CITATIONS = "client_only_citations"
+
+
+class StatementEvidenceState(str, Enum):
+    """Three-way evidence evaluation state for a statement proposal."""
+
+    SUPPORTED = "supported"
+    SEMANTIC_REVIEW_PENDING = "semantic_review_pending"
+    CANDIDATE_EVIDENCE_GAP = "candidate_evidence_gap"

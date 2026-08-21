@@ -243,6 +243,8 @@ class ReportExporter:
             f"- **Source Ledger Run ID**: `{gap_record.source_ledger_run_id}` (Raw Ledger SHA256: `{gap_record.source_ledger_sha256[:16]}...`)",
             f"- **QueryMap SHA256**: `{gap_record.query_map_sha256[:16]}...`",
             f"- **Dataset Manifest SHA256**: `{gap_record.manifest_sha256[:16]}...`",
+            f"- **Subject Profile SHA256**: `{gap_record.profile_sha256[:16]}...`",
+            f"- **Competitor Attribution Status**: `{gap_record.attribution_status.value}`",
             "",
             "---",
             "",

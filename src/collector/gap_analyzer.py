@@ -1,5 +1,5 @@
 """
-Forensic Competitor Evidence-Gap Analyzer Engine (Sprint 7.1 Remediated)
+Forensic Competitor Evidence-Gap Analyzer Engine (Sprint 7.2 Remediated)
 Analyzes raw model answer surface observations, competitor citation patterns,
 subject profiles, and source ledgers to detect client evidence gaps and generate
 evidence-backed action hypotheses with complete canonical digest protection.
@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Set
 from urllib.parse import urlparse
 
 from ..collector.query_map_runner import DatasetManifest
-from ..domain.enums import ActionSeverity, GapCategory, ReconciliationStatus, SourceRelationship, SourceType
+from ..domain.enums import ActionSeverity, AttributionStatus, GapCategory, ReconciliationStatus, SourceRelationship, SourceType, StatementEvidenceState
 from ..domain.gap_analysis import (
     AnswerCitation,
     ClientEvidenceGap,
@@ -34,6 +34,56 @@ class ForensicGapAnalyzer:
     Forensic analysis engine identifying competitor citation patterns,
     client evidence gaps, and evidence-backed priority action hypotheses.
     """
+
+    @classmethod
+    def validate_human_decision_context(
+        cls,
+        human_decision: HumanDecisionRecord,
+        observation: AnswerObservation,
+        source_ledger: AuditRun,
+        qm_sha256: str,
+        manifest_sha256: str,
+        ledger_sha256: str,
+    ) -> None:
+        """
+        Validates all 6 context bindings of a HumanDecisionRecord against the current run.
+        Prevents decision-substitution or replay attacks.
+        """
+        if human_decision.observation_id != observation.observation_id:
+            raise ValueError(
+                f"Context mismatch: HumanDecisionRecord observation_id ('{human_decision.observation_id}') "
+                f"does not match current observation ID ('{observation.observation_id}')."
+            )
+
+        if human_decision.raw_answer_sha256.lower() != observation.raw_answer_sha256.lower():
+            raise ValueError(
+                f"Context mismatch: HumanDecisionRecord raw_answer_sha256 ('{human_decision.raw_answer_sha256}') "
+                f"does not match current observation digest ('{observation.raw_answer_sha256}')."
+            )
+
+        if human_decision.source_ledger_run_id != source_ledger.run_id:
+            raise ValueError(
+                f"Context mismatch: HumanDecisionRecord source_ledger_run_id ('{human_decision.source_ledger_run_id}') "
+                f"does not match current source ledger run ID ('{source_ledger.run_id}')."
+            )
+
+        if human_decision.source_ledger_sha256.lower() != ledger_sha256.lower():
+            raise ValueError(
+                f"Context mismatch: HumanDecisionRecord source_ledger_sha256 ('{human_decision.source_ledger_sha256}') "
+                f"does not match current raw source ledger digest ('{ledger_sha256}')."
+            )
+
+        if human_decision.query_map_sha256.lower() != qm_sha256.lower():
+            raise ValueError(
+                f"Context mismatch: HumanDecisionRecord query_map_sha256 ('{human_decision.query_map_sha256}') "
+                f"does not match current QueryMap digest ('{qm_sha256}')."
+            )
+
+        if human_decision.manifest_sha256.lower() != manifest_sha256.lower():
+            raise ValueError(
+                f"Context mismatch: HumanDecisionRecord manifest_sha256 ('{human_decision.manifest_sha256}') "
+                f"does not match current DatasetManifest digest ('{manifest_sha256}')."
+            )
 
     @classmethod
     def classify_source_relationship(
@@ -110,16 +160,27 @@ class ForensicGapAnalyzer:
     ) -> ForensicGapAnalysisRecord:
         """
         Executes forensic gap analysis:
-        1. Classifies domain relationships using explicit SubjectProfile.
-        2. Extracts actual citations from raw model answer text.
-        3. Respects human decision/reconciliation: skips false gaps for SUPPORTED statements.
-        4. Generates evidence-backed Action Hypotheses with explicit finding bases.
-        5. Calculates content-addressed canonical SHA-256 digest covering ALL fields.
+        1. Binds and validates raw profile_sha256.
+        2. Validates 6-binding context of human_decision if provided.
+        3. Three-way statement evidence evaluation: SUPPORTED, SEMANTIC_REVIEW_PENDING, or CANDIDATE_EVIDENCE_GAP.
+        4. Answer-level citation competitor attribution gate (NO citations -> NOT_ASSESSABLE).
+        5. Computes content-addressed canonical SHA-256 digest covering ALL fields.
         """
         qm_sha256 = hashlib.sha256(raw_qm_bytes).hexdigest()
         manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
         ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
         profile_sha256 = hashlib.sha256(raw_profile_bytes).hexdigest()
+
+        # Gate: Validate human decision context bindings if supplied
+        if human_decision:
+            cls.validate_human_decision_context(
+                human_decision=human_decision,
+                observation=observation,
+                source_ledger=source_ledger,
+                qm_sha256=qm_sha256,
+                manifest_sha256=manifest_sha256,
+                ledger_sha256=ledger_sha256,
+            )
 
         # Step 1: Extract answer citations
         answer_citations = cls.extract_answer_citations(observation.raw_answer_text)
@@ -129,17 +190,23 @@ class ForensicGapAnalyzer:
         domain_types: Dict[str, SourceType] = {}
         domain_relationships: Dict[str, SourceRelationship] = {}
 
-        for ev in source_ledger.evidence_ledger.values():
+        client_evidence_records: List[str] = []
+
+        for ev_id, ev in source_ledger.evidence_ledger.items():
             if ev.verification_status.value == "opened_verified":
                 parsed = urlparse(ev.url)
                 dom = parsed.hostname.lower() if parsed.hostname else ev.url
-                domain_counts[dom] = domain_counts.get(dom, 0) + 1
-                domain_types[dom] = ev.source_type
-                domain_relationships[dom] = cls.classify_source_relationship(
+                rel = cls.classify_source_relationship(
                     domain=dom,
                     subject_profile=subject_profile,
                     source_type=ev.source_type,
                 )
+                domain_counts[dom] = domain_counts.get(dom, 0) + 1
+                domain_types[dom] = ev.source_type
+                domain_relationships[dom] = rel
+
+                if rel == SourceRelationship.CLIENT_OWNED:
+                    client_evidence_records.append(ev_id)
 
         top_citations: List[CompetitorCitation] = [
             CompetitorCitation(
@@ -155,6 +222,14 @@ class ForensicGapAnalyzer:
             rel == SourceRelationship.CLIENT_OWNED for rel in domain_relationships.values()
         )
 
+        # Competitor Attribution Status Gate
+        if not answer_citations:
+            attr_status = AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE
+        elif any(domain_relationships.get(ac.domain) == SourceRelationship.COMPETITOR_OWNED for ac in answer_citations):
+            attr_status = AttributionStatus.CITED_COMPETITOR_OBSERVED
+        else:
+            attr_status = AttributionStatus.CLIENT_ONLY_CITATIONS
+
         pattern = CompetitorCitationPattern(
             pattern_id=f"pat-{observation.query_id}",
             target_query_id=observation.query_id,
@@ -162,9 +237,10 @@ class ForensicGapAnalyzer:
             top_cited_domains=top_citations,
             client_domain_cited=client_domain_cited,
             answer_citations=answer_citations,
+            attribution_status=attr_status,
         )
 
-        # Step 3: Respect Human Decisions & Automated Reconciliations
+        # Step 3: Three-Way Statement Evidence Assessment
         supported_statement_ids: Set[str] = set()
 
         if human_decision:
@@ -177,17 +253,25 @@ class ForensicGapAnalyzer:
                 if rec.status == ReconciliationStatus.SUPPORTED:
                     supported_statement_ids.add(rec.statement_id)
 
-        # Identify ungrounded/unsupported statements (excluding supported ones!)
-        unsupported_stmts = [
-            s.statement_id
-            for s in observation.extracted_statements
-            if s.statement_id not in supported_statement_ids
-        ]
+        candidate_gap_stmts: List[str] = []
+        pending_review_stmts: List[str] = []
+
+        for s in observation.extracted_statements:
+            if s.statement_id in supported_statement_ids:
+                # State 1: SUPPORTED -> Excluded from gaps!
+                continue
+            elif client_evidence_records:
+                # State 2: CLIENT_EVIDENCE_PRESENT -> Semantic Review Pending! (No gap emitted!)
+                pending_review_stmts.append(s.statement_id)
+            else:
+                # State 3: CANDIDATE_EVIDENCE_GAP -> Candidate Evidence Gap!
+                candidate_gap_stmts.append(s.statement_id)
 
         gaps: List[ClientEvidenceGap] = []
         actions: List[PrioritizedActionPlan] = []
 
-        if unsupported_stmts:
+        # Only emit evidence gap if statement has NO client-owned opened evidence (Candidate Evidence Gap)
+        if candidate_gap_stmts:
             gap_id = f"gap-{observation.query_id}-001"
             basis_ev_ids = [
                 ev_id
@@ -206,14 +290,14 @@ class ForensicGapAnalyzer:
 
             gap_basis = FindingBasis(
                 observation_id=observation.observation_id,
-                statement_id=unsupported_stmts[0],
+                statement_id=candidate_gap_stmts[0],
                 evidence_ids=basis_ev_ids,
                 source_relationships=basis_rels,
             )
 
             desc = (
-                f"Model response extracted {len(unsupported_stmts)} statement proposal(s) "
-                f"({', '.join(unsupported_stmts)}) lacking client-owned opened evidence in source ledger."
+                f"Model response extracted {len(candidate_gap_stmts)} statement proposal(s) "
+                f"({', '.join(candidate_gap_stmts)}) lacking client-owned opened evidence in source ledger."
             )
 
             gaps.append(
@@ -221,37 +305,39 @@ class ForensicGapAnalyzer:
                     gap_id=gap_id,
                     target_query_id=observation.query_id,
                     gap_category=GapCategory.MISSING_OFFICIAL_DOCS,
-                    affected_statement_ids=unsupported_stmts,
+                    statement_evidence_state=StatementEvidenceState.CANDIDATE_EVIDENCE_GAP,
+                    affected_statement_ids=candidate_gap_stmts,
                     description=desc,
                     severity=ActionSeverity.HIGH if client_domain_cited else ActionSeverity.CRITICAL,
                     finding_basis=gap_basis,
                 )
             )
 
-            # Formulate evidence-backed action hypothesis
-            client_dom = subject_profile.client_profile.client_domain
-            act_id = f"act-{observation.query_id}-001"
+            # Formulate evidence-backed action hypothesis ONLY if competitor citations exist or client evidence is missing
+            if attr_status != AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE:
+                client_dom = subject_profile.client_profile.client_domain
+                act_id = f"act-{observation.query_id}-001"
 
-            act_rec = (
-                f"Hypothesis for Review: Publishing official technical specification and documentation "
-                f"on client-owned domain '{client_dom}' for statements {unsupported_stmts} "
-                f"may establish OPENED_VERIFIED evidence status."
-            )
-
-            actions.append(
-                PrioritizedActionPlan(
-                    action_id=act_id,
-                    gap_id=gap_id,
-                    recommended_action=act_rec,
-                    target_domain=client_dom,
-                    suggested_source_type=SourceType.OFFICIAL_DOCUMENTATION,
-                    expected_evidence_impact="Expected to create client-owned OPENED_VERIFIED evidence record in ledger.",
-                    confidence_score=0.80,
-                    confidence_explanation="Confidence rating derived from absence of client-owned documentation for target query statements.",
-                    ethical_boundary_notes="Action hypothesis creates genuine, verifiable public documentation. Non-manipulative, no keyword stuffing, no automated synthetic spam.",
-                    finding_basis=gap_basis,
+                act_rec = (
+                    f"Hypothesis for Review: Publishing official technical specification and documentation "
+                    f"on client-owned domain '{client_dom}' for statements {candidate_gap_stmts} "
+                    f"may establish OPENED_VERIFIED evidence status."
                 )
-            )
+
+                actions.append(
+                    PrioritizedActionPlan(
+                        action_id=act_id,
+                        gap_id=gap_id,
+                        recommended_action=act_rec,
+                        target_domain=client_dom,
+                        suggested_source_type=SourceType.OFFICIAL_DOCUMENTATION,
+                        expected_evidence_impact="Expected to create client-owned OPENED_VERIFIED evidence record in ledger.",
+                        confidence_score=0.80,
+                        confidence_explanation="Confidence rating derived from absence of client-owned documentation for target query statements.",
+                        ethical_boundary_notes="Action hypothesis creates genuine, verifiable public documentation. Non-manipulative, no keyword stuffing, no automated synthetic spam.",
+                        finding_basis=gap_basis,
+                    )
+                )
 
         analysis_id = f"fga-rec-{observation.observation_id}"
 
@@ -264,6 +350,8 @@ class ForensicGapAnalyzer:
             query_map_sha256=qm_sha256,
             manifest_sha256=manifest_sha256,
             profile_id=subject_profile.profile_id,
+            profile_sha256=profile_sha256,
+            attribution_status=attr_status,
             competitor_patterns=[pattern],
             evidence_gaps=gaps,
             prioritized_actions=actions,
@@ -278,6 +366,8 @@ class ForensicGapAnalyzer:
             query_map_sha256=qm_sha256,
             manifest_sha256=manifest_sha256,
             profile_id=subject_profile.profile_id,
+            profile_sha256=profile_sha256,
+            attribution_status=attr_status,
             competitor_patterns=[pattern],
             evidence_gaps=gaps,
             prioritized_actions=actions,

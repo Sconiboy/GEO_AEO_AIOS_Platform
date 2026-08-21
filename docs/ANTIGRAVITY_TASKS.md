@@ -507,19 +507,15 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 
 ---
 
-## 🎯 Sprint 7.1: Forensic Profile & Evidence-Gap Foundation (Manus Remediation Response)
+## 🎯 Sprint 7.2: Context-Bound Provenance & Evidence-Gap Classification (Manus Review Response)
 
-### Task A-27: Subject Profile, Source Relationships, Finding Bases, and Total Canonical Digest Protection
-- **Goal**: Remediate Sprint 7 findings and build the **Forensic Competitor Evidence-Gap Foundation**:
-  - Implemented `SubjectProfile`, `ClientProfile`, and `CompetitorProfile` models (`src/domain/profile.py`) defining explicit client domain ownership and declared competitor domains. Eliminates inferring ownership from collection allowlists.
-  - Implemented `SourceRelationship` Enum (`CLIENT_OWNED`, `COMPETITOR_OWNED`, `INDEPENDENT_EDITORIAL`, `REVIEW_PLATFORM`, `DIRECTORY`, `COMMUNITY`, `OFFICIAL_REFERENCE`, `UNKNOWN`).
-  - Implemented answer-level citation extraction (`AnswerCitation`).
-  - Integrated `HumanDecisionRecord` and `ObservationReconciliation`: statements evaluated as `SUPPORTED` do **NOT** generate false `MISSING_OFFICIAL_DOCS` gaps.
-  - Implemented immutable `FindingBasis` detailing exact observation ID, statement ID, evidence IDs, and source relationships behind every gap and action hypothesis.
-  - Expanded `ForensicGapAnalysisRecord.compute_canonical_digest` to cover ALL rendered fields (descriptions, evidence bases, ethical notes, total counts, impact statements). Added tamper tests proving modifying any description invalidates `verify_integrity()`.
-  - Added CLI subcommand `python -m src.cli analyze-gaps --profile ...`.
-  - Comprehensive unit test suite (`tests/test_gap_analysis.py`).
-- **Status**: COMPLETED (58 unit tests passing, 86% code coverage, 0 Mypy issues).
+### Task A-28: Profile SHA-256 Digest Binding, Replay Defense, Three-Way Evidence Assessment, and Answer Citation Attribution Gate
+- **Goal**: Remediate Sprint 7.1 diagnostic and provenance issues:
+  - Bound `profile_sha256` into `ForensicGapAnalysisRecord` and canonical digest; added tamper tests proving profile content mutation invalidates `verify_integrity()`.
+  - Implemented 6-binding replay validation for `HumanDecisionRecord` (`observation_id`, `raw_answer_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, `query_map_sha256`, `manifest_sha256`); fails closed on context mismatch.
+  - Implemented three-way statement evidence classification (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`). Unadjudicated statements with client-owned opened evidence (`peps.python.org`) emit `SEMANTIC_REVIEW_PENDING` with **0 false gaps and 0 false catch-up action plans**.
+  - Implemented Answer Citation Competitor Attribution Gate: when raw model answer text contains no URLs, attribution is set to `NO_ANSWER_CITATIONS_NOT_ASSESSABLE`, emitting 0 competitor action plans.
+- **Status**: COMPLETED (57 unit tests passing, 82% code coverage, 0 Mypy issues).
 
 ---
 
@@ -553,3 +549,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-25: Immutable `HumanDecisionRecord` contracts (`src/domain/human_decision.py`), `human-decision` CLI subcommand (`src/cli.py`), canonical decision digest calculation over all 6 context bindings, dedicated `export_human_decision_record()` Markdown renderer, and 52 passing unit tests.
 - [x] Task A-26: Verbatim quote verification against `opened_excerpt`, explicit `QuotedEvidencePassage` quote-evidence pairing, inclusion of `decision_timestamp` and `reconciliation_method` in canonical digest, adversarial fabricated quote unit test, and 52 passing unit tests.
 - [x] Task A-27: SubjectProfile contracts (`SubjectProfile`, `ClientProfile`, `CompetitorProfile`), `SourceRelationship` classification, `AnswerCitation` extraction, elimination of false gaps on supported human decisions, immutable `FindingBasis` tracing, total canonical digest protection over all rendered fields, and 58 passing unit tests.
+- [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.

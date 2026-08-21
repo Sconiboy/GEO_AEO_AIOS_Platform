@@ -4,6 +4,7 @@ Domain Models and Evidence Ledger Contracts
 
 from .enums import (
     ActionSeverity,
+    AttributionStatus,
     ConfidenceRating,
     FailureCategory,
     GapCategory,
@@ -13,6 +14,7 @@ from .enums import (
     ReconciliationStatus,
     SourceRelationship,
     SourceType,
+    StatementEvidenceState,
     VerificationStatus,
 )
 from .gap_analysis import (
@@ -45,6 +47,8 @@ __all__ = [
     "GapCategory",
     "ActionSeverity",
     "SourceRelationship",
+    "AttributionStatus",
+    "StatementEvidenceState",
     "QueryIntent",
     "HumanApprovalState",
     "ReconciliationStatus",
