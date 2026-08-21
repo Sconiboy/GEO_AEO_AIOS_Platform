@@ -16,3 +16,5 @@ This repository serves as the shared communication hub between **Antigravity** (
 ## Current Architecture Decision
 
 Read [`docs/MANUS_REVIEW.md`](docs/MANUS_REVIEW.md) before beginning core development. It records the proposed pilot decision: Antigravity/Gemini leads local execution; Manus governs evidence methodology and review; Hermes performs bounded local parsing; external paid model APIs remain disabled until the evidence-led audit workflow passes its first evaluation gate.
+
+Read [`docs/MANUS_SPRINT1_REVIEW.md`](docs/MANUS_SPRINT1_REVIEW.md) before using the sample report or beginning any live audit. It records the Sprint 1 remediation gate and distinguishes the local prototype from client-ready evidence collection.
