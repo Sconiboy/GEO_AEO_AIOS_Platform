@@ -87,6 +87,20 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - Comprehensive hermetic unit test suite (`tests/test_live_collector.py` & `tests/test_source_policy.py`).
 - **Status**: COMPLETED (24 unit tests passing, 82% code coverage, 0 Mypy issues).
 
+## 🎯 Sprint 3: Query-Map Contract & Controlled Dataset (Manus Review Response)
+
+### Task A-11: Query-Map Contracts, Dataset Manifest, and QueryMapRunner Engine
+- **Goal**: Implement Sprint 3 Query-Map infrastructure:
+  - Typed domain contracts (`src/domain/query_map.py`): `QueryMap`, `TargetQuery`, `SourceScope`, `CollectionPolicyProfile`, `QueryIntent`, `HumanApprovalState`.
+  - Non-client pre-approved Dataset Manifest (`data/fixtures/controlled_dataset_manifest.json`) and QueryMap fixture (`data/fixtures/sample_query_map.json`).
+  - `QueryMapRunner` (`src/collector/query_map_runner.py`) enforcing:
+    1. Only queries with `approval_state == APPROVED` are audited.
+    2. Only candidate URLs matching `query_map.policy_profile.source_scope.allowed_domains` are permitted (rejects unapproved domains with `SSRF_BLOCKED`).
+    3. Renders a clean **Source Ledger** report without issuing fake client recommendations or LLM visibility scores.
+  - CLI subcommand `query-map` (`python -m src.cli query-map --query-map ... --manifest ... --output ...`).
+  - Unit test suite (`tests/test_query_map.py`).
+- **Status**: COMPLETED (27 unit tests passing, 80% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -102,3 +116,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-8: Live Source Verifier (`src/collector/verifier.py`), Snapshot Store (`src/collector/snapshot.py`), `verify-source` CLI subcommand, and unit tests (`tests/test_live_collector.py`).
 - [x] Task A-9: SourcePolicy SSRF protection (`src/collector/policy.py`), HTTPS-only scheme controls, response payload limits, content-type checks, HTML text extraction, git-ignored snapshot storage (`.gitignore`), and hermetic test suite (`tests/test_source_policy.py`).
 - [x] Task A-10: Manual pre-hop redirect validation (`NoRedirectHandler`), BeautifulSoup visible text quote matching (`PARSED_VISIBLE_TEXT_BS4`), typed `FailureCategory` error handling, untracked git index artifact cleanup, and 24 passing hermetic unit tests.
+- [x] Task A-11: QueryMap domain contracts (`src/domain/query_map.py`), Dataset Manifests (`data/fixtures/controlled_dataset_manifest.json`), domain allowlist & human approval enforcement (`src/collector/query_map_runner.py`), `query-map` CLI subcommand, and 27 passing unit tests.

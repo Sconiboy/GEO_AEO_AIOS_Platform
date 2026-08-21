@@ -1,0 +1,21 @@
+{
+  "manifest_id": "man-pub-001",
+  "description": "Controlled non-client pre-approved dataset manifest for public test entity.",
+  "is_non_client_spike": true,
+  "candidates": [
+    {
+      "query_id": "q-001",
+      "url": "https://httpbin.org/html",
+      "candidate_excerpt": "Herman Melville - Moby-Dick",
+      "source_type": "official_documentation",
+      "is_independent": true
+    },
+    {
+      "query_id": "q-001",
+      "url": "https://unapproved-domain-example.com/blog",
+      "candidate_excerpt": "Unapproved domain candidate that should be rejected by allowlist.",
+      "source_type": "independent_editorial",
+      "is_independent": true
+    }
+  ]
+}

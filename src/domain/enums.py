@@ -48,3 +48,21 @@ class FailureCategory(str, Enum):
     DNS_RESOLUTION_FAILED = "dns_resolution_failed"
     QUOTE_NOT_FOUND = "quote_not_found"
     UNKNOWN_ERROR = "unknown_error"
+
+
+class QueryIntent(str, Enum):
+    """Categorization of commercial and buyer evaluation intent."""
+
+    COMMERCIAL_BUYER_INTENT = "commercial_buyer_intent"
+    FEATURE_COMPARISON = "feature_comparison"
+    PRICING_EVALUATION = "pricing_evaluation"
+    ALTERNATIVE_REPLACEMENT = "alternative_replacement"
+    INFORMATIONAL_EVALUATION = "informational_evaluation"
+
+
+class HumanApprovalState(str, Enum):
+    """Human governance approval state for target queries and source manifests."""
+
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
