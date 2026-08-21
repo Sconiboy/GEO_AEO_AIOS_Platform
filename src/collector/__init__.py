@@ -2,16 +2,24 @@
 Live Source Collector, Snapshot Store, QueryMap Runner, and Observation Importer
 """
 
+from .candidate_collector import CandidateCollector
+from .gap_analyzer import ForensicGapAnalyzer
 from .observation_importer import ObservationImporter
+from .policy import SourcePolicy
 from .query_map_runner import DatasetManifest, ManifestSourceCandidate, QueryMapRunner
+from .reconciler import ClaimReconciler
 from .snapshot import SnapshotStore
 from .verifier import SourceVerifier
 
 __all__ = [
+    "CandidateCollector",
+    "ForensicGapAnalyzer",
+    "ObservationImporter",
+    "SourcePolicy",
+    "QueryMapRunner",
+    "ClaimReconciler",
     "SnapshotStore",
     "SourceVerifier",
-    "QueryMapRunner",
     "DatasetManifest",
     "ManifestSourceCandidate",
-    "ObservationImporter",
 ]

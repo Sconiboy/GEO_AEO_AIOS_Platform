@@ -508,15 +508,21 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
 - [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
 
-## 🎯 Sprint 7.4.1: Exact Query-Bound & URL-Bound Manifest Authorization Remediation (Manus Review Response)
+## 🎯 Sprint 7.5: Competitor Evidence Collection Execution Gate & Pre-Pilot Pipeline (Manus Review Response)
 
-### Task A-31: Exact URL + Query ID Authorization Gate, Provenance Tracing, and Domain-Scope Bypass Elimination
-- **Goal**: Remediate Sprint 7.4 manifest authorization scope bypass:
-  - Enforced exact normalized URL match AND matching target `query_id` (`manifest_candidate_map[(query_id, clean_url)]`) for granting manifest authorization (`requires_human_manifest_approval = False`).
-  - Completely eliminated implicit domain-level fallback authorization (`manifest_candidate_domains`).
-  - Added `matched_manifest_query_id: Optional[str]` to `ObservedCitationCollectionCandidate` for explicit provenance tracing, binding it into canonical digest calculation.
-  - Added unit tests proving: same-domain different-path rejected, same-URL different-query rejected, and exact URL + matching query ID authorized.
-- **Status**: COMPLETED (64 unit tests passing, 84% code coverage, 0 Mypy static type errors).
+### Task A-32: CandidateCollector Execution Engine, Execution-Time Authorization Gate, and Candidate Collection CLI
+- **Goal**: Implement execution-time candidate collection engine (`src/collector/candidate_collector.py`) and CLI subcommand (`collect-candidate`):
+  - Enforced strict execution-time authorization re-validation immediately prior to network fetch:
+    1. Candidate `requires_human_manifest_approval == False`.
+    2. Exact normalized candidate URL AND matching `query_id` are in reloaded `DatasetManifest`.
+    3. Target query `approval_state == APPROVED`.
+    4. Enforced SourcePolicy SSRF, allowlist, scheme (HTTPS), and payload limits.
+    5. Fails closed with explicit `ValueError` on any validation mismatch.
+  - Invokes `SourceVerifier.verify_url()` under strict policy controls, creating `EvidenceRecord` + `VerificationArtifact` + snapshot.
+  - Appends new `EvidenceRecord` to `AuditRun.evidence_ledger` and re-runs `ForensicGapAnalyzer.analyze_gaps()`.
+  - Added CLI subcommand `collect-candidate` (`src/cli.py`).
+  - Created unit test suite (`tests/test_candidate_collector.py`) proving: unapproved candidate fails closed, mismatched query ID fails closed, and authorized candidate collection succeeds end-to-end.
+- **Status**: COMPLETED (67 unit tests passing, 81% total code coverage, 96% coverage on `candidate_collector.py`, 0 Mypy static type errors).
 
 ---
 
@@ -554,3 +560,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
 - [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
 - [x] Task A-31: Exact URL + query ID manifest authorization gate, matched manifest query ID provenance tracing, domain scope bypass elimination, and 64 passing unit tests.
+- [x] Task A-32: CandidateCollector execution engine, execution-time authorization gate, collect-candidate CLI subcommand, and 67 passing unit tests.

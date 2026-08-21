@@ -609,6 +609,111 @@ def run_cli_analyze_gaps(
         return 1
 
 
+def run_cli_collect_candidate(
+    query_map_path: Path,
+    manifest_path: Path,
+    source_ledger_path: Path,
+    observation_path: Path,
+    profile_path: Path,
+    gap_record_path: Path,
+    candidate_id: str,
+    human_decision_path: Optional[Path] = None,
+    output_ledger_path: Optional[Path] = None,
+    output_json_path: Optional[Path] = None,
+    output_path: Optional[Path] = None,
+) -> int:
+    """
+    Executes execution-time authorized candidate evidence collection.
+    Re-validates authorization, verifies candidate URL under SourcePolicy,
+    appends evidence to source ledger, and updates gap analysis record.
+    """
+    from .collector.candidate_collector import CandidateCollector
+    from .domain.gap_analysis import ForensicGapAnalysisRecord
+    from .domain.human_decision import HumanDecisionRecord
+    from .domain.profile import SubjectProfile
+
+    print(f"🎯 Executing Candidate Collection for candidate_id: {candidate_id}")
+    print(f"🎯 QueryMap: {query_map_path}")
+    print(f"📜 Manifest: {manifest_path}")
+    print(f"🏛️ Source Ledger: {source_ledger_path}")
+    print(f"🔬 Observation: {observation_path}")
+    print(f"👤 Subject Profile: {profile_path}")
+
+    try:
+        raw_qm_bytes = query_map_path.read_bytes()
+        query_map = QueryMap.model_validate(json.loads(raw_qm_bytes.decode("utf-8")))
+
+        raw_manifest_bytes = manifest_path.read_bytes()
+        manifest = DatasetManifest.model_validate(json.loads(raw_manifest_bytes.decode("utf-8")))
+
+        raw_ledger_bytes = source_ledger_path.read_bytes()
+        source_ledger = AuditRun.model_validate(json.loads(raw_ledger_bytes.decode("utf-8")))
+
+        raw_obs_bytes = observation_path.read_bytes()
+        observation = AnswerObservation.model_validate(json.loads(raw_obs_bytes.decode("utf-8")))
+
+        raw_profile_bytes = profile_path.read_bytes()
+        subject_profile = SubjectProfile.model_validate(json.loads(raw_profile_bytes.decode("utf-8")))
+
+        raw_gap_bytes = gap_record_path.read_bytes()
+        gap_record = ForensicGapAnalysisRecord.model_validate(json.loads(raw_gap_bytes.decode("utf-8")))
+
+        human_decision: Optional[HumanDecisionRecord] = None
+        if human_decision_path and human_decision_path.exists():
+            hdec_bytes = human_decision_path.read_bytes()
+            human_decision = HumanDecisionRecord.model_validate(json.loads(hdec_bytes.decode("utf-8")))
+
+        collector = CandidateCollector()
+        updated_ledger, updated_gap_record = collector.collect_candidate(
+            candidate_id=candidate_id,
+            subject_profile=subject_profile,
+            observation=observation,
+            source_ledger=source_ledger,
+            query_map=query_map,
+            manifest=manifest,
+            gap_record=gap_record,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+            human_decision=human_decision,
+        )
+
+        if output_ledger_path:
+            output_ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            serialized_ledger = json.dumps(updated_ledger.model_dump(mode="json"), indent=2)
+            output_ledger_path.write_text(serialized_ledger, encoding="utf-8")
+            print(f"💾 Saved updated Source Ledger JSON artifact to: {output_ledger_path}")
+
+        if output_json_path:
+            output_json_path.parent.mkdir(parents=True, exist_ok=True)
+            serialized_gap = json.dumps(updated_gap_record.model_dump(mode="json"), indent=2)
+            output_json_path.write_text(serialized_gap, encoding="utf-8")
+            print(f"💾 Saved updated ForensicGapAnalysisRecord JSON artifact to: {output_json_path}")
+
+        markdown_content = ReportExporter.export_gap_analysis_record(
+            gap_record=updated_gap_record,
+            observation=observation,
+            query_map=query_map,
+            source_ledger=updated_ledger,
+        )
+
+        if output_path:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(markdown_content, encoding="utf-8")
+            print(f"📄 Forensic Gap Analysis Record exported to: {output_path}")
+        else:
+            print("\n" + "=" * 50)
+            print(markdown_content)
+            print("=" * 50)
+
+        return 0
+
+    except Exception as e:
+        print(f"\n❌ CANDIDATE COLLECTION FAILED: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="GEO/AEO Platform - Evidence-Governed Audit Console CLI"
@@ -772,6 +877,22 @@ def main() -> None:
     gap_parser.add_argument("--output-json", type=Path, required=False, help="Optional path to write ForensicGapAnalysisRecord JSON")
     gap_parser.add_argument("--output", type=Path, required=False, help="Optional path to write Markdown report")
 
+    # 'collect-candidate' subcommand
+    cc_parser = subparsers.add_parser(
+        "collect-candidate", help="Execute execution-time authorized competitor candidate evidence collection"
+    )
+    cc_parser.add_argument("--query-map", type=Path, required=True, help="Path to QueryMap JSON definition")
+    cc_parser.add_argument("--manifest", type=Path, required=True, help="Path to pre-approved DatasetManifest JSON")
+    cc_parser.add_argument("--source-ledger", type=Path, required=True, help="Path to frozen Source Ledger JSON artifact")
+    cc_parser.add_argument("--observation", type=Path, required=True, help="Path to AnswerObservation JSON definition")
+    cc_parser.add_argument("--profile", type=Path, required=True, help="Path to SubjectProfile JSON definition")
+    cc_parser.add_argument("--gap-record", type=Path, required=True, help="Path to ForensicGapAnalysisRecord JSON definition")
+    cc_parser.add_argument("--candidate-id", type=str, required=True, help="Target Candidate ID to collect")
+    cc_parser.add_argument("--human-decision", type=Path, required=False, help="Optional path to HumanDecisionRecord JSON artifact")
+    cc_parser.add_argument("--output-ledger", type=Path, required=False, help="Optional path to write updated Source Ledger JSON")
+    cc_parser.add_argument("--output-json", type=Path, required=False, help="Optional path to write updated ForensicGapAnalysisRecord JSON")
+    cc_parser.add_argument("--output", type=Path, required=False, help="Optional path to write Markdown report")
+
     args = parser.parse_args()
 
     if args.command == "audit":
@@ -827,6 +948,22 @@ def main() -> None:
                 observation_path=args.observation,
                 profile_path=args.profile,
                 human_decision_path=args.human_decision,
+                output_json_path=args.output_json,
+                output_path=args.output,
+            )
+        )
+    elif args.command == "collect-candidate":
+        sys.exit(
+            run_cli_collect_candidate(
+                query_map_path=args.query_map,
+                manifest_path=args.manifest,
+                source_ledger_path=args.source_ledger,
+                observation_path=args.observation,
+                profile_path=args.profile,
+                gap_record_path=args.gap_record,
+                candidate_id=args.candidate_id,
+                human_decision_path=args.human_decision,
+                output_ledger_path=args.output_ledger,
                 output_json_path=args.output_json,
                 output_path=args.output,
             )
