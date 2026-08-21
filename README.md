@@ -65,6 +65,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_SPRINT63_REVIEW.md`](docs/MANUS_SPRINT63_REVIEW.md) - Sprint 6.3 approval for safe automation and the required human semantic-decision record.
 - [`docs/MANUS_SPRINT64_REVIEW.md`](docs/MANUS_SPRINT64_REVIEW.md) - Sprint 6.4 review requiring quote provenance and complete decision-integrity protection.
 - [`docs/MANUS_SPRINT641_REVIEW.md`](docs/MANUS_SPRINT641_REVIEW.md) - Sprint 6.4.1 approval for controlled human decisions and the remaining snapshot-portability boundary.
+- [`docs/MANUS_SPRINT7_REVIEW.md`](docs/MANUS_SPRINT7_REVIEW.md) - Sprint 7 review requiring explicit client/competitor ownership and evidence-basis provenance before forensic action plans are accepted.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
