@@ -83,6 +83,7 @@ python -m src.cli audit --fixture data/fixtures/sample_audit.json --output repor
 - [`docs/MANUS_SPRINT81_REVIEW.md`](docs/MANUS_SPRINT81_REVIEW.md) - Sprint 8.1 review accepting ownership/context improvements while rejecting keyword-based semantic support and an incomplete comparative decision digest.
 - [`docs/MANUS_SPRINT82_REVIEW.md`](docs/MANUS_SPRINT82_REVIEW.md) - Sprint 8.2 review accepting zero automatic promotion while requiring human-decision evidence/context binding.
 - [`docs/MANUS_SPRINT83_REVIEW.md`](docs/MANUS_SPRINT83_REVIEW.md) - Sprint 8.3 review accepting context and quote checks while requiring immutable ledger/snapshot evidence resolution.
+- [`docs/MANUS_SPRINT84_REVIEW.md`](docs/MANUS_SPRINT84_REVIEW.md) - Sprint 8.4 review accepting ledger ID resolution while requiring raw-ledger identity and mandatory verifier/snapshot/execution provenance.
 - [`src/domain/models.py`](src/domain/models.py) - Typed Pydantic domain contracts (`EvidenceRecord`, `VerificationArtifact`, `ConfidenceScore`, `ClaimRecord`, `AuditRun`).
 - [`src/domain/validators.py`](src/domain/validators.py) - Strict evidence ledger validator enforcing zero ungrounded claims.
 - [`src/exporter/report.py`](src/exporter/report.py) - Auditable Markdown report generator.
