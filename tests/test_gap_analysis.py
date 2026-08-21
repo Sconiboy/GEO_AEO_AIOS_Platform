@@ -238,7 +238,134 @@ def test_manifest_approved_url_authorizes_collection_candidate(
     assert len(record.collection_candidates) == 1
     cand = record.collection_candidates[0]
     assert cand.requires_human_manifest_approval is False
-    assert "is authorized in dataset manifest" in cand.action_hypothesis
+    assert cand.matched_manifest_query_id == "q-001"
+    assert "is authorized in dataset manifest for query 'q-001'" in cand.action_hypothesis
+
+
+def test_same_domain_different_path_rejected(sample_subject_profile: SubjectProfile) -> None:
+    """Proves that a manifest candidate for https://rust-lang.org/about does NOT authorize https://rust-lang.org/learn (emits requires_human_manifest_approval=True)."""
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    orig_manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+
+    # Manifest candidate for /about on query q-001
+    manifest_with_about = orig_manifest.model_copy(
+        update={
+            "candidates": orig_manifest.candidates + [
+                ManifestSourceCandidate(
+                    url="https://rust-lang.org/about",
+                    candidate_excerpt="Rust about page",
+                    source_type=SourceType.OFFICIAL_DOCUMENTATION,
+                    query_id="q-001",
+                )
+            ]
+        }
+    )
+    manifest_bytes = manifest_with_about.model_dump_json().encode("utf-8")
+
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    orig_obs = AnswerObservation.model_validate_json(raw_obs_bytes)
+
+    # Answer cites /learn (different path!)
+    competitor_answer_text = orig_obs.raw_answer_text + "\n\nLearn Rust at https://rust-lang.org/learn."
+    competitor_obs = orig_obs.model_copy(
+        update={
+            "raw_answer_text": competitor_answer_text,
+            "raw_answer_sha256": hashlib.sha256(competitor_answer_text.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+
+    record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=competitor_obs,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest_with_about,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    # Different path MUST be rejected (requires approval!)
+    assert len(record.collection_candidates) == 1
+    cand = record.collection_candidates[0]
+    assert cand.cited_url == "https://rust-lang.org/learn"
+    assert cand.requires_human_manifest_approval is True
+    assert cand.matched_manifest_query_id is None
+
+
+def test_same_url_different_query_rejected(sample_subject_profile: SubjectProfile) -> None:
+    """Proves that a manifest candidate for https://rust-lang.org on query q-unrelated does NOT authorize https://rust-lang.org on query q-001."""
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    orig_manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+
+    # Manifest candidate for query q-unrelated
+    manifest_with_other_q = orig_manifest.model_copy(
+        update={
+            "candidates": orig_manifest.candidates + [
+                ManifestSourceCandidate(
+                    url="https://rust-lang.org",
+                    candidate_excerpt="Rust official site",
+                    source_type=SourceType.OFFICIAL_DOCUMENTATION,
+                    query_id="q-unrelated-999",
+                )
+            ]
+        }
+    )
+    manifest_bytes = manifest_with_other_q.model_dump_json().encode("utf-8")
+
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    raw_obs_bytes = obs_path.read_bytes()
+    orig_obs = AnswerObservation.model_validate_json(raw_obs_bytes)
+
+    # Answer for query q-001 cites https://rust-lang.org
+    competitor_answer_text = orig_obs.raw_answer_text + "\n\nSee https://rust-lang.org."
+    competitor_obs = orig_obs.model_copy(
+        update={
+            "raw_answer_text": competitor_answer_text,
+            "raw_answer_sha256": hashlib.sha256(competitor_answer_text.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+
+    record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=competitor_obs,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest_with_other_q,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    # Different query ID MUST be rejected (requires approval!)
+    assert len(record.collection_candidates) == 1
+    cand = record.collection_candidates[0]
+    assert cand.cited_url == "https://rust-lang.org"
+    assert cand.requires_human_manifest_approval is True
+    assert cand.matched_manifest_query_id is None
 
 
 def test_neutral_editorial_citation_classification(sample_subject_profile: SubjectProfile) -> None:

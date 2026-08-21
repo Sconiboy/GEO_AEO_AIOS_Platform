@@ -97,6 +97,7 @@ class ObservedCitationCollectionCandidate(BaseModel):
     cited_domain: str = Field(..., description="Domain name parsed from cited URL")
     source_relationship: SourceRelationship = Field(..., description="Relationship classification against SubjectProfile")
     matched_competitor_entity: Optional[str] = Field(default=None, description="Matched competitor entity name if competitor owned")
+    matched_manifest_query_id: Optional[str] = Field(default=None, description="Query ID of matched manifest candidate if authorized")
     requires_human_manifest_approval: bool = Field(
         default=True, description="Whether explicit human approval and manifest addition is required prior to fetch"
     )
@@ -243,6 +244,7 @@ class ForensicGapAnalysisRecord(BaseModel):
                     "cited_domain": cc.cited_domain,
                     "source_relationship": cc.source_relationship.value,
                     "matched_competitor_entity": cc.matched_competitor_entity,
+                    "matched_manifest_query_id": cc.matched_manifest_query_id,
                     "requires_human_manifest_approval": cc.requires_human_manifest_approval,
                     "action_hypothesis": cc.action_hypothesis,
                     "finding_basis": {

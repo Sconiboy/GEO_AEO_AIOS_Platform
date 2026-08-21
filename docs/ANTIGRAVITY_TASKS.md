@@ -506,17 +506,17 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-27: SubjectProfile contracts (`SubjectProfile`, `ClientProfile`, `CompetitorProfile`), `SourceRelationship` classification, `AnswerCitation` extraction, elimination of false gaps on supported human decisions, immutable `FindingBasis` tracing, total canonical digest protection over all rendered fields, and 58 passing unit tests.
 - [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.
 - [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
+- [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
 
-## 🎯 Sprint 7.4: Observed Citation Collection Candidate & Manifest Authorization Workflow (Manus Review Response)
+## 🎯 Sprint 7.4.1: Exact Query-Bound & URL-Bound Manifest Authorization Remediation (Manus Review Response)
 
-### Task A-30: Typed Collection Candidate Record, Manifest Authorization Validation, Exact Canonical URL Verification, and Orphan Action Elimination
-- **Goal**: Remediate Sprint 7.3 collection authorization and orphan action plan holes:
-  - Implemented typed, immutable `ObservedCitationCollectionCandidate` contract (`src/domain/gap_analysis.py`) storing `cited_url`, `cited_domain`, `source_relationship`, `matched_competitor_entity`, `requires_human_manifest_approval`, `finding_basis`, and `action_hypothesis`.
-  - Implemented manifest authorization validation (`requires_human_manifest_approval`), evaluating `cited_url` or `cited_domain` against `manifest.candidates` and `manifest.allowed_domains`. If absent, sets `requires_human_manifest_approval = True`.
-  - Implemented exact canonical URL verification matching (`verified_canonical_urls` matching `ev.url` and `verification_artifact.final_url`), preventing domain-level false verification (e.g., `https://rust-lang.org/learn` is not verified merely because `https://rust-lang.org/about` exists in the ledger).
-  - Eliminated orphaned action plans: `prioritized_actions` ONLY contains action hypotheses bound to existing `ClientEvidenceGap` IDs. Collection candidate proposals are housed strictly in `collection_candidates`.
-  - Bound `collection_candidates` into `compute_canonical_digest()` and `verify_integrity()`.
-- **Status**: COMPLETED (62 unit tests passing, 84% code coverage, 0 Mypy static type errors).
+### Task A-31: Exact URL + Query ID Authorization Gate, Provenance Tracing, and Domain-Scope Bypass Elimination
+- **Goal**: Remediate Sprint 7.4 manifest authorization scope bypass:
+  - Enforced exact normalized URL match AND matching target `query_id` (`manifest_candidate_map[(query_id, clean_url)]`) for granting manifest authorization (`requires_human_manifest_approval = False`).
+  - Completely eliminated implicit domain-level fallback authorization (`manifest_candidate_domains`).
+  - Added `matched_manifest_query_id: Optional[str]` to `ObservedCitationCollectionCandidate` for explicit provenance tracing, binding it into canonical digest calculation.
+  - Added unit tests proving: same-domain different-path rejected, same-URL different-query rejected, and exact URL + matching query ID authorized.
+- **Status**: COMPLETED (64 unit tests passing, 84% code coverage, 0 Mypy static type errors).
 
 ---
 
@@ -553,3 +553,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-28: `profile_sha256` digest binding, 6-binding human decision replay gate, three-way statement evidence assessment (`SUPPORTED`, `SEMANTIC_REVIEW_PENDING`, `CANDIDATE_EVIDENCE_GAP`), Answer Citation Competitor Attribution Gate (`NO_ANSWER_CITATIONS_NOT_ASSESSABLE`), and 57 passing unit tests.
 - [x] Task A-29: Direct profile answer citation classification, `CITED_COMPETITOR_OBSERVED` attribution derivation, subdomain safety, unverified competitor collection proposals, and 59 passing unit tests.
 - [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
+- [x] Task A-31: Exact URL + query ID manifest authorization gate, matched manifest query ID provenance tracing, domain scope bypass elimination, and 64 passing unit tests.

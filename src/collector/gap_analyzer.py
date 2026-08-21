@@ -262,19 +262,12 @@ class ForensicGapAnalyzer:
         )
 
         # Step 3: Typed Collection Candidate Emission for Unverified Answer Citations
-        manifest_candidate_urls: Set[str] = set()
-        manifest_candidate_domains: Set[str] = set()
+        manifest_candidate_map: Dict[Tuple[str, str], str] = {}
 
         if hasattr(manifest, "candidates") and manifest.candidates:
             for cs in manifest.candidates:
-                manifest_candidate_urls.add(cs.url.lower().rstrip("/"))
-                parsed_cs = urlparse(cs.url)
-                if parsed_cs.hostname:
-                    manifest_candidate_domains.add(parsed_cs.hostname.lower())
-
-        if hasattr(manifest, "allowed_domains") and manifest.allowed_domains:
-            for dom in manifest.allowed_domains:
-                manifest_candidate_domains.add(dom.lower())
+                key = (cs.query_id, cs.url.lower().rstrip("/"))
+                manifest_candidate_map[key] = cs.query_id
 
         collection_candidates: List[ObservedCitationCollectionCandidate] = []
 
@@ -285,10 +278,10 @@ class ForensicGapAnalyzer:
 
             if not is_url_verified:
                 cand_id = f"occ-{observation.query_id}-{hashlib.sha256(ac.url.encode()).hexdigest()[:8]}"
-                # Check manifest authorization
-                is_authorized_in_manifest = (
-                    clean_ac_url in manifest_candidate_urls or ac.domain in manifest_candidate_domains
-                )
+                # Check manifest authorization: requires exact (query_id, clean_url) match!
+                match_key = (observation.query_id, clean_ac_url)
+                is_authorized_in_manifest = match_key in manifest_candidate_map
+                matched_qid = manifest_candidate_map.get(match_key) if is_authorized_in_manifest else None
                 requires_approval = not is_authorized_in_manifest
 
                 cand_basis = FindingBasis(
@@ -302,7 +295,7 @@ class ForensicGapAnalyzer:
                 approval_str = (
                     "requires explicit human approval and manifest policy update"
                     if requires_approval
-                    else "is authorized in dataset manifest"
+                    else f"is authorized in dataset manifest for query '{observation.query_id}'"
                 )
 
                 hypothesis = (
@@ -318,6 +311,7 @@ class ForensicGapAnalyzer:
                         cited_domain=ac.domain,
                         source_relationship=ac.source_relationship,
                         matched_competitor_entity=ac.matched_competitor_entity,
+                        matched_manifest_query_id=matched_qid,
                         requires_human_manifest_approval=requires_approval,
                         finding_basis=cand_basis,
                         action_hypothesis=hypothesis,

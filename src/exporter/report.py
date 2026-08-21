@@ -299,6 +299,8 @@ class ReportExporter:
                 lines.append(f"- **Domain**: `{cc.cited_domain}`")
                 lines.append(f"- **Source Relationship**: `{cc.source_relationship.value}`{comp_entity}")
                 lines.append(f"- **Manifest Approval Required**: `{cc.requires_human_manifest_approval}`")
+                if cc.matched_manifest_query_id:
+                    lines.append(f"- **Matched Manifest Query ID**: `{cc.matched_manifest_query_id}`")
                 lines.append(f"- **Action Hypothesis**: {cc.action_hypothesis}")
                 lines.append("")
 
