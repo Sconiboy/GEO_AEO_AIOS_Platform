@@ -167,6 +167,17 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - Comprehensive unit test suite (`tests/test_observation.py`).
 - **Status**: COMPLETED (39 unit tests passing, 86% code coverage, 0 Mypy issues).
 
+## 🎯 Milestone 5: Authorized First Controlled Manual Observation (Manus Approval Response)
+
+### Task A-16: Execution & Rendering of First Authorized Manual Observation
+- **Goal**: Execute the authorized first manual answer-surface observation:
+  - Bound to Python Software Foundation public test entity (`q-001`: *"What is Python core language design philosophy?"*).
+  - Captured Hermes 3 model response via `human_operator_console` (`data/fixtures/authorized_first_observation.json`).
+  - Content-addressed SHA-256 raw answer digest (`edf766cc54dda51e...`) bound to frozen QueryMap, Manifest, and Source Ledger artifact hashes.
+  - Extracted statement proposals forcibly assigned `proposed_unverified` status.
+  - Rendered internal observation report [`reports/authorized_first_observation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/authorized_first_observation_record.md).
+- **Status**: COMPLETED (All 39 unit tests passing, 86% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -187,3 +198,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-13: `AnswerObservation` domain model (`src/domain/observation.py`), raw text SHA-256 integrity validation, `ObservationImporter` pipeline (`src/collector/observation_importer.py`), dedicated `export_observation_record` renderer, `observation` CLI subcommand, and 37 passing unit tests.
 - [x] Task A-14: Immutable observation models (`frozen=True`), SHA-256 digest re-verification at import/render boundaries, explicit capture timestamp, nullable locale/region, frozen artifact hash bindings (`source_ledger_sha256`), OPENED_VERIFIED statement linkage enforcement, offline hermetic CLI runner, and 37 passing unit tests.
 - [x] Task A-15: Mandatory proposal-only import enforcement (`ObservationImporter`), forced `proposed_unverified` status override for all imported statements, adversarial forged status downgrade unit test, and 39 passing unit tests.
+- [x] Task A-16: Executed authorized first manual observation (`data/fixtures/authorized_first_observation.json`), hash-verified raw Hermes 3 answer capture, proposal-only statement statuses, and rendered internal observation record ([`reports/authorized_first_observation_record.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/reports/authorized_first_observation_record.md)).
