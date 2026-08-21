@@ -279,6 +279,32 @@ class ReportExporter:
         lines.extend([
             "---",
             "",
+            "## 📥 Observed Citation Collection Candidates (Human Manifest Authorization Required)",
+            "",
+        ])
+
+        if not gap_record.collection_candidates:
+            lines.append("*No uncollected answer-surface citations observed.*")
+            lines.append("")
+        else:
+            for cc in gap_record.collection_candidates:
+                approval_badge = (
+                    "**`[REQUIRES HUMAN MANIFEST APPROVAL]`**"
+                    if cc.requires_human_manifest_approval
+                    else "**`[AUTHORIZED IN MANIFEST]`**"
+                )
+                comp_entity = f" (Entity: `{cc.matched_competitor_entity}`)" if cc.matched_competitor_entity else ""
+                lines.append(f"### Candidate `{cc.candidate_id}`: [{cc.cited_url}]({cc.cited_url}) {approval_badge}")
+                lines.append(f"- **Target Query**: `{cc.target_query_id}`")
+                lines.append(f"- **Domain**: `{cc.cited_domain}`")
+                lines.append(f"- **Source Relationship**: `{cc.source_relationship.value}`{comp_entity}")
+                lines.append(f"- **Manifest Approval Required**: `{cc.requires_human_manifest_approval}`")
+                lines.append(f"- **Action Hypothesis**: {cc.action_hypothesis}")
+                lines.append("")
+
+        lines.extend([
+            "---",
+            "",
             "## 🚨 Identified Client Evidence Gaps",
             "",
         ])

@@ -24,6 +24,7 @@ from .gap_analysis import (
     CompetitorCitationPattern,
     FindingBasis,
     ForensicGapAnalysisRecord,
+    ObservedCitationCollectionCandidate,
     PrioritizedActionPlan,
 )
 from .human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
@@ -80,6 +81,7 @@ __all__ = [
     "FindingBasis",
     "CompetitorCitation",
     "CompetitorCitationPattern",
+    "ObservedCitationCollectionCandidate",
     "ClientEvidenceGap",
     "PrioritizedActionPlan",
     "ForensicGapAnalysisRecord",

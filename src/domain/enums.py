@@ -93,6 +93,7 @@ class GapCategory(str, Enum):
     UNGROUNDED_MODEL_CLAIM = "ungrounded_model_claim"
     COMPETITOR_DOMINANCE = "competitor_dominance"
     SEMANTIC_REVIEW_PENDING = "semantic_review_pending"
+    UNCOLLECTED_COMPETITOR_CITATION = "uncollected_competitor_citation"
 
 
 class ActionSeverity(str, Enum):

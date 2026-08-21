@@ -1,7 +1,7 @@
 """
-Forensic Competitor Evidence-Gap Analysis Domain Contracts (Sprint 7.2 Remediated)
+Forensic Competitor Evidence-Gap Analysis Domain Contracts (Sprint 7.4 Remediated)
 Defines immutable models for competitor citation patterns, client evidence gaps,
-finding bases, attribution statuses, and prioritized action hypotheses with complete canonical digest protection.
+finding bases, attribution statuses, collection candidate proposals, and prioritized action hypotheses with complete canonical digest protection.
 """
 
 import hashlib
@@ -34,7 +34,7 @@ class AnswerCitation(BaseModel):
 class FindingBasis(BaseModel):
     """
     Immutable finding basis detailing exact observation, statement, evidence IDs,
-    and source relationships supporting a gap or action recommendation.
+    and source relationships supporting a gap, collection candidate, or action recommendation.
     """
 
     model_config = {"frozen": True}
@@ -83,6 +83,27 @@ class CompetitorCitationPattern(BaseModel):
     )
 
 
+class ObservedCitationCollectionCandidate(BaseModel):
+    """
+    Typed collection candidate proposal for an observed raw-answer URL missing from the source ledger.
+    Requires explicit human review and manifest policy update prior to verifier collection.
+    """
+
+    model_config = {"frozen": True}
+
+    candidate_id: str = Field(..., description="Unique collection candidate identifier")
+    target_query_id: str = Field(..., description="Target query ID")
+    cited_url: str = Field(..., description="Exact raw-answer cited URL requiring collection")
+    cited_domain: str = Field(..., description="Domain name parsed from cited URL")
+    source_relationship: SourceRelationship = Field(..., description="Relationship classification against SubjectProfile")
+    matched_competitor_entity: Optional[str] = Field(default=None, description="Matched competitor entity name if competitor owned")
+    requires_human_manifest_approval: bool = Field(
+        default=True, description="Whether explicit human approval and manifest addition is required prior to fetch"
+    )
+    finding_basis: FindingBasis = Field(..., description="Explicit observation and raw-answer citation basis")
+    action_hypothesis: str = Field(..., min_length=10, description="Collection candidate proposal recommendation")
+
+
 class ClientEvidenceGap(BaseModel):
     """
     Identified evidence gap backed by explicit finding basis and statement evidence state.
@@ -107,6 +128,7 @@ class PrioritizedActionPlan(BaseModel):
     """
     Confidence-bounded action hypothesis recommended for client evidence generation.
     Framed explicitly as an action hypothesis for review.
+    Must be bound to a valid ClientEvidenceGap ID.
     """
 
     model_config = {"frozen": True}
@@ -130,7 +152,7 @@ class ForensicGapAnalysisRecord(BaseModel):
     """
     Content-addressed, immutable record of forensic evidence-gap analysis.
     Binds observation ID, raw answer SHA-256, source ledger run ID, raw ledger SHA-256, query map SHA-256, manifest SHA-256, AND profile SHA-256.
-    Every rendered field (profile SHA-256, attribution status, descriptions, evidence bases, ethical notes, total counts, impact statements) participates in canonical_digest.
+    Every rendered field (profile SHA-256, attribution status, collection candidates, descriptions, evidence bases, ethical notes, total counts, impact statements) participates in canonical_digest.
     """
 
     model_config = {"frozen": True}
@@ -149,6 +171,7 @@ class ForensicGapAnalysisRecord(BaseModel):
         description="Overall competitor attribution status",
     )
     competitor_patterns: List[CompetitorCitationPattern] = Field(default_factory=list)
+    collection_candidates: List[ObservedCitationCollectionCandidate] = Field(default_factory=list)
     evidence_gaps: List[ClientEvidenceGap] = Field(default_factory=list)
     prioritized_actions: List[PrioritizedActionPlan] = Field(default_factory=list)
     canonical_digest: str = Field(..., description="Content-addressed SHA-256 digest over ALL context bindings and findings")
@@ -167,10 +190,11 @@ class ForensicGapAnalysisRecord(BaseModel):
         profile_sha256: str,
         attribution_status: AttributionStatus,
         competitor_patterns: List[CompetitorCitationPattern],
+        collection_candidates: List[ObservedCitationCollectionCandidate],
         evidence_gaps: List[ClientEvidenceGap],
         prioritized_actions: List[PrioritizedActionPlan],
     ) -> str:
-        """Computes deterministic SHA-256 canonical digest over ALL context bindings including profile_sha256, attribution_status, total counts, descriptions, evidence bases, impact statements, and ethical notes."""
+        """Computes deterministic SHA-256 canonical digest over ALL context bindings including profile_sha256, attribution_status, collection_candidates, total counts, descriptions, evidence bases, impact statements, and ethical notes."""
         payload = {
             "analysis_id": analysis_id,
             "observation_id": observation_id,
@@ -210,6 +234,25 @@ class ForensicGapAnalysisRecord(BaseModel):
                     ],
                 }
                 for p in sorted(competitor_patterns, key=lambda x: x.pattern_id)
+            ],
+            "collection_candidates": [
+                {
+                    "candidate_id": cc.candidate_id,
+                    "target_query_id": cc.target_query_id,
+                    "cited_url": cc.cited_url,
+                    "cited_domain": cc.cited_domain,
+                    "source_relationship": cc.source_relationship.value,
+                    "matched_competitor_entity": cc.matched_competitor_entity,
+                    "requires_human_manifest_approval": cc.requires_human_manifest_approval,
+                    "action_hypothesis": cc.action_hypothesis,
+                    "finding_basis": {
+                        "observation_id": cc.finding_basis.observation_id,
+                        "statement_id": cc.finding_basis.statement_id,
+                        "evidence_ids": sorted(cc.finding_basis.evidence_ids),
+                        "source_relationships": sorted([r.value for r in cc.finding_basis.source_relationships]),
+                    },
+                }
+                for cc in sorted(collection_candidates, key=lambda x: x.candidate_id)
             ],
             "evidence_gaps": [
                 {
@@ -267,6 +310,7 @@ class ForensicGapAnalysisRecord(BaseModel):
             profile_sha256=self.profile_sha256,
             attribution_status=self.attribution_status,
             competitor_patterns=self.competitor_patterns,
+            collection_candidates=self.collection_candidates,
             evidence_gaps=self.evidence_gaps,
             prioritized_actions=self.prioritized_actions,
         )

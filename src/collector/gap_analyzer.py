@@ -1,8 +1,8 @@
 """
-Forensic Competitor Evidence-Gap Analyzer Engine (Sprint 7.2 Remediated)
+Forensic Competitor Evidence-Gap Analyzer Engine (Sprint 7.4 Remediated)
 Analyzes raw model answer surface observations, competitor citation patterns,
-subject profiles, and source ledgers to detect client evidence gaps and generate
-evidence-backed action hypotheses with complete canonical digest protection.
+subject profiles, and source ledgers to detect client evidence gaps,
+typed collection candidates, and evidence-backed action hypotheses with complete canonical digest protection.
 """
 
 import hashlib
@@ -19,6 +19,7 @@ from ..domain.gap_analysis import (
     CompetitorCitationPattern,
     FindingBasis,
     ForensicGapAnalysisRecord,
+    ObservedCitationCollectionCandidate,
     PrioritizedActionPlan,
 )
 from ..domain.human_decision import HumanDecisionRecord
@@ -32,7 +33,8 @@ from ..domain.reconciliation import ObservationReconciliation
 class ForensicGapAnalyzer:
     """
     Forensic analysis engine identifying competitor citation patterns,
-    client evidence gaps, and evidence-backed priority action hypotheses.
+    client evidence gaps, typed collection candidate proposals,
+    and evidence-backed priority action hypotheses.
     """
 
     @classmethod
@@ -170,9 +172,11 @@ class ForensicGapAnalyzer:
         1. Binds and validates raw profile_sha256.
         2. Validates 6-binding context of human_decision if provided.
         3. Classifies answer citations directly against SubjectProfile.
-        4. Three-way statement evidence evaluation: SUPPORTED, SEMANTIC_REVIEW_PENDING, or CANDIDATE_EVIDENCE_GAP.
-        5. Derives AttributionStatus directly from classified answer citations (e.g. CITED_COMPETITOR_OBSERVED).
-        6. Computes content-addressed canonical SHA-256 digest covering ALL fields.
+        4. Exact canonical URL verification matching against source ledger.
+        5. Emits typed ObservedCitationCollectionCandidate proposals (with requires_human_manifest_approval check).
+        6. Three-way statement evidence evaluation: SUPPORTED, SEMANTIC_REVIEW_PENDING, or CANDIDATE_EVIDENCE_GAP.
+        7. Derives AttributionStatus directly from classified answer citations.
+        8. Computes content-addressed canonical SHA-256 digest covering ALL fields.
         """
         qm_sha256 = hashlib.sha256(raw_qm_bytes).hexdigest()
         manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
@@ -196,15 +200,19 @@ class ForensicGapAnalyzer:
             subject_profile=subject_profile,
         )
 
-        # Step 2: Source Ledger Domain & Relationship Classification
+        # Step 2: Build set of EXACT verified canonical URLs from Source Ledger
+        verified_canonical_urls: Set[str] = set()
         domain_counts: Dict[str, int] = {}
         domain_types: Dict[str, SourceType] = {}
         domain_relationships: Dict[str, SourceRelationship] = {}
-
         client_evidence_records: List[str] = []
 
         for ev_id, ev in source_ledger.evidence_ledger.items():
             if ev.verification_status.value == "opened_verified":
+                verified_canonical_urls.add(ev.url.lower().rstrip("/"))
+                if ev.verification_artifact and ev.verification_artifact.final_url:
+                    verified_canonical_urls.add(ev.verification_artifact.final_url.lower().rstrip("/"))
+
                 parsed = urlparse(ev.url)
                 dom = parsed.hostname.lower() if parsed.hostname else ev.url
                 rel, _ = cls.classify_source_relationship(
@@ -253,7 +261,70 @@ class ForensicGapAnalyzer:
             attribution_status=attr_status,
         )
 
-        # Step 3: Three-Way Statement Evidence Assessment
+        # Step 3: Typed Collection Candidate Emission for Unverified Answer Citations
+        manifest_candidate_urls: Set[str] = set()
+        manifest_candidate_domains: Set[str] = set()
+
+        if hasattr(manifest, "candidates") and manifest.candidates:
+            for cs in manifest.candidates:
+                manifest_candidate_urls.add(cs.url.lower().rstrip("/"))
+                parsed_cs = urlparse(cs.url)
+                if parsed_cs.hostname:
+                    manifest_candidate_domains.add(parsed_cs.hostname.lower())
+
+        if hasattr(manifest, "allowed_domains") and manifest.allowed_domains:
+            for dom in manifest.allowed_domains:
+                manifest_candidate_domains.add(dom.lower())
+
+        collection_candidates: List[ObservedCitationCollectionCandidate] = []
+
+        for ac in answer_citations:
+            clean_ac_url = ac.url.lower().rstrip("/")
+            # Check exact canonical URL match in verified evidence
+            is_url_verified = clean_ac_url in verified_canonical_urls
+
+            if not is_url_verified:
+                cand_id = f"occ-{observation.query_id}-{hashlib.sha256(ac.url.encode()).hexdigest()[:8]}"
+                # Check manifest authorization
+                is_authorized_in_manifest = (
+                    clean_ac_url in manifest_candidate_urls or ac.domain in manifest_candidate_domains
+                )
+                requires_approval = not is_authorized_in_manifest
+
+                cand_basis = FindingBasis(
+                    observation_id=observation.observation_id,
+                    statement_id="obs-answer-citation",
+                    evidence_ids=[],
+                    source_relationships=[ac.source_relationship],
+                )
+
+                entity_str = f" ({ac.matched_competitor_entity})" if ac.matched_competitor_entity else ""
+                approval_str = (
+                    "requires explicit human approval and manifest policy update"
+                    if requires_approval
+                    else "is authorized in dataset manifest"
+                )
+
+                hypothesis = (
+                    f"Collection Candidate Proposal for Review: Observed citation '{ac.url}'{entity_str} "
+                    f"is unverified in source ledger and {approval_str} prior to verifier fetch."
+                )
+
+                collection_candidates.append(
+                    ObservedCitationCollectionCandidate(
+                        candidate_id=cand_id,
+                        target_query_id=observation.query_id,
+                        cited_url=ac.url,
+                        cited_domain=ac.domain,
+                        source_relationship=ac.source_relationship,
+                        matched_competitor_entity=ac.matched_competitor_entity,
+                        requires_human_manifest_approval=requires_approval,
+                        finding_basis=cand_basis,
+                        action_hypothesis=hypothesis,
+                    )
+                )
+
+        # Step 4: Three-Way Statement Evidence Assessment
         supported_statement_ids: Set[str] = set()
 
         if human_decision:
@@ -282,43 +353,6 @@ class ForensicGapAnalyzer:
 
         gaps: List[ClientEvidenceGap] = []
         actions: List[PrioritizedActionPlan] = []
-
-        # Check if an unverified competitor citation was observed in raw answer surface
-        unverified_competitor_citations = [
-            ac
-            for ac in answer_citations
-            if ac.source_relationship == SourceRelationship.COMPETITOR_OWNED
-            and ac.domain not in domain_counts
-        ]
-
-        for ac in unverified_competitor_citations:
-            act_id = f"act-col-{observation.query_id}-{hashlib.sha256(ac.url.encode()).hexdigest()[:6]}"
-            entity_str = f" ({ac.matched_competitor_entity})" if ac.matched_competitor_entity else ""
-
-            basis = FindingBasis(
-                observation_id=observation.observation_id,
-                statement_id="obs-surface-citation",
-                evidence_ids=[],
-                source_relationships=[SourceRelationship.COMPETITOR_OWNED],
-            )
-
-            actions.append(
-                PrioritizedActionPlan(
-                    action_id=act_id,
-                    gap_id=f"gap-pat-{observation.query_id}",
-                    recommended_action=(
-                        f"Hypothesis for Review: Execute authorized manifest-approved evidence collection and verifier snapshot "
-                        f"for observed competitor citation '{ac.url}'{entity_str} prior to comparative evaluation."
-                    ),
-                    target_domain=ac.domain,
-                    suggested_source_type=SourceType.OFFICIAL_DOCUMENTATION,
-                    expected_evidence_impact="Establishes OPENED_VERIFIED competitor evidence record in source ledger for forensic comparison.",
-                    confidence_score=0.90,
-                    confidence_explanation="High confidence: competitor domain observed directly in raw answer surface.",
-                    ethical_boundary_notes="Collection executed via manifest-approved verifier. Non-manipulative evidence gathering.",
-                    finding_basis=basis,
-                )
-            )
 
         # Only emit evidence gap if statement has NO client-owned opened evidence (Candidate Evidence Gap)
         if candidate_gap_stmts:
@@ -363,6 +397,7 @@ class ForensicGapAnalyzer:
                 )
             )
 
+            # Formulate action plan bound strictly to gap_id (NO orphan actions!)
             if attr_status != AttributionStatus.NO_ANSWER_CITATIONS_NOT_ASSESSABLE:
                 client_dom = subject_profile.client_profile.client_domain
                 act_id = f"act-{observation.query_id}-001"
@@ -402,6 +437,7 @@ class ForensicGapAnalyzer:
             profile_sha256=profile_sha256,
             attribution_status=attr_status,
             competitor_patterns=[pattern],
+            collection_candidates=collection_candidates,
             evidence_gaps=gaps,
             prioritized_actions=actions,
         )
@@ -418,6 +454,7 @@ class ForensicGapAnalyzer:
             profile_sha256=profile_sha256,
             attribution_status=attr_status,
             competitor_patterns=[pattern],
+            collection_candidates=collection_candidates,
             evidence_gaps=gaps,
             prioritized_actions=actions,
             canonical_digest=canonical_digest,
