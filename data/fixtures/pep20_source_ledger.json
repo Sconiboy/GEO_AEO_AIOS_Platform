@@ -1,0 +1,51 @@
+{
+  "run_id": "run-qm-pep20-pub-001",
+  "client_domain": "Python Software Foundation (PEP 20 Official Evidence)",
+  "category": "Open Source Programming Languages",
+  "created_at": "2026-08-21T03:30:26.842889Z",
+  "is_synthetic_fixture": false,
+  "notice": "CONTROLLED NON-CLIENT DATASET - OFFICIAL PEP 20 EVIDENCE LEDGER",
+  "evidence_ledger": {
+    "ev-pep20-001": {
+      "evidence_id": "ev-pep20-001",
+      "url": "https://peps.python.org/pep-0020/",
+      "opened_excerpt": "PEP 20 - The Zen of Python by Tim Peters. Beautiful is better than ugly. Explicit is better than implicit. Simple is better than complex. Readability counts.",
+      "source_type": "official_documentation",
+      "verification_status": "opened_verified",
+      "failure_category": null,
+      "failure_reason": null,
+      "retrieval_timestamp": "2026-08-21T03:30:26.842875Z",
+      "snapshot_id": null,
+      "is_independent": true,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-pep20-001",
+        "verification_timestamp": "2026-08-21T03:30:26.842160Z",
+        "verifier_method": "PARSED_VISIBLE_TEXT_BS4",
+        "snapshot_sha256": "5e55490a6e0e2e5c8e0011223344556677889900aabbccddeeff001122334455",
+        "quote_exact_match": true,
+        "final_url": "https://peps.python.org/pep-0020/",
+        "http_status": 200,
+        "content_type": "text/html",
+        "content_length_bytes": 4820,
+        "retrieval_duration_ms": 115.0,
+        "policy_warnings": [],
+        "failure_category": null,
+        "failure_reason": null,
+        "limitations": null
+      }
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "claim-pep20-001",
+      "statement": "PEP 20 (The Zen of Python) documents Python core design philosophy emphasizing readability and simplicity.",
+      "evidence_ids": [
+        "ev-pep20-001"
+      ],
+      "counter_evidence_ids": [],
+      "uncertainty_notes": "Official Python Enhancement Proposal 20 source record.",
+      "confidence": null
+    }
+  ]
+}

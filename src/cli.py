@@ -225,10 +225,12 @@ def run_cli_reconcile(
     source_ledger_path: Path,
     observation_path: Path,
     output_path: Optional[Path] = None,
+    reconciliation_json_path: Optional[Path] = None,
 ) -> int:
     """
     Executes Claim Reconciliation against a frozen AnswerObservation and Source Ledger.
     Evaluates raw statement proposals semantically against source evidence.
+    Persists versioned ObservationReconciliation JSON artifact and renders report.
     """
     print(f"🎯 Loading QueryMap artifact: {query_map_path}")
     print(f"📜 Loading Dataset Manifest artifact: {manifest_path}")
@@ -259,13 +261,35 @@ def run_cli_reconcile(
             raw_ledger_bytes=raw_ledger_bytes,
         )
 
-        # Step 2: Reconcile statements semantically against source ledger with raw artifact hash validation
-        reconciliation = ClaimReconciler.reconcile_observation(
-            observation=validated_obs,
-            source_ledger=source_ledger,
-            raw_ledger_bytes=raw_ledger_bytes,
-        )
+        # Step 2: Load existing stored JSON reconciliation or generate fresh reconciliation
+        from .domain.reconciliation import ObservationReconciliation
 
+        if reconciliation_json_path and reconciliation_json_path.exists():
+            print(f"📦 Loading pre-existing Reconciliation JSON artifact: {reconciliation_json_path}")
+            rec_bytes = reconciliation_json_path.read_bytes()
+            reconciliation = ObservationReconciliation.model_validate(
+                json.loads(rec_bytes.decode("utf-8"))
+            )
+            if not reconciliation.verify_integrity():
+                raise ValueError(
+                    f"Integrity failure: Stored Reconciliation JSON artifact '{reconciliation_json_path}' failed digest verification."
+                )
+        else:
+            print("⚡ Reconciling statement proposals against source ledger...")
+            reconciliation = ClaimReconciler.reconcile_observation(
+                observation=validated_obs,
+                source_ledger=source_ledger,
+                raw_ledger_bytes=raw_ledger_bytes,
+            )
+
+        # Step 3: Persist canonical versioned JSON artifact if path specified
+        if reconciliation_json_path:
+            reconciliation_json_path.parent.mkdir(parents=True, exist_ok=True)
+            serialized = json.dumps(reconciliation.model_dump(mode="json"), indent=2)
+            reconciliation_json_path.write_text(serialized, encoding="utf-8")
+            print(f"💾 Saved versioned Reconciliation JSON artifact to: {reconciliation_json_path}")
+
+        # Step 4: Render Markdown report
         markdown_content = ReportExporter.export_reconciliation_record(
             reconciliation=reconciliation,
             observation=validated_obs,
@@ -420,7 +444,13 @@ def main() -> None:
         "--output",
         type=Path,
         required=False,
-        help="Optional path to write generated Claim Reconciliation Record",
+        help="Optional path to write generated Claim Reconciliation Record Markdown",
+    )
+    rec_parser.add_argument(
+        "--reconciliation-json",
+        type=Path,
+        required=False,
+        help="Optional path to write or read versioned ObservationReconciliation JSON artifact",
     )
 
     args = parser.parse_args()
@@ -449,6 +479,7 @@ def main() -> None:
                 args.source_ledger,
                 args.observation,
                 args.output,
+                args.reconciliation_json,
             )
         )
 

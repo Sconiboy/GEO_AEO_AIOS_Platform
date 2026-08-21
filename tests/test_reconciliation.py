@@ -309,3 +309,47 @@ def test_cli_reconcile_command_execution(tmp_path: Path):
     assert "Claim Reconciliation Record" in content
     assert "NOT_ASSESSABLE" in content
     assert "Python Software Foundation" in content
+
+
+def test_cli_reconcile_with_json_persistence_and_loading(tmp_path: Path):
+    """P0 TEST: Test that CLI reconcile writes versioned JSON artifact and re-loads it preserving decision state."""
+    qm_file = Path("data/fixtures/sample_query_map.json")
+    man_file = Path("data/fixtures/controlled_dataset_manifest.json")
+    ledger_file = Path("data/fixtures/frozen_source_ledger.json")
+    obs_file = Path("data/fixtures/authorized_first_observation.json")
+    output_file = tmp_path / "test_reconciliation_record.md"
+    json_file = tmp_path / "test_reconciliation.json"
+
+    # Step 1: Run CLI to persist JSON artifact
+    exit_code_1 = run_cli_reconcile(
+        query_map_path=qm_file,
+        manifest_path=man_file,
+        source_ledger_path=ledger_file,
+        observation_path=obs_file,
+        output_path=output_file,
+        reconciliation_json_path=json_file,
+    )
+    assert exit_code_1 == 0
+    assert json_file.exists()
+
+    json_bytes = json_file.read_bytes()
+    rec_obj = ObservationReconciliation.model_validate_json(json_bytes)
+    assert rec_obj.verify_integrity() is True
+    first_timestamp = rec_obj.reconciliations[0].reconciliation_timestamp
+
+    # Step 2: Re-run CLI loading pre-existing JSON artifact
+    exit_code_2 = run_cli_reconcile(
+        query_map_path=qm_file,
+        manifest_path=man_file,
+        source_ledger_path=ledger_file,
+        observation_path=obs_file,
+        output_path=output_file,
+        reconciliation_json_path=json_file,
+    )
+    assert exit_code_2 == 0
+
+    reloaded_obj = ObservationReconciliation.model_validate_json(json_file.read_bytes())
+    assert reloaded_obj.verify_integrity() is True
+    # Verify original decision timestamp was preserved!
+    assert reloaded_obj.reconciliations[0].reconciliation_timestamp == first_timestamp
+

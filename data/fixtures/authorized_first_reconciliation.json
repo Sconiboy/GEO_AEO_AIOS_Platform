@@ -1,0 +1,32 @@
+{
+  "reconciliation_run_id": "rec-run-obs-auth-first-001",
+  "observation_id": "obs-auth-first-001",
+  "raw_answer_sha256": "edf766cc54dda51ea6bba9f96cb95082e572992400055012f0d9392df49f3bcd",
+  "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "source_ledger_sha256": "76a7ec3969b423ba3bf3917c2bec1d1a842e6dff84d8e8621108cc9056e23c86",
+  "reconciliations": [
+    {
+      "reconciliation_id": "rec-obs-auth-first-001-001",
+      "statement_id": "stmt-001",
+      "status": "not_assessable",
+      "evaluated_evidence_ids": [],
+      "semantic_rationale": "No relevant opened evidence records exist in the source ledger to evaluate statement 'stmt-001' semantically.",
+      "reviewer_role": "Lead Systems Architect & Auditor",
+      "reconciliation_timestamp": "2026-08-21T03:29:55.617051Z",
+      "reconciliation_method": "human_auditor_review"
+    },
+    {
+      "reconciliation_id": "rec-obs-auth-first-001-002",
+      "statement_id": "stmt-002",
+      "status": "not_assessable",
+      "evaluated_evidence_ids": [
+        "ev-httpbin-001"
+      ],
+      "semantic_rationale": "Statement 'stmt-002' references opened evidence 'ev-httpbin-001', but the source excerpt is semantically irrelevant to the statement text.",
+      "reviewer_role": "Lead Systems Architect & Auditor",
+      "reconciliation_timestamp": "2026-08-21T03:29:55.617051Z",
+      "reconciliation_method": "human_auditor_review"
+    }
+  ],
+  "reconciliation_sha256": "dee58e932ada8c6e09ce8e38213439012e62b1d80b7ebb76ed5c6218af5bb0ab"
+}
