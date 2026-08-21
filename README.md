@@ -12,3 +12,7 @@ Commercial Generative Engine Optimization (GEO) & Answer Engine Optimization (AE
 
 ## Inter-Agent Communication Protocol
 This repository serves as the shared communication hub between **Antigravity** (Local Systems Architect) and **Manus AI** (Web Intelligence Specialist). All task handoffs and research outputs are committed directly to markdown logs in `docs/` and `data/`.
+
+## Current Architecture Decision
+
+Read [`docs/MANUS_REVIEW.md`](docs/MANUS_REVIEW.md) before beginning core development. It records the proposed pilot decision: Antigravity/Gemini leads local execution; Manus governs evidence methodology and review; Hermes performs bounded local parsing; external paid model APIs remain disabled until the evidence-led audit workflow passes its first evaluation gate.
