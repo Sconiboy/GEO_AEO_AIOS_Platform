@@ -1,8 +1,10 @@
 """
-Forensic Comparative Evidence Reconciler Engine (Sprint 8.1 Remediated)
+Forensic Comparative Evidence Reconciler Engine (Sprint 8.2 Remediated)
 Compares verified client evidence against verified competitor evidence for a target query observation.
-Dynamically derives domain ownership from SubjectProfile, evaluates claim-to-excerpt semantic assessments,
-binds all 9 context hashes, and produces a non-causal ActionPlanHypothesis for human operator review.
+Dynamically derives domain ownership from SubjectProfile.
+Automated evaluation defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW or NOT_ASSESSABLE (zero keyword auto-support).
+Integrates HumanDecisionRecord for status promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED.
+Binds all 9 context hashes, statement texts, excerpts, finding basis trace, and human decisions into canonical digest.
 """
 
 import hashlib
@@ -17,6 +19,7 @@ from ..domain.comparative import (
 )
 from ..domain.enums import ReconciliationStatus, SourceRelationship, VerificationStatus
 from ..domain.gap_analysis import FindingBasis, ForensicGapAnalysisRecord
+from ..domain.human_decision import HumanDecisionRecord
 from ..domain.models import EvidenceRecord
 from ..domain.observation import AnswerObservation
 from ..domain.profile import SubjectProfile
@@ -36,12 +39,32 @@ class ComparativeEvidenceReconciler:
         statement_id: str,
         statement_text: str,
         evidence: Optional[EvidenceRecord],
+        human_decision_record: Optional[HumanDecisionRecord] = None,
     ) -> ClaimExcerptAssessment:
         """
         Evaluates an answer-surface statement claim against a verified evidence record excerpt.
-        Returns ClaimExcerptAssessment with SUPPORTED status if excerpt substantiates claim,
-        or NOT_ASSESSABLE if evidence is missing, unverified, or excerpt does not match.
+        Zero keyword auto-support: Automated evaluation NEVER promotes statements to SUPPORTED based on word overlap.
+        Defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW if OPENED_VERIFIED evidence excerpt exists,
+        or NOT_ASSESSABLE if evidence is missing or unverified.
+        Promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED requires binding a valid HumanDecisionRecord.
         """
+        # Check if human decision record contains an adjudicated decision for this statement
+        if human_decision_record and human_decision_record.verify_integrity():
+            for dec in human_decision_record.decisions:
+                if dec.statement_id == statement_id:
+                    return ClaimExcerptAssessment(
+                        statement_id=statement_id,
+                        statement_text=statement_text,
+                        evidence_id=evidence.evidence_id if evidence else None,
+                        evidence_url=evidence.url if evidence else None,
+                        opened_excerpt=evidence.opened_excerpt if evidence else None,
+                        assessment_status=dec.decision_status,
+                        semantic_rationale=f"Human auditor adjudication ({dec.declared_reviewer_identity}): {dec.auditor_rationale}",
+                        human_decision_id=human_decision_record.decision_record_id,
+                        human_decision_digest=human_decision_record.canonical_digest,
+                    )
+
+        # No human decision present: automated baseline fallback (strictly non-promoted)
         if not evidence or evidence.verification_status != VerificationStatus.OPENED_VERIFIED or not evidence.opened_excerpt:
             return ClaimExcerptAssessment(
                 statement_id=statement_id,
@@ -53,30 +76,15 @@ class ComparativeEvidenceReconciler:
                 semantic_rationale="No verified OPENED_VERIFIED evidence excerpt available to evaluate claim.",
             )
 
-        stmt_words = {w.lower() for w in statement_text.split() if len(w) > 3}
-        excerpt_words = {w.lower() for w in evidence.opened_excerpt.split() if len(w) > 3}
-
-        # Check keyword/semantic overlap between statement and verified visible-text excerpt
-        overlap = stmt_words.intersection(excerpt_words)
-        if len(overlap) >= 2 or any(w in evidence.opened_excerpt.lower() for w in ["python", "rust", "zen", "readability", "ownership", "book"]):
-            return ClaimExcerptAssessment(
-                statement_id=statement_id,
-                statement_text=statement_text,
-                evidence_id=evidence.evidence_id,
-                evidence_url=evidence.url,
-                opened_excerpt=evidence.opened_excerpt,
-                assessment_status=ReconciliationStatus.SUPPORTED,
-                semantic_rationale=f"Verified excerpt '{evidence.opened_excerpt[:60]}...' substantiates statement proposal.",
-            )
-
+        # Verified evidence excerpt present: flag for human auditor review (never auto-support)
         return ClaimExcerptAssessment(
             statement_id=statement_id,
             statement_text=statement_text,
             evidence_id=evidence.evidence_id,
             evidence_url=evidence.url,
             opened_excerpt=evidence.opened_excerpt,
-            assessment_status=ReconciliationStatus.NOT_ASSESSABLE,
-            semantic_rationale="Verified excerpt does not contain sufficient semantic overlap to confirm statement.",
+            assessment_status=ReconciliationStatus.CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW,
+            semantic_rationale=f"Verified excerpt present ('{evidence.opened_excerpt[:60]}...'). Candidate for human auditor semantic adjudication.",
         )
 
     @classmethod
@@ -92,6 +100,7 @@ class ComparativeEvidenceReconciler:
         raw_manifest_bytes: bytes,
         raw_ledger_bytes: bytes,
         raw_profile_bytes: bytes,
+        human_decision_record: Optional[HumanDecisionRecord] = None,
         timestamp: Optional[datetime] = None,
     ) -> ComparativeEvidenceRecord:
         """
@@ -103,6 +112,9 @@ class ComparativeEvidenceReconciler:
 
         if not gap_record.verify_integrity():
             raise ValueError(f"ForensicGapAnalysisRecord integrity verification failed for '{gap_record.analysis_id}'.")
+
+        if human_decision_record and not human_decision_record.verify_integrity():
+            raise ValueError(f"HumanDecisionRecord integrity verification failed for '{human_decision_record.decision_record_id}'.")
 
         created_at = timestamp or datetime.now(timezone.utc)
 
@@ -125,7 +137,6 @@ class ComparativeEvidenceReconciler:
         client_snap = client_art.snapshot_sha256 if client_art else "unknown"
         client_vrun = client_art.verifier_run_id if client_art else "vrun-unknown"
         
-        # Match collection execution ID
         client_exec_id = f"exec-client-{client_evidence.evidence_id}"
         for ce in gap_record.collection_executions:
             if ce.evidence_id == client_evidence.evidence_id:
@@ -182,33 +193,38 @@ class ComparativeEvidenceReconciler:
         competitor_assessments: List[ClaimExcerptAssessment] = []
 
         for stmt in observation.extracted_statements:
-            client_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, client_evidence))
-            competitor_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, competitor_evidence))
+            client_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, client_evidence, human_decision_record))
+            competitor_assessments.append(cls.evaluate_claim_support(stmt.statement_id, stmt.text, competitor_evidence, human_decision_record))
 
-        # Step 5: Determine gap status and dynamic non-causal action hypothesis
-        gap_exists = gap_record.attribution_status.value == "cited_competitor_observed"
+        # Step 5: Derive factual evidence gap from comparative claim assessments
+        # Gap exists if competitor evidence has a supported/reviewed claim while client evidence is unverified, missing, or not assessable
+        comp_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in competitor_assessments)
+        client_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in client_assessments)
         
+        # A cited competitor with unverified or unreviewed client evidence triggers investigation requirement
+        cited_competitor_present = gap_record.attribution_status.value == "cited_competitor_observed"
+        gap_exists = cited_competitor_present and not client_supported
+
         comp_text = (
             f"Model answer for query '{observation.query_id}' cited competitor URL '{competitor_evidence.url}' "
             f"({competitor_summary.entity_name}). Verified competitor excerpt: '{competitor_evidence.opened_excerpt}'. "
             f"Client-owned source '{client_evidence.url}' ({profile.client_profile.entity_name}) is verified in the source ledger "
-            f"with excerpt: '{client_evidence.opened_excerpt}', but client domain was not cited in the raw model response surface."
+            f"with excerpt: '{client_evidence.opened_excerpt}'."
         )
 
-        # Build dynamic hypothesis based on actual evidence assessments
-        client_supported = any(a.assessment_status == ReconciliationStatus.SUPPORTED for a in client_assessments)
-        if gap_exists and not client_supported:
+        if gap_exists and comp_supported and not client_supported:
             hypothesis = (
-                f"Evidence Gap Hypothesis: Publish or update canonical documentation on '{profile.client_profile.client_domain}' "
-                f"to substantiate client authority for query '{observation.query_id}'."
+                f"Evidence Gap Hypothesis: Competitor claim is SUPPORTED by human adjudication on '{competitor_summary.domain}', "
+                f"while client evidence on '{profile.client_profile.client_domain}' is not yet supported. "
+                f"Publish or update canonical documentation on '{profile.client_profile.client_domain}' for query '{observation.query_id}'."
             )
         elif gap_exists:
             hypothesis = (
-                f"Evidence Gap Hypothesis: Client evidence is OPENED_VERIFIED on '{profile.client_profile.client_domain}', "
-                f"but competitor URL '{competitor_evidence.url}' was cited. Operator review recommended to expand comparative evidence."
+                f"Investigation Required: Competitor URL '{competitor_evidence.url}' was cited in raw model surface for query '{observation.query_id}'. "
+                f"Client evidence on '{profile.client_profile.client_domain}' is OPENED_VERIFIED but requires human semantic adjudication."
             )
         else:
-            hypothesis = f"No competitor evidence gap identified for query '{observation.query_id}'."
+            hypothesis = f"No client evidence gap identified. Both client and competitor sources demonstrate equivalent evidence status for query '{observation.query_id}'."
 
         finding_basis = FindingBasis(
             observation_id=observation.observation_id,
@@ -219,7 +235,10 @@ class ComparativeEvidenceReconciler:
 
         comparative_id = f"comp-rec-{observation.observation_id}"
 
-        # Step 6: Compute 9-hash canonical digest
+        # Step 6: Compute 9-hash canonical digest over ALL fields and finding basis
+        human_rec_id = human_decision_record.decision_record_id if human_decision_record else None
+        human_rec_dig = human_decision_record.canonical_digest if human_decision_record else None
+
         canonical_digest = ComparativeEvidenceRecord.compute_canonical_digest(
             comparative_id=comparative_id,
             observation_id=observation.observation_id,
@@ -230,6 +249,8 @@ class ComparativeEvidenceReconciler:
             manifest_sha256=manifest_sha256,
             source_ledger_run_id=gap_record.source_ledger_run_id,
             source_ledger_sha256=ledger_sha256,
+            human_decision_record_id=human_rec_id,
+            human_decision_digest=human_rec_dig,
             query_id=observation.query_id,
             client_evidence=client_summary,
             competitor_evidence=competitor_summary,
@@ -238,6 +259,7 @@ class ComparativeEvidenceReconciler:
             evidence_gap_identified=gap_exists,
             comparison_summary=comp_text,
             action_hypothesis=hypothesis,
+            finding_basis=finding_basis,
             confidence_score=0.85 if gap_exists else 1.0,
             human_review_required=True,
             created_at=created_at,
@@ -253,6 +275,8 @@ class ComparativeEvidenceReconciler:
             manifest_sha256=manifest_sha256,
             source_ledger_run_id=gap_record.source_ledger_run_id,
             source_ledger_sha256=ledger_sha256,
+            human_decision_record_id=human_rec_id,
+            human_decision_digest=human_rec_dig,
             query_id=observation.query_id,
             client_evidence=client_summary,
             competitor_evidence=competitor_summary,

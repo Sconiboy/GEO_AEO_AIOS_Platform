@@ -935,26 +935,12 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-30: Typed collection candidate record, manifest authorization validation (`requires_human_manifest_approval`), exact canonical URL verification matching, orphan action plan elimination, and 62 passing unit tests.
 - [x] Task A-31: Exact URL + query ID manifest authorization gate, matched manifest query ID provenance tracing, domain scope bypass elimination, and 64 passing unit tests.
 - [x] Task A-32: CandidateCollector execution engine, execution-time authorization gate, collect-candidate CLI subcommand, and 67 passing unit tests.
-- [x] Task A-33: CollectionExecutionRecord provenance model, 7-binding context re-validation prior to fetch, Executed Candidate Collections exporter section, non-mocked loopback HTTP integration test, and 69 passing unit tests.
 - [x] Task A-34: CollectionAttemptRecord model, failure-path branching on VerificationStatus, Failed Candidate Collection Attempts exporter section, and 70 passing unit tests.
 - [x] Task A-35: CaptureMethod.SYNTHETIC_FIXTURE_IMPORT, Exporter warning banners for synthetic fixtures, authentic Hermes 3 manual capture dataset, and 72 passing unit tests.
 - [x] Task A-36: CaptureArtifact contract, provenance distinction (Artifact-Backed vs Self-Declared vs Synthetic Fixture), preserved raw transcript file, and 74 passing unit tests.
 - [x] Task A-37: TranscriptParser module, fail-closed content matching (raw_output_sha256 == raw_answer_sha256), missing file fail-closed gate, metadata verification, and 81 passing unit tests.
 - [x] Task A-38: Full capture header verification (Session ID, UTC timestamp, operator identity matching), precise disclosure badges, and 84 passing unit tests.
 - [x] Task A-39: Sprint 8 comparative evidence workflow (competitor citation answer capture, CandidateCollector execution, PEP 20 client evidence collection, ComparativeEvidenceReconciler, and non-causal action hypothesis report).
+- [x] Task A-40: Dynamic Profile Ownership, Source-to-Claim Semantic Assessment, 9-Hash Context Binding, and Unified Candidate Provenance.
+- [x] Task A-41: Zero Keyword Auto-Support, Human Governance Adjudication, Total Canonical Digest Protection, and Factual Gap Derivation.
 
-## ⚖️ Sprint 8.1: Forensic Comparative Evidence Engine & Complete Context Binding
-
-### Task A-40: Dynamic Profile Ownership, Source-to-Claim Semantic Assessment, 9-Hash Context Binding, and Unified Candidate Provenance
-- **Goal**: Implement Sprint 8.1 forensic comparative engine remediations based on Manus's review ([`docs/MANUS_SPRINT8_REVIEW.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/docs/MANUS_SPRINT8_REVIEW.md)):
-  - Built `ComparativeEvidenceRecord` and `ClaimExcerptAssessment` contracts ([`src/domain/comparative.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/domain/comparative.py)) with complete 9-hash context binding (`observation_id`, `raw_answer_sha256`, `profile_id`, `profile_sha256`, `query_map_sha256`, `manifest_sha256`, `source_ledger_run_id`, `source_ledger_sha256`, client/competitor evidence IDs, snapshot hashes, verifier runs, and collection execution IDs), protected by `compute_canonical_digest()` and `verify_integrity()`.
-  - Updated `ComparativeEvidenceReconciler` ([`src/collector/comparative_reconciler.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/collector/comparative_reconciler.py)) to dynamically classify client (`CLIENT_OWNED`) and competitor (`COMPETITOR_OWNED`) domain ownership via `SubjectProfile`, rejecting unknown/mismatched domains.
-  - Implemented source-to-claim semantic evaluation (`evaluate_claim_support`) mapping raw model statements to verified source excerpts into `ClaimExcerptAssessment` records (`SUPPORTED`, `UNSUPPORTED`, `CONTRADICTED`, or `NOT_ASSESSABLE`).
-  - Enforced `record.verify_integrity()` gate in `ReportExporter.export_comparative_analysis_record()` ([`src/exporter/report.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/exporter/report.py)).
-  - Unified candidate execution provenance path in [`scripts/run_comparative_prepilot.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/scripts/run_comparative_prepilot.py) executing `CandidateCollector` for both competitor (`https://doc.rust-lang.org/book/`) and client (`https://peps.python.org/pep-0020/`) candidates under exact manifest authorization.
-  - Added unit test suite `tests/test_comparative_reconciler.py` covering dynamic ownership classification, tampering rejection, and semantic claim assessment.
-- **Status**: COMPLETED (88 unit tests passing, 84% total code coverage, 100% coverage on `domain/comparative.py`, 0 Mypy static type errors).
-
----
-
-## Completed Tasks

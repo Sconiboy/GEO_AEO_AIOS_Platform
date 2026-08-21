@@ -1,7 +1,8 @@
 """
-Comparative Evidence Domain Contracts (Sprint 8.1)
+Comparative Evidence Domain Contracts (Sprint 8.2 Remediated)
 Defines immutable models for claim-to-excerpt semantic assessments, comparative source summaries,
-and content-addressed ComparativeEvidenceRecord with complete 9-hash context binding and integrity verification.
+and content-addressed ComparativeEvidenceRecord with total canonical digest protection over all assessment fields,
+finding basis trace, and human governance decisions.
 """
 
 import hashlib
@@ -17,6 +18,8 @@ from .gap_analysis import FindingBasis
 class ClaimExcerptAssessment(BaseModel):
     """
     Semantic truth evaluation mapping a raw model statement proposal directly to a verified source excerpt.
+    Automated evaluation defaults to CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW or NOT_ASSESSABLE.
+    Explicit promotion to SUPPORTED, CONTRADICTED, or UNSUPPORTED requires binding a HumanDecisionRecord.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -27,9 +30,11 @@ class ClaimExcerptAssessment(BaseModel):
     evidence_url: Optional[str] = Field(default=None, description="Bound EvidenceRecord URL if evidence present")
     opened_excerpt: Optional[str] = Field(default=None, description="Verified visible text excerpt from source")
     assessment_status: ReconciliationStatus = Field(
-        ..., description="Semantic evaluation: SUPPORTED, UNSUPPORTED, CONTRADICTED, or NOT_ASSESSABLE"
+        ..., description="Semantic evaluation: CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW, NOT_ASSESSABLE, SUPPORTED, CONTRADICTED, or UNSUPPORTED"
     )
     semantic_rationale: str = Field(..., min_length=5, description="Technical rationale explaining semantic assessment")
+    human_decision_id: Optional[str] = Field(default=None, description="Bound HumanDecisionRecord ID if status promoted by human auditor")
+    human_decision_digest: Optional[str] = Field(default=None, description="Bound canonical digest of HumanDecisionRecord")
 
 
 class ComparativeSourceSummary(BaseModel):
@@ -53,7 +58,8 @@ class ComparativeEvidenceRecord(BaseModel):
     """
     Content-addressed, immutable comparative evidence analysis record comparing client evidence with competitor evidence.
     Binds observation_id, raw_answer_sha256, profile_id, profile_sha256, query_map_sha256, manifest_sha256,
-    source_ledger_run_id, source_ledger_sha256, client/competitor evidence IDs, snapshot hashes, verifier runs, and collection execution IDs.
+    source_ledger_run_id, source_ledger_sha256, human_decision_record_id, human_decision_digest,
+    finding_basis trace, and every claim assessment's text, URL, excerpt, and rationale.
     Does NOT assert causal LLM-ranking claims or commercial visibility ranks.
     """
 
@@ -68,6 +74,9 @@ class ComparativeEvidenceRecord(BaseModel):
     manifest_sha256: str = Field(..., min_length=64, max_length=64, description="Bound SHA-256 digest of DatasetManifest")
     source_ledger_run_id: str = Field(..., description="Bound Source Ledger AuditRun ID")
     source_ledger_sha256: str = Field(..., min_length=64, max_length=64, description="Bound raw SHA-256 digest of Source Ledger")
+
+    human_decision_record_id: Optional[str] = Field(default=None, description="Bound HumanDecisionRecord ID if human governance present")
+    human_decision_digest: Optional[str] = Field(default=None, description="Bound canonical digest of HumanDecisionRecord")
 
     query_id: str = Field(..., description="Bound TargetQuery ID")
     client_evidence: ComparativeSourceSummary = Field(..., description="Client-owned evidence summary")
@@ -102,6 +111,8 @@ class ComparativeEvidenceRecord(BaseModel):
         manifest_sha256: str,
         source_ledger_run_id: str,
         source_ledger_sha256: str,
+        human_decision_record_id: Optional[str],
+        human_decision_digest: Optional[str],
         query_id: str,
         client_evidence: ComparativeSourceSummary,
         competitor_evidence: ComparativeSourceSummary,
@@ -110,11 +121,12 @@ class ComparativeEvidenceRecord(BaseModel):
         evidence_gap_identified: bool,
         comparison_summary: str,
         action_hypothesis: str,
+        finding_basis: FindingBasis,
         confidence_score: float,
         human_review_required: bool,
         created_at: datetime,
     ) -> str:
-        """Computes deterministic SHA-256 canonical digest over ALL context bindings and assessments."""
+        """Computes deterministic SHA-256 canonical digest over ALL context bindings, claim assessments, and finding basis fields."""
         payload = {
             "comparative_id": comparative_id,
             "observation_id": observation_id,
@@ -125,6 +137,8 @@ class ComparativeEvidenceRecord(BaseModel):
             "manifest_sha256": manifest_sha256.lower(),
             "source_ledger_run_id": source_ledger_run_id,
             "source_ledger_sha256": source_ledger_sha256.lower(),
+            "human_decision_record_id": human_decision_record_id,
+            "human_decision_digest": human_decision_digest.lower() if human_decision_digest else None,
             "query_id": query_id,
             "client_evidence": {
                 "domain": client_evidence.domain,
@@ -153,24 +167,40 @@ class ComparativeEvidenceRecord(BaseModel):
             "client_claim_assessments": [
                 {
                     "statement_id": ca.statement_id,
+                    "statement_text": ca.statement_text,
                     "evidence_id": ca.evidence_id,
+                    "evidence_url": ca.evidence_url,
+                    "opened_excerpt": ca.opened_excerpt,
                     "assessment_status": ca.assessment_status.value,
                     "semantic_rationale": ca.semantic_rationale,
+                    "human_decision_id": ca.human_decision_id,
+                    "human_decision_digest": ca.human_decision_digest.lower() if ca.human_decision_digest else None,
                 }
                 for ca in sorted(client_claim_assessments, key=lambda x: x.statement_id)
             ],
             "competitor_claim_assessments": [
                 {
                     "statement_id": ca.statement_id,
+                    "statement_text": ca.statement_text,
                     "evidence_id": ca.evidence_id,
+                    "evidence_url": ca.evidence_url,
+                    "opened_excerpt": ca.opened_excerpt,
                     "assessment_status": ca.assessment_status.value,
                     "semantic_rationale": ca.semantic_rationale,
+                    "human_decision_id": ca.human_decision_id,
+                    "human_decision_digest": ca.human_decision_digest.lower() if ca.human_decision_digest else None,
                 }
                 for ca in sorted(competitor_claim_assessments, key=lambda x: x.statement_id)
             ],
             "evidence_gap_identified": evidence_gap_identified,
             "comparison_summary": comparison_summary,
             "action_hypothesis": action_hypothesis,
+            "finding_basis": {
+                "observation_id": finding_basis.observation_id,
+                "statement_id": finding_basis.statement_id,
+                "evidence_ids": sorted(finding_basis.evidence_ids),
+                "source_relationships": [r.value for r in sorted(finding_basis.source_relationships, key=lambda x: x.value)],
+            },
             "confidence_score": round(confidence_score, 4),
             "human_review_required": human_review_required,
             "created_at": created_at.isoformat(),
@@ -179,7 +209,7 @@ class ComparativeEvidenceRecord(BaseModel):
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def verify_integrity(self) -> bool:
-        """Verifies that canonical_digest matches expected calculation over all 9 artifact hashes and assessments."""
+        """Verifies that canonical_digest matches expected calculation over all context bindings, assessments, and finding basis."""
         expected = self.compute_canonical_digest(
             comparative_id=self.comparative_id,
             observation_id=self.observation_id,
@@ -190,6 +220,8 @@ class ComparativeEvidenceRecord(BaseModel):
             manifest_sha256=self.manifest_sha256,
             source_ledger_run_id=self.source_ledger_run_id,
             source_ledger_sha256=self.source_ledger_sha256,
+            human_decision_record_id=self.human_decision_record_id,
+            human_decision_digest=self.human_decision_digest,
             query_id=self.query_id,
             client_evidence=self.client_evidence,
             competitor_evidence=self.competitor_evidence,
@@ -198,6 +230,7 @@ class ComparativeEvidenceRecord(BaseModel):
             evidence_gap_identified=self.evidence_gap_identified,
             comparison_summary=self.comparison_summary,
             action_hypothesis=self.action_hypothesis,
+            finding_basis=self.finding_basis,
             confidence_score=self.confidence_score,
             human_review_required=self.human_review_required,
             created_at=self.created_at,

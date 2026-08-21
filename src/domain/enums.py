@@ -85,6 +85,7 @@ class ReconciliationStatus(str, Enum):
     UNSUPPORTED = "unsupported"
     CONTRADICTED = "contradicted"
     NOT_ASSESSABLE = "not_assessable"
+    CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW = "candidate_for_human_semantic_review"
 
 
 class ReconciliationMethod(str, Enum):

@@ -748,6 +748,14 @@ class ReportExporter:
             f"- **QueryMap SHA256**: `{record.query_map_sha256[:16]}...`",
             f"- **Dataset Manifest SHA256**: `{record.manifest_sha256[:16]}...`",
             f"- **Source Ledger Run ID**: `{record.source_ledger_run_id}` (Ledger SHA256: `{record.source_ledger_sha256[:16]}...`)",
+        ]
+
+        if record.human_decision_record_id and record.human_decision_digest:
+            lines.append(
+                f"- **Human Decision Record ID**: `{record.human_decision_record_id}` (Digest: `{record.human_decision_digest[:16]}...`)"
+            )
+
+        lines.extend([
             "",
             "---",
             "",
@@ -780,7 +788,7 @@ class ReportExporter:
             "### Client-Side Claim Assessments",
             "| Statement ID | Statement Proposal | Assessment Status | Semantic Rationale |",
             "|---|---|---|---|",
-        ]
+        ])
 
         for ca in record.client_claim_assessments:
             badge = f"**`[{ca.assessment_status.value.upper()}]`**"
