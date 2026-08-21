@@ -6,6 +6,7 @@
   "source_ledger_sha256": "1e5e4563feca841e31629b8b079a2e5b43ada2d969e4f0779087683e06915228",
   "query_map_sha256": "ce5d03d441eefcca8eef361dc21ad9bff1a0245fea53293bba60022cf6eb4ce6",
   "manifest_sha256": "71333fd91a308167fac7a2b457f62f07314687d2cf01b8cfedf92d49cc569d0c",
+  "profile_id": "prof-python-psf-001",
   "competitor_patterns": [
     {
       "pattern_id": "pat-q-001",
@@ -15,10 +16,12 @@
         {
           "domain": "peps.python.org",
           "citation_count": 1,
-          "source_type": "official_documentation"
+          "source_type": "official_documentation",
+          "source_relationship": "client_owned"
         }
       ],
-      "client_domain_cited": true
+      "client_domain_cited": true,
+      "answer_citations": []
     }
   ],
   "evidence_gaps": [
@@ -27,24 +30,44 @@
       "target_query_id": "q-001",
       "gap_category": "missing_official_docs",
       "affected_statement_ids": [
-        "stmt-001",
         "stmt-002"
       ],
-      "description": "Model response extracted 2 statement proposal(s) lacking authoritative opened evidence in client source ledger.",
-      "severity": "high"
+      "description": "Model response extracted 1 statement proposal(s) (stmt-002) lacking client-owned opened evidence in source ledger.",
+      "severity": "high",
+      "finding_basis": {
+        "observation_id": "obs-emitted-pep20-001",
+        "statement_id": "stmt-002",
+        "evidence_ids": [
+          "ev-2968acf27391"
+        ],
+        "source_relationships": [
+          "client_owned"
+        ]
+      }
     }
   ],
   "prioritized_actions": [
     {
       "action_id": "act-q-001-001",
       "gap_id": "gap-q-001-001",
-      "recommended_action": "Publish official technical documentation and design specification on python.org covering statement claims.",
+      "recommended_action": "Hypothesis for Review: Publishing official technical specification and documentation on client-owned domain 'python.org' for statements ['stmt-002'] may establish OPENED_VERIFIED evidence status.",
       "target_domain": "python.org",
       "suggested_source_type": "official_documentation",
-      "expected_evidence_impact": "Establishes OPENED_VERIFIED evidence status and enables human auditor semantic support adjudication.",
-      "confidence_score": 0.85,
-      "ethical_boundary_notes": "Action creates genuine, verifiable public documentation. Non-manipulative, no keyword stuffing, no automated synthetic spam."
+      "expected_evidence_impact": "Expected to create client-owned OPENED_VERIFIED evidence record in ledger.",
+      "confidence_score": 0.8,
+      "confidence_explanation": "Confidence rating derived from absence of client-owned documentation for target query statements.",
+      "ethical_boundary_notes": "Action hypothesis creates genuine, verifiable public documentation. Non-manipulative, no keyword stuffing, no automated synthetic spam.",
+      "finding_basis": {
+        "observation_id": "obs-emitted-pep20-001",
+        "statement_id": "stmt-002",
+        "evidence_ids": [
+          "ev-2968acf27391"
+        ],
+        "source_relationships": [
+          "client_owned"
+        ]
+      }
     }
   ],
-  "canonical_digest": "899470c7baa3dbf070a4b9788d093a1ee53b4de79491bdafbb907489f5c55d11"
+  "canonical_digest": "00581fa91e8d56e3dfd592d49454f760eab4cbb18e62b28ef7d71a04faf3a4ff"
 }

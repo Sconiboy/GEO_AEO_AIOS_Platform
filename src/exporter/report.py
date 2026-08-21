@@ -203,7 +203,7 @@ class ReportExporter:
         """
         Renders a Forensic Competitor Evidence-Gap Analysis Record Markdown document.
         Displays competitor citation patterns, identified client evidence gaps,
-        and confidence-bounded ethical priority action recommendations.
+        finding bases, and evidence-backed action hypotheses.
         Fails closed if gap_record or observation fails SHA-256 integrity verification.
         """
         if not observation.verify_integrity():
@@ -225,13 +225,14 @@ class ReportExporter:
         lines: List[str] = [
             "> [!NOTE]",
             "> **FORENSIC COMPETITOR EVIDENCE-GAP ANALYSIS RECORD**",
-            "> Identifies model citation patterns, client evidence gaps, and confidence-bounded ethical priority actions.",
+            "> Identifies model citation patterns, client evidence gaps, and confidence-bounded ethical priority action hypotheses.",
             "> All action recommendations create genuine, verifiable public evidence. Non-manipulative.",
             "",
             f"# 🎯 Forensic Competitor Evidence-Gap Analysis",
             f"**Subject Entity**: `{query_map.entity_name}`  ",
             f"**Target Query**: *\"{query_text}\"* (`{observation.query_id}`)  ",
             f"**Model Provider / Identifier**: `{observation.provider_name}` (`{observation.model_identifier}`)  ",
+            f"**Subject Profile ID**: `{gap_record.profile_id}`  ",
             f"**Analysis Record ID**: `{gap_record.analysis_id}`  ",
             f"**Canonical Analysis Digest**: `{gap_record.canonical_digest[:16]}...`",
             "",
@@ -255,8 +256,20 @@ class ReportExporter:
             lines.append(f"- **Client Domain Cited**: `{cited_str}`")
             lines.append("- **Top Cited Domains**:")
             for cit in pat.top_cited_domains:
-                lines.append(f"  - `{cit.domain}`: {cit.citation_count} citation(s) (`{cit.source_type.value}`)")
+                lines.append(
+                    f"  - `{cit.domain}`: {cit.citation_count} citation(s) "
+                    f"(`{cit.source_type.value}`, Relationship: `{cit.source_relationship.value}`)"
+                )
             lines.append("")
+
+            if pat.answer_citations:
+                lines.append("- **Actual Raw Model Answer Citations**:")
+                for ac in pat.answer_citations:
+                    lines.append(f"  - [{ac.url}]({ac.url}) (`{ac.domain}`)")
+                lines.append("")
+            else:
+                lines.append("- **Actual Raw Model Answer Citations**: *None (No explicit URLs in model response)*")
+                lines.append("")
 
         lines.extend([
             "---",
@@ -265,32 +278,53 @@ class ReportExporter:
             "",
         ])
 
-        for gap in gap_record.evidence_gaps:
-            badge = f"**`[{gap.severity.value.upper()}]`**"
-            stmts_str = ", ".join([f"`{sid}`" for sid in gap.affected_statement_ids])
-            lines.append(f"### Gap `{gap.gap_id}`: {gap.gap_category.value} {badge}")
-            lines.append(f"- **Target Query**: `{gap.target_query_id}`")
-            lines.append(f"- **Affected Statement Proposals**: {stmts_str}")
-            lines.append(f"- **Description**: {gap.description}")
+        if not gap_record.evidence_gaps:
+            lines.append("*No client evidence gaps identified for this observation. Statement proposals supported by evidence or human decision.*")
             lines.append("")
+        else:
+            for gap in gap_record.evidence_gaps:
+                badge = f"**`[{gap.severity.value.upper()}]`**"
+                stmts_str = ", ".join([f"`{sid}`" for sid in gap.affected_statement_ids])
+                fb = gap.finding_basis
+                ev_str = ", ".join([f"`{eid}`" for eid in fb.evidence_ids]) if fb.evidence_ids else "*None*"
+                rel_str = ", ".join([f"`{r.value}`" for r in fb.source_relationships]) if fb.source_relationships else "*None*"
+
+                lines.append(f"### Gap `{gap.gap_id}`: {gap.gap_category.value} {badge}")
+                lines.append(f"- **Target Query**: `{gap.target_query_id}`")
+                lines.append(f"- **Affected Statement Proposals**: {stmts_str}")
+                lines.append(f"- **Description**: {gap.description}")
+                lines.append(f"- **Finding Basis Trace**:")
+                lines.append(f"  - **Bound Observation**: `{fb.observation_id}`")
+                lines.append(f"  - **Bound Statement**: `{fb.statement_id}`")
+                lines.append(f"  - **Bound Evidence IDs**: {ev_str}")
+                lines.append(f"  - **Observed Source Relationships**: {rel_str}")
+                lines.append("")
 
         lines.extend([
             "---",
             "",
-            "## ⚡ Prioritized Ethical Action Plan",
+            "## ⚡ Prioritized Ethical Action Plan (Hypotheses for Review)",
             "",
         ])
 
-        for act in gap_record.prioritized_actions:
-            score_fmt = f"{act.confidence_score:.2f}"
-            lines.append(f"### Action `{act.action_id}` (Bound Gap: `{act.gap_id}`)")
-            lines.append(f"- **Recommended Action**: **{act.recommended_action}**")
-            lines.append(f"- **Target Publishing Domain**: `{act.target_domain}`")
-            lines.append(f"- **Suggested Source Type**: `{act.suggested_source_type.value}`")
-            lines.append(f"- **Expected Evidence Impact**: {act.expected_evidence_impact}")
-            lines.append(f"- **Confidence Score**: `{score_fmt}`")
-            lines.append(f"- **Ethical Boundary Notes**: *\"{act.ethical_boundary_notes}\"*")
+        if not gap_record.prioritized_actions:
+            lines.append("*No priority actions required. Client evidence status complete.*")
             lines.append("")
+        else:
+            for act in gap_record.prioritized_actions:
+                score_fmt = f"{act.confidence_score:.2f}"
+                fb = act.finding_basis
+                ev_str = ", ".join([f"`{eid}`" for eid in fb.evidence_ids]) if fb.evidence_ids else "*None*"
+
+                lines.append(f"### Action Hypothesis `{act.action_id}` (Bound Gap: `{act.gap_id}`)")
+                lines.append(f"- **Recommended Action**: **{act.recommended_action}**")
+                lines.append(f"- **Target Publishing Domain**: `{act.target_domain}`")
+                lines.append(f"- **Suggested Source Type**: `{act.suggested_source_type.value}`")
+                lines.append(f"- **Expected Evidence Impact**: {act.expected_evidence_impact}")
+                lines.append(f"- **Confidence Rating**: `{score_fmt}` (*{act.confidence_explanation}*)")
+                lines.append(f"- **Finding Basis Evidence**: {ev_str}")
+                lines.append(f"- **Ethical Boundary Notes**: *\"{act.ethical_boundary_notes}\"*")
+                lines.append("")
 
         lines.append("---")
         return "\n".join(lines)

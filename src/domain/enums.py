@@ -101,3 +101,16 @@ class ActionSeverity(str, Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+
+
+class SourceRelationship(str, Enum):
+    """Ownership and independence relationship classification of an evidence domain."""
+
+    CLIENT_OWNED = "client_owned"
+    COMPETITOR_OWNED = "competitor_owned"
+    INDEPENDENT_EDITORIAL = "independent_editorial"
+    REVIEW_PLATFORM = "review_platform"
+    DIRECTORY = "directory"
+    COMMUNITY = "community"
+    OFFICIAL_REFERENCE = "official_reference"
+    UNKNOWN = "unknown"

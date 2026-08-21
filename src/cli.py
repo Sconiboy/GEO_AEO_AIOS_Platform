@@ -513,22 +513,25 @@ def run_cli_analyze_gaps(
     manifest_path: Path,
     source_ledger_path: Path,
     observation_path: Path,
+    profile_path: Path,
     human_decision_path: Optional[Path] = None,
     output_json_path: Optional[Path] = None,
     output_path: Optional[Path] = None,
 ) -> int:
     """
-    Executes Forensic Competitor Evidence-Gap Analysis.
+    Executes Forensic Competitor Evidence-Gap Analysis using explicit SubjectProfile.
     Detects competitor citation patterns, client evidence gaps, and confidence-bounded ethical action plans.
     Persists versioned ForensicGapAnalysisRecord JSON and exports Markdown report.
     """
     from .collector.gap_analyzer import ForensicGapAnalyzer
     from .domain.human_decision import HumanDecisionRecord
+    from .domain.profile import SubjectProfile
 
     print(f"🎯 Executing Forensic Evidence-Gap Analysis for observation: {observation_path}")
     print(f"🎯 QueryMap: {query_map_path}")
     print(f"📜 Manifest: {manifest_path}")
     print(f"🏛️ Source Ledger: {source_ledger_path}")
+    print(f"👤 Subject Profile: {profile_path}")
 
     try:
         raw_qm_bytes = query_map_path.read_bytes()
@@ -542,6 +545,9 @@ def run_cli_analyze_gaps(
 
         raw_obs_bytes = observation_path.read_bytes()
         observation = AnswerObservation.model_validate(json.loads(raw_obs_bytes.decode("utf-8")))
+
+        raw_profile_bytes = profile_path.read_bytes()
+        subject_profile = SubjectProfile.model_validate(json.loads(raw_profile_bytes.decode("utf-8")))
 
         # Validate observation import pipeline
         validated_obs = ObservationImporter.import_observation(
@@ -562,6 +568,7 @@ def run_cli_analyze_gaps(
                 raise ValueError(f"HumanDecisionRecord '{human_decision_path}' failed integrity verification.")
 
         gap_record = ForensicGapAnalyzer.analyze_gaps(
+            subject_profile=subject_profile,
             observation=validated_obs,
             source_ledger=source_ledger,
             query_map=query_map,
@@ -569,6 +576,7 @@ def run_cli_analyze_gaps(
             raw_qm_bytes=raw_qm_bytes,
             raw_manifest_bytes=raw_manifest_bytes,
             raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
             human_decision=human_decision,
         )
 
@@ -759,6 +767,7 @@ def main() -> None:
     gap_parser.add_argument("--manifest", type=Path, required=True, help="Path to pre-approved DatasetManifest JSON")
     gap_parser.add_argument("--source-ledger", type=Path, required=True, help="Path to frozen Source Ledger JSON artifact")
     gap_parser.add_argument("--observation", type=Path, required=True, help="Path to AnswerObservation JSON definition")
+    gap_parser.add_argument("--profile", type=Path, required=True, help="Path to SubjectProfile JSON definition")
     gap_parser.add_argument("--human-decision", type=Path, required=False, help="Optional path to HumanDecisionRecord JSON artifact")
     gap_parser.add_argument("--output-json", type=Path, required=False, help="Optional path to write ForensicGapAnalysisRecord JSON")
     gap_parser.add_argument("--output", type=Path, required=False, help="Optional path to write Markdown report")
@@ -816,6 +825,7 @@ def main() -> None:
                 manifest_path=args.manifest,
                 source_ledger_path=args.source_ledger,
                 observation_path=args.observation,
+                profile_path=args.profile,
                 human_decision_path=args.human_decision,
                 output_json_path=args.output_json,
                 output_path=args.output,
