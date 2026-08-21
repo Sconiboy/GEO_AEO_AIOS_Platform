@@ -52,6 +52,17 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - **Goal**: Add `VerificationArtifact` schema, URL syntax validator, score input breakdown, and synthetic report warning banners.
 - **Status**: COMPLETED (13 pytest unit tests passing with coverage, 0 Mypy issues).
 
+## 🚀 Sprint 2: Controlled Live-Collection Spike (Manus Approval Gate Response)
+
+### Task A-8: Live Source Verifier & Snapshot Engine
+- **Goal**: Implement live source verification engine (`src/collector/`):
+  - HTTP GET live URL fetch with User-Agent and timeout controls.
+  - Immutable content-addressed snapshot store (`data/snapshots/`) saving raw bytes and computing SHA-256 digests.
+  - Verbatim excerpt quote-alignment verification against raw byte content.
+  - Dynamic creation of `VerificationArtifact` objects from actual live runs.
+  - CLI subcommand `verify-source` (`python -m src.cli verify-source --url ... --excerpt ...`).
+- **Status**: COMPLETED (Tested on non-client public test endpoints; 17 unit tests passing, 83% coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -64,3 +75,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-5: Synthetic fixture relabeling (`is_synthetic_fixture=True`) and adversarial invalid fixture creation (`data/fixtures/adversarial_invalid_audit.json`).
 - [x] Task A-6: Strict evidence validation (ALL supporting/counter evidence must pass; `VerificationArtifact` required for `OPENED_VERIFIED` status).
 - [x] Task A-7: `VerificationArtifact` schema, URL syntax validation, score transparency breakdown, and report warning banner.
+- [x] Task A-8: Live Source Verifier (`src/collector/verifier.py`), Snapshot Store (`src/collector/snapshot.py`), `verify-source` CLI subcommand, and unit tests (`tests/test_live_collector.py`).

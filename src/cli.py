@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from .collector.verifier import SourceVerifier
+from .domain.enums import SourceType
 from .domain.models import AuditRun
 from .domain.validators import EvidenceLedgerValidationError, validate_audit_run_ledger
 from .exporter.report import ReportExporter
@@ -67,6 +69,42 @@ def run_cli_audit(fixture_path: Path, output_path: Optional[Path] = None) -> int
         return 1
 
 
+def run_cli_verify_source(
+    url: str, excerpt: str, source_type_str: str = "independent_editorial"
+) -> int:
+    """
+    Executes live source verification CLI command:
+    Fetches public URL, stores immutable snapshot, verifies quote alignment, and prints result.
+    """
+    print(f"🌐 Verifying live source URL: {url}")
+    print(f"📝 Candidate Excerpt: \"{excerpt}\"")
+
+    try:
+        source_type = SourceType(source_type_str.lower())
+    except ValueError:
+        print(f"❌ Invalid source type '{source_type_str}'. Allowed: {[st.value for st in SourceType]}", file=sys.stderr)
+        return 1
+
+    verifier = SourceVerifier()
+    evidence_record = verifier.verify_url(
+        url=url, candidate_excerpt=excerpt, source_type=source_type
+    )
+
+    print(f"\n📊 VERIFICATION RESULT:")
+    print(f"- Status: {evidence_record.verification_status.value}")
+    print(f"- Evidence ID: {evidence_record.evidence_id}")
+
+    if evidence_record.verification_artifact:
+        art = evidence_record.verification_artifact
+        print(f"- Snapshot Hash: {art.snapshot_sha256}")
+        print(f"- Quote Exact Match: {art.quote_exact_match}")
+        print(f"- Verifier Run ID: {art.verifier_run_id}")
+    else:
+        print(f"- Verification Artifact: NONE (Verification failed)")
+
+    return 0 if evidence_record.verification_status.value == "opened_verified" else 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="GEO/AEO Platform - Evidence-Governed Audit Console CLI"
@@ -90,10 +128,29 @@ def main() -> None:
         help="Optional path to write generated Markdown report",
     )
 
+    # 'verify-source' subcommand
+    verify_parser = subparsers.add_parser(
+        "verify-source", help="Execute live source verification on a public URL"
+    )
+    verify_parser.add_argument(
+        "--url", type=str, required=True, help="Public URL to fetch and verify"
+    )
+    verify_parser.add_argument(
+        "--excerpt", type=str, required=True, help="Candidate excerpt to match against raw bytes"
+    )
+    verify_parser.add_argument(
+        "--source-type",
+        type=str,
+        default="independent_editorial",
+        help="Source type classification (default: independent_editorial)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "audit":
         sys.exit(run_cli_audit(args.fixture, args.output))
+    elif args.command == "verify-source":
+        sys.exit(run_cli_verify_source(args.url, args.excerpt, args.source_type))
 
 
 if __name__ == "__main__":
