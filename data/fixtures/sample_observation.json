@@ -3,10 +3,13 @@
   "query_id": "q-001",
   "query_map_id": "qm-python-pub-001",
   "source_ledger_run_id": "run-qm-qm-python-pub-001",
+  "query_map_sha256": "0a4df77c0f695ba2aa32e3249f263fd18c8721464249b2d5042758e677950a8a",
+  "manifest_sha256": "ac7f4dc06c1c9658e45a2b824f8015a659a928683ddcdf873afb65ca86d6c592",
+  "source_ledger_sha256": "76a7ec3969b423ba3bf3917c2bec1d1a842e6dff84d8e8621108cc9056e23c86",
   "provider_name": "Ollama / Local",
   "model_identifier": "hermes-3-llama-3.1-8b",
   "capture_timestamp": "2026-08-21T02:00:00Z",
-  "capture_method": "human_operator_console",
+  "capture_method": "synthetic_fixture_import",
   "raw_answer_text": "Python is a high-level, general-purpose programming language known for readable syntax.",
   "raw_answer_sha256": "dfcee4d5b76dd29f7cf6c7e00f49f61d9d13c5a955d883ca90031df4969c940c",
   "extracted_statements": [
@@ -18,7 +21,7 @@
       "human_notes": "Unverified statement proposal from raw model response."
     }
   ],
-  "operator_notes": "Controlled manual observation for public test entity query q-001.",
-  "locale": "en-US",
-  "region": "US"
+  "operator_notes": "Controlled synthetic fixture import for public test entity query q-001.",
+  "locale": null,
+  "region": null
 }

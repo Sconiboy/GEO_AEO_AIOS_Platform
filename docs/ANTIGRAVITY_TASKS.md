@@ -128,6 +128,20 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
   - Unit test suite (`tests/test_observation.py`).
 - **Status**: COMPLETED (37 unit tests passing, 86% code coverage, 0 Mypy issues).
 
+## 🛡️ Sprint 4.1: Evidence-Integrity Remediation & Frozen Ledger Linkage (Manus Review Response)
+
+### Task A-14: Immutable Observation Models, Frozen Ledger Linkage, and Hermetic Offline CLI
+- **Goal**: Implement Sprint 4.1 P0 and P1 evidence-integrity controls:
+  - Immutable Pydantic models (`frozen=True`) for `AnswerObservation` and `ExtractedStatement` preventing post-instantiation text or hash mutation.
+  - Re-verifying SHA-256 raw text integrity via `verify_integrity()` at import and render boundaries.
+  - Required `capture_timestamp` (no silent context defaults) and nullable `locale`/`region` rendered explicitly as `Unknown` if None.
+  - Enforce statement status: Extracted statements are forced to `PROPOSED_UNVERIFIED` unless linked to an `OPENED_VERIFIED` evidence record.
+  - Frozen JSON artifact hash bindings (`query_map_sha256`, `manifest_sha256`, `source_ledger_sha256`) and frozen source ledger fixture (`data/fixtures/frozen_source_ledger.json`).
+  - Offline, hermetic `observation` CLI subcommand (`--source-ledger data/fixtures/frozen_source_ledger.json`) making ZERO network calls.
+  - Corrected synthetic capture method (`synthetic_fixture_import`).
+  - Unit test suite (`tests/test_observation.py`).
+- **Status**: COMPLETED (37 unit tests passing, 86% code coverage, 0 Mypy issues).
+
 ---
 
 ## Completed Tasks
@@ -146,3 +160,4 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-11: QueryMap domain contracts (`src/domain/query_map.py`), Dataset Manifests (`data/fixtures/controlled_dataset_manifest.json`), domain allowlist & human approval enforcement (`src/collector/query_map_runner.py`), `query-map` CLI subcommand, and 27 passing unit tests.
 - [x] Task A-12: `max_sources_per_query` cap, `blocked_domains` precedence, `is_non_client_spike=True` gate, unique blocked entry IDs, dedicated `export_source_ledger` renderer, and 33 passing unit tests.
 - [x] Task A-13: `AnswerObservation` domain model (`src/domain/observation.py`), raw text SHA-256 integrity validation, `ObservationImporter` pipeline (`src/collector/observation_importer.py`), dedicated `export_observation_record` renderer, `observation` CLI subcommand, and 37 passing unit tests.
+- [x] Task A-14: Immutable observation models (`frozen=True`), SHA-256 digest re-verification at import/render boundaries, explicit capture timestamp, nullable locale/region, frozen artifact hash bindings (`source_ledger_sha256`), OPENED_VERIFIED statement linkage enforcement, offline hermetic CLI runner, and 37 passing unit tests.

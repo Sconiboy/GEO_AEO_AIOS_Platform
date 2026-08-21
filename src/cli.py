@@ -160,36 +160,41 @@ def run_cli_query_map(
 def run_cli_observation(
     query_map_path: Path,
     manifest_path: Path,
+    source_ledger_path: Path,
     observation_path: Path,
     output_path: Optional[Path] = None,
 ) -> int:
     """
-    Executes manual Answer-Surface Observation import and renders an Observation Record.
+    Executes manual Answer-Surface Observation import against frozen JSON artifacts and renders an Observation Record.
+    Hermetic and offline: makes ZERO network calls.
     """
-    print(f"🎯 Loading QueryMap: {query_map_path}")
-    print(f"📜 Loading Dataset Manifest: {manifest_path}")
-    print(f"🔬 Loading Observation: {observation_path}")
+    print(f"🎯 Loading QueryMap artifact: {query_map_path}")
+    print(f"📜 Loading Dataset Manifest artifact: {manifest_path}")
+    print(f"🏛️ Loading Frozen Source Ledger artifact: {source_ledger_path}")
+    print(f"🔬 Loading Observation artifact: {observation_path}")
 
     try:
-        with open(query_map_path, "r", encoding="utf-8") as f:
-            qm_data = json.load(f)
-        query_map = QueryMap.model_validate(qm_data)
+        raw_qm_bytes = query_map_path.read_bytes()
+        query_map = QueryMap.model_validate(json.loads(raw_qm_bytes.decode("utf-8")))
 
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            man_data = json.load(f)
-        manifest = DatasetManifest.model_validate(man_data)
+        raw_manifest_bytes = manifest_path.read_bytes()
+        manifest = DatasetManifest.model_validate(json.loads(raw_manifest_bytes.decode("utf-8")))
 
-        with open(observation_path, "r", encoding="utf-8") as f:
-            obs_data = json.load(f)
-        observation = AnswerObservation.model_validate(obs_data)
+        raw_ledger_bytes = source_ledger_path.read_bytes()
+        source_ledger = AuditRun.model_validate(json.loads(raw_ledger_bytes.decode("utf-8")))
 
-        # Step 1: Run query map to build source ledger
-        runner = QueryMapRunner()
-        source_ledger = runner.run_query_map_audit(query_map, manifest)
+        raw_obs_bytes = observation_path.read_bytes()
+        observation = AnswerObservation.model_validate(json.loads(raw_obs_bytes.decode("utf-8")))
 
-        # Step 2: Validate observation against query map and source ledger
+        # Validate observation against frozen JSON artifacts
         validated_obs = ObservationImporter.import_observation(
-            observation=observation, query_map=query_map, source_ledger=source_ledger
+            observation=observation,
+            query_map=query_map,
+            manifest=manifest,
+            source_ledger=source_ledger,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
         )
 
         markdown_content = ReportExporter.export_observation_record(
@@ -293,6 +298,12 @@ def main() -> None:
         help="Path to pre-approved DatasetManifest JSON",
     )
     obs_parser.add_argument(
+        "--source-ledger",
+        type=Path,
+        required=True,
+        help="Path to frozen Source Ledger AuditRun JSON artifact",
+    )
+    obs_parser.add_argument(
         "--observation",
         type=Path,
         required=True,
@@ -316,7 +327,11 @@ def main() -> None:
     elif args.command == "observation":
         sys.exit(
             run_cli_observation(
-                args.query_map, args.manifest, args.observation, args.output
+                args.query_map,
+                args.manifest,
+                args.source_ledger,
+                args.observation,
+                args.output,
             )
         )
 

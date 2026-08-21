@@ -1,0 +1,51 @@
+{
+  "run_id": "run-qm-qm-python-pub-001",
+  "client_domain": "Python Software Foundation (Public Test Entity)",
+  "category": "Open Source Programming Languages",
+  "created_at": "2026-08-21T02:38:42.052058Z",
+  "is_synthetic_fixture": true,
+  "notice": "CONTROLLED NON-CLIENT DATASET SPIKE - FROZEN LEDGER FIXTURE",
+  "evidence_ledger": {
+    "ev-httpbin-001": {
+      "evidence_id": "ev-httpbin-001",
+      "url": "https://httpbin.org/html",
+      "opened_excerpt": "Herman Melville - Moby-Dick",
+      "source_type": "independent_editorial",
+      "verification_status": "opened_verified",
+      "failure_category": null,
+      "failure_reason": null,
+      "retrieval_timestamp": "2026-08-21T02:38:42.052040Z",
+      "snapshot_id": null,
+      "is_independent": true,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-frozen-001",
+        "verification_timestamp": "2026-08-21T02:38:42.051201Z",
+        "verifier_method": "PARSED_VISIBLE_TEXT_BS4",
+        "snapshot_sha256": "3f324f9914742e62cf082861ba03b207282dba781c3349bee9d7c1b5ef8e0bfe",
+        "quote_exact_match": true,
+        "final_url": "https://httpbin.org/html",
+        "http_status": 200,
+        "content_type": "text/html",
+        "content_length_bytes": 3741,
+        "retrieval_duration_ms": 120.0,
+        "policy_warnings": [],
+        "failure_category": null,
+        "failure_reason": null,
+        "limitations": null
+      }
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "claim-q-001",
+      "statement": "Verified public source evidence exists for query q-001.",
+      "evidence_ids": [
+        "ev-httpbin-001"
+      ],
+      "counter_evidence_ids": [],
+      "uncertainty_notes": "Controlled frozen non-client dataset run.",
+      "confidence": null
+    }
+  ]
+}

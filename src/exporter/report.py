@@ -23,11 +23,19 @@ class ReportExporter:
         Renders an Answer-Surface Observation Record Markdown document.
         Does NOT output visibility scores, commercial recommendation shares, or rank claims.
         """
+        if not observation.verify_integrity():
+            raise ValueError(
+                f"Integrity failure: observation raw_answer_sha256 ('{observation.raw_answer_sha256}') does not match raw_answer_text digest."
+            )
+
         query_text = "Unknown Query"
         for q in query_map.queries:
             if q.query_id == observation.query_id:
                 query_text = q.text
                 break
+
+        locale_str = observation.locale if observation.locale else "Unknown"
+        region_str = observation.region if observation.region else "Unknown"
 
         lines: List[str] = [
             "> [!NOTE]",
@@ -41,6 +49,7 @@ class ReportExporter:
             f"**Model Identifier**: `{observation.model_identifier}`  ",
             f"**Capture Method**: `{observation.capture_method.value}`  ",
             f"**Capture Timestamp**: `{observation.capture_timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}`  ",
+            f"**Locale / Region**: `{locale_str}` / `{region_str}`  ",
             f"**Raw Answer Digest**: `{observation.raw_answer_sha256[:16]}...`",
             "",
             "---",

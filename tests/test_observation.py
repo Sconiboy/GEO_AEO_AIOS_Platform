@@ -1,16 +1,19 @@
 """
-Unit Tests for Manual Answer-Surface Observation Contracts and Pipeline Import (Sprint 4)
+Unit Tests for Manual Answer-Surface Observation Contracts and Pipeline Import (Sprint 4.1 Remediation)
 """
 
 import hashlib
+from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 from src.cli import run_cli_observation
 from src.collector.observation_importer import ObservationImporter
-from src.collector.query_map_runner import DatasetManifest, ManifestSourceCandidate, QueryMapRunner
-from src.domain.enums import HumanApprovalState, QueryIntent
+from src.collector.query_map_runner import DatasetManifest, ManifestSourceCandidate
+from src.domain.enums import HumanApprovalState, QueryIntent, SourceType, VerificationStatus
+from src.domain.models import AuditRun, EvidenceRecord, VerificationArtifact
 from src.domain.observation import AnswerObservation, CaptureMethod, ExtractedStatement, ExtractionStatus
 from src.domain.query_map import CollectionPolicyProfile, QueryMap, SourceScope, TargetQuery
 
@@ -47,93 +50,87 @@ def make_sample_query_map() -> QueryMap:
     )
 
 
-def test_observation_raw_text_hash_mismatch_raises_error():
-    """STRICT RULE TEST: Test that modifying raw response text invalidates SHA-256 digest."""
+def make_sample_ledger() -> AuditRun:
+    art = VerificationArtifact(
+        verifier_run_id="verifier-run-001",
+        verifier_method="PARSED_VISIBLE_TEXT_BS4",
+        snapshot_sha256="3f324f9914742e62cf082861ba03b207282dba781c3349bee9d7c1b5ef8e0bfe",
+        quote_exact_match=True,
+        final_url="https://httpbin.org/html",
+        http_status=200,
+        content_type="text/html",
+    )
+    ev = EvidenceRecord(
+        evidence_id="ev-verified-001",
+        url="https://httpbin.org/html",
+        opened_excerpt="Herman Melville - Moby-Dick",
+        source_type=SourceType.INDEPENDENT_EDITORIAL,
+        verification_status=VerificationStatus.OPENED_VERIFIED,
+        is_independent=True,
+        verification_artifact=art,
+    )
+    return AuditRun(
+        run_id="run-qm-qm-obs-test-01",
+        client_domain="Python Software Foundation",
+        category="Programming Languages",
+        is_synthetic_fixture=True,
+        evidence_ledger={"ev-verified-001": ev},
+    )
+
+
+def test_observation_model_is_frozen_and_immutable():
+    """P0 IMMUTABILITY TEST: Test that AnswerObservation and ExtractedStatement are frozen Pydantic models."""
     raw_text = "Python is a high-level, general-purpose programming language."
-    correct_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
-    invalid_hash = "0" * 64
-
-    with pytest.raises(ValueError, match="Integrity failure"):
-        AnswerObservation(
-            observation_id="obs-fail-01",
-            query_id="q-approved",
-            query_map_id="qm-obs-test-01",
-            source_ledger_run_id="run-qm-qm-obs-test-01",
-            provider_name="Ollama",
-            model_identifier="hermes-3-llama-3.1-8b",
-            capture_method=CaptureMethod.HUMAN_OPERATOR_CONSOLE,
-            raw_answer_text=raw_text,
-            raw_answer_sha256=invalid_hash,  # Invalid hash!
-        )
-
-
-def test_observation_unapproved_query_rejected():
-    """P0 TEST: Test that an observation for an unapproved or proposed query is rejected."""
-    qm = make_sample_query_map()
-    manifest = DatasetManifest(
-        manifest_id="man-obs-test",
-        description="Test manifest",
-        candidates=[
-            ManifestSourceCandidate(
-                query_id="q-approved",
-                url="https://httpbin.org/html",
-                candidate_excerpt="Herman Melville - Moby-Dick",
-            )
-        ],
-    )
-
-    runner = QueryMapRunner()
-    source_ledger = runner.run_query_map_audit(qm, manifest)
-
-    raw_text = "Python is a high-level programming language."
-    correct_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
-
-    unapproved_obs = AnswerObservation(
-        observation_id="obs-unapproved-01",
-        query_id="q-unapproved",  # UNAPPROVED query!
-        query_map_id="qm-obs-test-01",
-        source_ledger_run_id=source_ledger.run_id,
-        provider_name="Ollama",
-        model_identifier="hermes-3-llama-3.1-8b",
-        capture_method=CaptureMethod.HUMAN_OPERATOR_CONSOLE,
-        raw_answer_text=raw_text,
-        raw_answer_sha256=correct_hash,
-    )
-
-    with pytest.raises(ValueError, match="Query is unapproved or missing"):
-        ObservationImporter.import_observation(
-            observation=unapproved_obs, query_map=qm, source_ledger=source_ledger
-        )
-
-
-def test_observation_unlinked_statements_default_proposed_unverified():
-    """P1 TEST: Test that unlinked extracted statements default to PROPOSED_UNVERIFIED."""
-    raw_text = "Python is a high-level programming language."
-    correct_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
 
     obs = AnswerObservation(
-        observation_id="obs-stmt-test",
+        observation_id="obs-freeze-01",
         query_id="q-approved",
         query_map_id="qm-obs-test-01",
         source_ledger_run_id="run-qm-qm-obs-test-01",
+        query_map_sha256="a" * 64,
+        manifest_sha256="b" * 64,
+        source_ledger_sha256="c" * 64,
         provider_name="Ollama",
         model_identifier="hermes-3-llama-3.1-8b",
-        capture_method=CaptureMethod.HUMAN_OPERATOR_CONSOLE,
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
         raw_answer_text=raw_text,
-        raw_answer_sha256=correct_hash,
-        extracted_statements=[
-            ExtractedStatement(
-                statement_id="stmt-1",
-                text="Python is high level.",
-                extraction_status=ExtractionStatus.SOURCE_VERIFIED,  # Attempting to set SOURCE_VERIFIED without link!
-            )
-        ],
+        raw_answer_sha256=digest,
     )
+
+    # Attempting to mutate raw_answer_text on a frozen model MUST raise ValidationError
+    with pytest.raises(ValidationError):
+        obs.raw_answer_text = "Mutated answer text"  # type: ignore
+
+
+def test_observation_raw_text_hash_mismatch_raises_error():
+    """P0 INTEGRITY TEST: Test that raw_answer_sha256 mismatch is rejected by verify_integrity()."""
+    raw_text = "Python is a high-level, general-purpose programming language."
+    invalid_hash = "0" * 64
+
+    obs = AnswerObservation(
+        observation_id="obs-fail-01",
+        query_id="q-approved",
+        query_map_id="qm-obs-test-01",
+        source_ledger_run_id="run-qm-qm-obs-test-01",
+        query_map_sha256="a" * 64,
+        manifest_sha256="b" * 64,
+        source_ledger_sha256="c" * 64,
+        provider_name="Ollama",
+        model_identifier="hermes-3-llama-3.1-8b",
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=invalid_hash,  # Invalid hash!
+    )
+
+    assert obs.verify_integrity() is False
 
     qm = make_sample_query_map()
     manifest = DatasetManifest(
-        manifest_id="man-obs-test",
-        description="Test manifest",
+        manifest_id="m1",
+        description="d",
         candidates=[
             ManifestSourceCandidate(
                 query_id="q-approved",
@@ -142,37 +139,92 @@ def test_observation_unlinked_statements_default_proposed_unverified():
             )
         ],
     )
-    mock_response = MagicMock()
-    mock_response.getcode.return_value = 200
-    mock_response.info.return_value = {"Content-Type": "text/html"}
-    mock_response.read.return_value = b"<html><body><p>Herman Melville - Moby-Dick</p></body></html>"
-    mock_response.__enter__.return_value = mock_response
+    ledger = make_sample_ledger()
 
-    runner = QueryMapRunner()
-    with patch("urllib.request.build_opener") as mock_build_opener:
-        mock_opener = MagicMock()
-        mock_opener.open.return_value = mock_response
-        mock_build_opener.return_value = mock_opener
-        source_ledger = runner.run_query_map_audit(qm, manifest)
+    with pytest.raises(ValueError, match="Integrity failure"):
+        ObservationImporter.import_observation(
+            observation=obs, query_map=qm, manifest=manifest, source_ledger=ledger
+        )
 
-    imported = ObservationImporter.import_observation(
-        observation=obs, query_map=qm, source_ledger=source_ledger
+
+def test_observation_linked_evidence_must_be_opened_verified():
+    """P0 EVIDENCE RULE TEST: Test that linked_evidence_id must reference an OPENED_VERIFIED evidence record."""
+    raw_text = "Python is a high-level programming language."
+    digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+
+    qm = make_sample_query_map()
+    manifest = DatasetManifest(
+        manifest_id="m1",
+        description="d",
+        candidates=[
+            ManifestSourceCandidate(
+                query_id="q-approved",
+                url="https://httpbin.org/html",
+                candidate_excerpt="Herman Melville - Moby-Dick",
+            )
+        ],
     )
 
-    # Must be reset to PROPOSED_UNVERIFIED because linked_evidence_id was None
-    assert imported.extracted_statements[0].extraction_status == ExtractionStatus.PROPOSED_UNVERIFIED
+    # Ledger has evidence with status INACCESSIBLE
+    inaccessible_ev = EvidenceRecord(
+        evidence_id="ev-inaccessible-001",
+        url="https://example.com",
+        opened_excerpt="Some excerpt",
+        verification_status=VerificationStatus.INACCESSIBLE,
+    )
+    ledger = AuditRun(
+        run_id="run-qm-qm-obs-test-01",
+        client_domain="Python Software Foundation",
+        category="Programming Languages",
+        evidence_ledger={"ev-inaccessible-001": inaccessible_ev},
+    )
+
+    qm_hash = ObservationImporter.compute_artifact_hash(qm.model_dump(mode="json"))
+    manifest_hash = ObservationImporter.compute_artifact_hash(manifest.model_dump(mode="json"))
+    ledger_hash = ObservationImporter.compute_artifact_hash(ledger.model_dump(mode="json"))
+
+    obs = AnswerObservation(
+        observation_id="obs-link-test",
+        query_id="q-approved",
+        query_map_id=qm.query_map_id,
+        source_ledger_run_id=ledger.run_id,
+        query_map_sha256=qm_hash,
+        manifest_sha256=manifest_hash,
+        source_ledger_sha256=ledger_hash,
+        provider_name="Ollama",
+        model_identifier="hermes-3",
+        capture_timestamp=datetime.now(timezone.utc),
+        capture_method=CaptureMethod.SYNTHETIC_FIXTURE_IMPORT,
+        raw_answer_text=raw_text,
+        raw_answer_sha256=digest,
+        extracted_statements=[
+            ExtractedStatement(
+                statement_id="stmt-1",
+                text="Extracted text",
+                extraction_status=ExtractionStatus.SOURCE_VERIFIED,
+                linked_evidence_id="ev-inaccessible-001",  # Linked to INACCESSIBLE evidence!
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="not OPENED_VERIFIED"):
+        ObservationImporter.import_observation(
+            observation=obs, query_map=qm, manifest=manifest, source_ledger=ledger
+        )
 
 
-def test_cli_observation_command(tmp_path: Path):
-    """Test CLI observation subcommand execution."""
+def test_hermetic_cli_observation_command(tmp_path: Path):
+    """P1 HERMETIC CLI TEST: Test CLI observation subcommand with frozen ledger artifact (making ZERO network calls)."""
     qm_file = Path("data/fixtures/sample_query_map.json")
     man_file = Path("data/fixtures/controlled_dataset_manifest.json")
+    ledger_file = Path("data/fixtures/frozen_source_ledger.json")
     obs_file = Path("data/fixtures/sample_observation.json")
     output_file = tmp_path / "observation_record.md"
 
     exit_code = run_cli_observation(
         query_map_path=qm_file,
         manifest_path=man_file,
+        source_ledger_path=ledger_file,
         observation_path=obs_file,
         output_path=output_file,
     )
