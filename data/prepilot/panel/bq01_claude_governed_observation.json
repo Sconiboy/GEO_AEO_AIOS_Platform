@@ -1,0 +1,29 @@
+{
+  "observation_id": "obs-panel-bq01-claude-v1",
+  "query_id": "bq01",
+  "query_map_id": "qm-panel-bq01-natural-v1",
+  "source_ledger_run_id": "run-qm-qm-panel-bq01-natural-v1",
+  "query_map_sha256": "8de68b4ec5e8acd43fcd00f3cb92a3d259ad39d1c235d4c535f977992fb31cc1",
+  "manifest_sha256": "927be45e800a4b9eefb9c10e46edf33ad93b4b08df269b5d283c658608f23adf",
+  "source_ledger_sha256": "1cbcab8f288f6594e240685db0c0639eaa8b614c5ca9a45861cdf05c8a50b44e",
+  "provider_name": "Anthropic",
+  "model_identifier": "Haiku 4.5 Extended",
+  "capture_timestamp": "2026-08-22T16:18:55Z",
+  "capture_method": "human_operator_console",
+  "capture_artifact": {
+    "artifact_id": "artifact-obs-panel-bq01-claude-v1",
+    "session_id": "claude-5dc0160f-9d2e-4531-9363-50a46fe1043a",
+    "artifact_type": "operator_console_raw_transcript_export",
+    "artifact_path_or_uri": "/home/ubuntu/geo-aeo-platform/data/prepilot/panel/bq01_claude_governed_transcript.txt",
+    "artifact_sha256": "a4830a804aa6d13d530eda51932de0dafb4a226dafd3781e68cd05d67f34f92e",
+    "raw_output_sha256": "16f2d1d4ab2af401ffb7f92bb827273295f7b2fabde11e1a5fc89c5e70aa8025",
+    "operator_identity": "Benji",
+    "captured_at": "2026-08-22T16:18:55Z"
+  },
+  "raw_answer_text": "Based on current market research, here are the top B2B SaaS SEO agencies worth considering:\n\nSearched the web\n\nTop-Tier Agencies\n\nMADX Digital\nRevenue-first B2B SaaS SEO agency with ratings of 4.9/5 across platforms and 5.0 on Clutch, offering technical SEO, content writing, digital PR, link building, and Generative Engine Optimization for AI search platforms including ChatGPT and Perplexity. Best for large-scale tech/SaaS companies.\nSource: https://cuttingedgepr.com/articles/6-best-b2b-saas-seo-agencies-in-2026-a-brief-overview/\n\nFirst Page Sage\nSpecializes in SEO and GEO strategies for B2B and enterprise companies. Works with clients like US Bank and Verizon, with founder Evan Bailyn bringing nearly two decades of B2B SaaS SEO experience. The approach is ideal for companies with long sales cycles and complex products requiring content-led education.\nSource: https://firstpagesage.com/seo-blog/top-b2b-saas-seo-agencies/\n\nStratabeat\nEarned a 5.0/5 rating on Clutch and won First Place at the 2025 U.S. Search Awards for Best Use of Data in SEO, with a focus on SaaS, fintech, and cybersecurity verticals.\nSource: https://www.yesoptimist.com/best-b2b-seo-agencies/\n\nGrow and Convert\nWith over 10 years of B2B SEO experience, they focus on generating more demo requests, trial signups, and pipeline rather than just traffic or domain authority.\nSource: https://www.growandconvert.com/seo/best-b2b-saas-seo-agencies/\n\nOther Notable Agencies\n\nSimpleTiger \u2014 Specializes in Webflow optimization, AI-driven keyword targeting, and conversion-focused website refinement with early wins delivered within 90 days.\nSource: https://www.saas-hackers.com/top/b2b-saas-seo-agencies\n\nDirective \u2014 Performance-based agency using a \"Customer Generation\" framework that connects SEO strategy with revenue metrics like CAC, SQLs, and ARR.\nSource: https://www.saas-hackers.com/top/b2b-saas-seo-agencies\n\nPowered by Search \u2014 Specializes in mid-market and enterprise B2B SaaS with a focus on complex buying journeys.\n\nGenevate \u2014 A newer agency with an AI-first methodology and strong client review scores, specializing in building AI search visibility as a channel.\nSource: https://firstpagesage.com/seo-blog/top-b2b-saas-seo-agencies/\n\nKey Selection Criteria\n\nThe best agency for you depends on:\n- Company stage (early/growth/enterprise)\n- Budget and ARR size\n- Priorities (pipeline growth vs. traffic vs. AI search visibility)\n- Industry (some specialize in fintech, cybersecurity, etc.)\n- Whether you need integrated services (paid media, RevOps, etc.)\n\nMost leading agencies now emphasize Generative Engine Optimization (GEO) alongside traditional SEO, recognizing how AI search platforms like ChatGPT and Perplexity are reshaping discovery.",
+  "raw_answer_sha256": "16f2d1d4ab2af401ffb7f92bb827273295f7b2fabde11e1a5fc89c5e70aa8025",
+  "extracted_statements": [],
+  "operator_notes": "Bounded public non-client pre-pilot. Visible cited answer captured after the approved QueryMap, DatasetManifest, SubjectProfile, and initial source ledger were frozen.",
+  "locale": "en-US",
+  "region": "US"
+}

@@ -21,6 +21,11 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def read_raw_output(path: Path) -> str:
+    """Read the same bounded text form that TranscriptParser verifies."""
+    return path.read_text(encoding="utf-8").strip()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Create a self-verifying artifact-backed answer observation."
@@ -45,7 +50,7 @@ def main() -> None:
     args = parser.parse_args()
 
     timestamp = datetime.fromisoformat(args.timestamp.replace("Z", "+00:00"))
-    raw_answer_text = args.raw_output.read_text(encoding="utf-8")
+    raw_answer_text = read_raw_output(args.raw_output)
 
     capture_artifact = CaptureArtifact(
         artifact_id=f"artifact-{args.observation_id}",
