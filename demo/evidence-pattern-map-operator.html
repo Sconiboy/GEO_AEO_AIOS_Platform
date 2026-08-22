@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Evidence Pattern Map — a conversational evidence operations workspace." />
+    <title>Evidence Pattern Map — Operator Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --ink: #0b1119;
+        --ink-2: #111c27;
+        --paper: #f5f4ef;
+        --white: #fffefa;
+        --muted: #7d858c;
+        --line: #d7d8d3;
+        --line-dark: rgba(255, 255, 255, 0.13);
+        --blue: #74d6dc;
+        --blue-dark: #0e8f9a;
+        --amber: #f4bf65;
+        --red: #ee735c;
+        --olive: #88a77a;
+        --sans: "Inter", Arial, sans-serif;
+        --serif: "Cormorant Garamond", Georgia, serif;
+        --mono: "DM Mono", monospace;
+        --ease: cubic-bezier(0.23, 1, 0.32, 1);
+      }
+
+      * { box-sizing: border-box; }
+      html { background: var(--ink); }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        background: var(--paper);
+        font-family: var(--sans);
+        font-size: 14px;
+        letter-spacing: -0.01em;
+      }
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+      a { color: inherit; }
+
+      .app-shell { display: grid; grid-template-columns: 267px minmax(0, 1fr); min-height: 100vh; }
+      .side {
+        position: sticky; top: 0; height: 100vh; overflow: auto;
+        background: linear-gradient(160deg, #0a1118 0%, #111d28 100%);
+        color: #eef2ed; padding: 25px 19px 21px; border-right: 1px solid var(--line-dark);
+      }
+      .brand { display: flex; align-items: center; gap: 11px; padding: 2px 6px 30px; }
+      .brandmark { width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid var(--blue); color: var(--blue); font: 500 13px var(--mono); }
+      .brand-copy { line-height: 1.06; }
+      .brand-copy strong { display: block; font-size: 11px; letter-spacing: 0.12em; }
+      .brand-copy span { display: block; color: #a7b0b6; margin-top: 4px; font: 10px var(--mono); }
+      .new-workspace { width: 100%; display: flex; justify-content: space-between; align-items: center; color: #eef2ed; background: rgba(116,214,220,0.10); border: 1px solid rgba(116,214,220,0.4); padding: 12px 12px; text-align: left; transition: background 160ms var(--ease); }
+      .new-workspace:hover { background: rgba(116,214,220,0.18); }
+      .plus { color: var(--blue); font-size: 19px; line-height: 0; font-weight: 300; }
+      .side-label { color: #87929a; margin: 30px 6px 11px; font: 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+      .workspace { width: 100%; display: flex; align-items: flex-start; gap: 10px; color: #aeb7bd; background: transparent; border: 0; padding: 11px 8px; text-align: left; border-left: 2px solid transparent; transition: all 160ms var(--ease); }
+      .workspace:hover { color: #fff; background: rgba(255,255,255,.045); }
+      .workspace.active { color: #fff; border-left-color: var(--blue); background: rgba(255,255,255,.07); }
+      .workspace-dot { flex: 0 0 auto; width: 7px; height: 7px; margin-top: 5px; border-radius: 99px; background: var(--blue); }
+      .workspace-dot.muted { background: #6d7d87; }
+      .workspace strong { display: block; font-size: 12px; font-weight: 600; }
+      .workspace span { display: block; margin-top: 4px; color: #87929a; font-size: 11px; }
+      .side-bottom { position: absolute; left: 19px; right: 19px; bottom: 21px; }
+      .source-health { border-top: 1px solid var(--line-dark); padding-top: 17px; }
+      .source-health .small { color: #8e9ba4; font-size: 11px; line-height: 1.45; }
+      .source-health .live { color: var(--blue); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+      .avatar-row { margin-top: 16px; display: flex; align-items: center; gap: 9px; color: #bcc5c9; font-size: 12px; }
+      .avatar { width: 25px; height: 25px; border-radius: 50%; background: #d9c9a4; color: #17202a; display: grid; place-items: center; font: 600 10px var(--mono); }
+
+      .main { min-width: 0; }
+      .topbar { height: 75px; display: flex; align-items: center; justify-content: space-between; padding: 0 38px; background: rgba(255,254,250,.88); border-bottom: 1px solid var(--line); }
+      .crumb { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
+      .crumb b { color: var(--ink); font-weight: 600; }
+      .slash { color: #bcc1bd; }
+      .top-actions { display: flex; align-items: center; gap: 18px; }
+      .capture-status { color: #677279; font: 11px var(--mono); }
+      .capture-status i { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 99px; background: var(--olive); }
+      .share { color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 9px 13px; font-size: 12px; font-weight: 600; }
+      .share:hover { border-color: var(--ink); }
+
+      .content { max-width: 1480px; margin: 0 auto; padding: 38px 38px 74px; }
+      .eyebrow { color: var(--blue-dark); font: 11px var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+      .title-row { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-top: 8px; }
+      h1 { margin: 0; color: var(--ink); font: 600 clamp(40px, 4.8vw, 67px)/.91 var(--serif); letter-spacing: -0.055em; }
+      .decision-note { max-width: 325px; margin: 0 0 4px; color: #687177; font-size: 12px; line-height: 1.55; }
+      .progress-line { display: flex; gap: 0; margin-top: 34px; border-top: 1px solid var(--line); }
+      .stage { position: relative; flex: 1; padding-top: 13px; color: #8c9598; font: 11px var(--mono); }
+      .stage::before { content: ""; position: absolute; left: 0; top: -4px; width: 7px; height: 7px; background: #c4c8c3; transform: rotate(45deg); }
+      .stage.done { color: var(--ink); }
+      .stage.done::before { background: var(--blue-dark); }
+      .stage.current { color: var(--blue-dark); }
+      .stage.current::before { width: 9px; height: 9px; top: -5px; background: var(--blue); box-shadow: 0 0 0 4px rgba(116,214,220,.22); }
+
+      .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(340px, .72fr); gap: 24px; margin-top: 36px; align-items: start; }
+      .panel { background: var(--white); border: 1px solid var(--line); }
+      .operator { min-height: 635px; display: flex; flex-direction: column; }
+      .operator-head { display: flex; justify-content: space-between; align-items: center; padding: 19px 22px; border-bottom: 1px solid var(--line); }
+      .operator-head h2, .source-head h2 { margin: 0; font: 600 24px var(--serif); letter-spacing: -.025em; }
+      .record { color: #69747a; font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+      .record span { color: var(--blue-dark); }
+      .thread { flex: 1; padding: 24px 24px 13px; }
+      .message { display: grid; grid-template-columns: 33px minmax(0, 1fr); gap: 12px; margin-bottom: 24px; }
+      .message.initial { margin-bottom: 16px; }
+      .message .initials { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 99px; background: #e0e3df; color: #5f6a70; font: 500 10px var(--mono); }
+      .message.ai .initials { background: var(--ink); color: var(--blue); }
+      .message-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+      .message-meta strong { font-weight: 700; }
+      .message-meta span { color: #8a9499; font: 10px var(--mono); }
+      .message-body { max-width: 718px; color: #263139; font-size: 13px; line-height: 1.67; }
+      .message-body p { margin: 0; }
+      .message-body strong { color: var(--ink); }
+      .buyer-question { margin-top: 8px; padding: 14px 15px 15px; border-left: 2px solid var(--ink); background: #f5f5f0; color: var(--ink); font: 500 20px/1.25 var(--serif); letter-spacing: -.02em; }
+      .answer-quote { margin-top: 10px; padding: 14px 15px; border-left: 2px solid var(--blue-dark); background: #f5fbfa; color: #25343a; }
+      .answer-quote .quote-label { display: block; color: var(--blue-dark); margin-bottom: 7px; font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+      .evidence-pulse { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px; }
+      .tag { padding: 5px 7px; background: #f4f3ee; border: 1px solid #dde0dc; color: #677279; font: 10px var(--mono); }
+      .tag.good { color: #236b70; border-color: #b8e1e3; background: #f2fbfb; }
+      .tag.warn { color: #9f6420; border-color: #efd6b3; background: #fff9ed; }
+      .assistant-question { margin: 3px 0 4px 45px; padding: 12px 14px; background: var(--ink); color: #f3f5f0; font-size: 13px; line-height: 1.5; }
+      .composer { display: flex; gap: 10px; align-items: center; padding: 15px 18px; border-top: 1px solid var(--line); }
+      .composer input { width: 100%; border: 0; background: transparent; color: var(--ink); outline: none; font-size: 13px; }
+      .composer button { flex: 0 0 auto; color: #071017; background: var(--blue); border: 1px solid var(--blue); width: 32px; height: 32px; font-size: 16px; transition: transform 160ms var(--ease); }
+      .composer button:active { transform: scale(.97); }
+
+      .right-col { display: grid; gap: 24px; }
+      .source-head { display: flex; align-items: start; justify-content: space-between; padding: 19px 20px 13px; border-bottom: 1px solid var(--line); }
+      .source-head p { margin: 5px 0 0; color: #778186; font-size: 11px; line-height: 1.45; }
+      .source-count { color: var(--blue-dark); font: 11px var(--mono); }
+      .filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 19px; border-bottom: 1px solid var(--line); }
+      .filter { color: #687277; border: 1px solid transparent; background: transparent; padding: 5px 7px; font: 10px var(--mono); text-transform: uppercase; letter-spacing: .03em; }
+      .filter:hover, .filter.active { color: var(--ink); border-color: var(--line); background: #f7f6f1; }
+      .source-list { padding: 0 19px; }
+      .source-item { display: grid; grid-template-columns: 7px minmax(0, 1fr); gap: 10px; padding: 15px 0; border-bottom: 1px solid #e5e5e0; }
+      .source-item:last-child { border-bottom: 0; }
+      .signal { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--amber); }
+      .signal.official { background: var(--olive); }
+      .signal.legal { background: var(--red); }
+      .source-name { display: flex; justify-content: space-between; gap: 10px; color: var(--ink); font-size: 12px; font-weight: 700; }
+      .source-name a { text-decoration: none; border-bottom: 1px solid #b5bab6; }
+      .source-name a:hover { border-bottom-color: var(--ink); }
+      .source-label { flex: 0 0 auto; color: #778186; font: 9px var(--mono); text-transform: uppercase; }
+      .source-desc { margin-top: 5px; color: #69747a; font-size: 11px; line-height: 1.5; }
+      .source-boundary { margin-top: 7px; color: #9a6c2e; font-size: 10px; line-height: 1.45; }
+      .work-order { background: var(--ink); color: #f2f4ef; border-color: var(--ink); padding: 21px; }
+      .work-order-top { display: flex; align-items: center; justify-content: space-between; }
+      .work-order h2 { margin: 8px 0 9px; color: #fff; font: 600 29px/.95 var(--serif); letter-spacing: -.025em; }
+      .wo-kicker { color: var(--blue); font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+      .status-chip { color: var(--ink); background: var(--blue); padding: 5px 7px; font: 9px var(--mono); text-transform: uppercase; }
+      .work-order p { color: #b8c2c7; margin: 0; font-size: 12px; line-height: 1.55; }
+      .wo-detail { display: grid; grid-template-columns: 86px minmax(0,1fr); gap: 8px; margin: 17px 0; padding: 13px 0; border-top: 1px solid rgba(255,255,255,.12); border-bottom: 1px solid rgba(255,255,255,.12); color: #d5dbdd; font-size: 11px; line-height: 1.45; }
+      .wo-detail span { color: #81929d; font: 9px var(--mono); text-transform: uppercase; }
+      .wo-cta { width: 100%; display: flex; justify-content: space-between; align-items: center; color: #0a1118; background: var(--blue); border: 0; padding: 11px 12px; text-align: left; font-weight: 700; font-size: 12px; }
+      .wo-cta:active { transform: scale(.98); }
+
+      .lower-grid { display: grid; grid-template-columns: 1.4fr .72fr; gap: 24px; margin-top: 24px; }
+      .evidence-map { padding: 22px; }
+      .map-head { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+      .map-head h2 { margin: 0; font: 600 29px/.95 var(--serif); letter-spacing: -.025em; }
+      .map-head p { max-width: 350px; margin: 0; color: #758085; font-size: 11px; line-height: 1.55; }
+      .map-lanes { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; padding-top: 21px; border-top: 1px solid var(--line); }
+      .lane { min-width: 0; }
+      .lane-title { color: #778186; margin-bottom: 12px; font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+      .map-node { position: relative; min-height: 95px; padding: 13px; background: #f6f6f0; border: 1px solid #e0e1dc; }
+      .map-node + .map-node { margin-top: 9px; }
+      .map-node .type { color: var(--blue-dark); font: 9px var(--mono); text-transform: uppercase; }
+      .map-node strong { display: block; color: var(--ink); margin: 7px 0 5px; font-size: 12px; line-height: 1.25; }
+      .map-node p { margin: 0; color: #6e787d; font-size: 10px; line-height: 1.42; }
+      .map-node.client { background: #f1fbfb; border-color: #b7e1e3; }
+      .map-node.gap { background: #fff8e9; border-color: #ebd4af; }
+      .map-node.gap .type { color: #9c661f; }
+      .review-card { padding: 22px; background: #e8e5db; border-color: #d0ccc0; }
+      .review-card .eyebrow { color: #69735f; }
+      .review-card h2 { margin: 9px 0 10px; font: 600 31px/.94 var(--serif); letter-spacing: -.03em; }
+      .review-card p { color: #586059; margin: 0; font-size: 12px; line-height: 1.6; }
+      .checklist { margin: 19px 0 0; padding: 0; list-style: none; }
+      .checklist li { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(59,65,56,.16); color: #3d4741; font-size: 11px; line-height: 1.4; }
+      .check { color: #5e8873; font-weight: 700; }
+      .pending { color: #a4752b; }
+
+      .toast { position: fixed; left: 50%; bottom: 26px; z-index: 4; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; color: #eaf3ef; background: var(--ink); padding: 12px 15px; border-left: 2px solid var(--blue); box-shadow: 0 12px 35px rgba(3,8,13,.22); font-size: 12px; transition: opacity 180ms var(--ease), transform 180ms var(--ease); }
+      .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+      @media (max-width: 1060px) {
+        .app-shell { grid-template-columns: 76px minmax(0,1fr); }
+        .side { padding: 22px 13px; }
+        .brand { padding-left: 12px; padding-bottom: 25px; }
+        .brand-copy, .new-workspace span, .side-label, .workspace > div, .side-bottom { display: none; }
+        .new-workspace { justify-content: center; padding: 12px; }
+        .workspace { justify-content: center; border-left: 0; border-top: 2px solid transparent; padding: 12px; }
+        .workspace.active { border-top-color: var(--blue); }
+        .workspace-dot { margin: 0; }
+        .workspace strong, .workspace span { display: none; }
+        .workspace-grid, .lower-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 680px) {
+        .app-shell { display: block; }
+        .side { position: static; height: auto; min-height: 0; display: flex; align-items: center; padding: 12px 15px; overflow: hidden; }
+        .brand { padding: 0; margin-right: 14px; }
+        .new-workspace { width: 38px; height: 38px; padding: 0; margin-right: 9px; }
+        .workspace { width: 31px; padding: 8px; }
+        .topbar { height: 60px; padding: 0 18px; }
+        .crumb { font-size: 11px; }
+        .capture-status { display: none; }
+        .content { padding: 28px 16px 50px; }
+        .title-row { display: block; }
+        h1 { font-size: 47px; }
+        .decision-note { margin-top: 14px; }
+        .stage { font-size: 9px; }
+        .stage:nth-child(2), .stage:nth-child(3) { display: none; }
+        .workspace-grid { margin-top: 27px; }
+        .operator { min-height: 580px; }
+        .thread { padding: 19px 16px 12px; }
+        .operator-head { padding: 16px; }
+        .message-body { font-size: 12px; }
+        .buyer-question { font-size: 18px; }
+        .map-lanes { grid-template-columns: 1fr; }
+        .map-node { min-height: 0; }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .panel { animation: settle .45s var(--ease) both; }
+        .workspace-grid .panel:nth-child(2) { animation-delay: .06s; }
+        .lower-grid .panel { animation-delay: .12s; }
+        @keyframes settle { from { transform: translateY(9px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side" aria-label="Workspace navigation">
+        <div class="brand">
+          <div class="brandmark">E</div>
+          <div class="brand-copy"><strong>EVIDENCE</strong><span>Pattern Map</span></div>
+        </div>
+        <button class="new-workspace" data-toast="New workspaces begin with a buyer question, not a URL."><span>New workspace</span><b class="plus">+</b></button>
+        <p class="side-label">Active workspaces</p>
+        <button class="workspace active" data-toast="Opened 7-OH Source Map."><i class="workspace-dot"></i><div><strong>7-OH Source Map</strong><span>Class action visibility</span></div></button>
+        <button class="workspace" data-toast="B2B SaaS example is available as a governed reference case."><i class="workspace-dot muted"></i><div><strong>B2B SaaS search</strong><span>Reference case</span></div></button>
+        <button class="workspace" data-toast="Create a buyer-question panel to begin a new investigation."><i class="workspace-dot muted"></i><div><strong>New buyer question</strong><span>Draft</span></div></button>
+        <div class="side-bottom">
+          <div class="source-health"><div class="live">● Evidence system ready</div><p class="small">All findings require source links and review before they become site work.</p></div>
+          <div class="avatar-row"><div class="avatar">BP</div><span>Benjamin Pipkin</span></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="crumb"><span>Workspaces</span><span class="slash">/</span><b>7-OH Source Map</b></div>
+          <div class="top-actions"><span class="capture-status"><i></i>Capture preserved</span><button class="share" data-toast="A client-ready report is created from approved findings and source records.">Share report</button></div>
+        </header>
+
+        <div class="content">
+          <div class="eyebrow">Conversational evidence operations</div>
+          <div class="title-row">
+            <h1>Move the work<br />forward with proof.</h1>
+            <p class="decision-note">This workspace turns an observed buyer answer into source context, a credible gap, and a reviewable change request for the site team.</p>
+          </div>
+          <div class="progress-line" aria-label="Workspace progress">
+            <div class="stage done">Buyer question</div><div class="stage done">Answer capture</div><div class="stage done">Source context</div><div class="stage current">Evidence decision</div><div class="stage">Site work</div>
+          </div>
+
+          <section class="workspace-grid" aria-label="Evidence workspace">
+            <article class="panel operator">
+              <div class="operator-head"><h2>Operator conversation</h2><div class="record"><span>●</span> discovery record</div></div>
+              <div class="thread">
+                <div class="message initial"><div class="initials">BP</div><div><div class="message-meta"><strong>Benjamin</strong><span>Buyer question</span></div><div class="message-body"><p>I want to know who shows up when someone asks:</p><div class="buyer-question">“join class action lawsuit against 7OH”</div></div></div></div>
+                <div class="message ai"><div class="initials">EP</div><div><div class="message-meta"><strong>Evidence Pattern Map</strong><span>Clean Claude capture · 22 Aug 2026</span></div><div class="message-body"><p>The captured answer surfaced <strong>four visible URLs</strong>: two ClassAction.org pages and two law-firm pages. The source set is heavily commercial legal-information and intake content.</p><div class="evidence-pulse"><span class="tag good">4 visible URLs</span><span class="tag warn">0 official court links</span><span class="tag warn">3 intake / lead paths</span></div></div></div></div>
+                <div class="message ai"><div class="initials">EP</div><div><div class="message-meta"><strong>Evidence Pattern Map</strong><span>Source interpretation</span></div><div class="message-body"><div class="answer-quote"><span class="quote-label">What the source set shows</span>One ClassAction.org article names a filed case and case number. That is useful lead information. The answer did <strong>not</strong> visibly link to a court docket, order, class notice, or agency case-status page.</div></div></div></div>
+                <div class="assistant-question">Next decision: prepare a source-cited “How to verify a 7-OH lawsuit record” page before expanding any legal-intake content?</div>
+              </div>
+              <form class="composer" id="operator-form"><input id="operator-input" aria-label="Ask the operator workspace" placeholder="Ask what should happen next…" /><button aria-label="Send message" type="submit">↗</button></form>
+            </article>
+
+            <div class="right-col">
+              <section class="panel source-panel" aria-label="Source map">
+                <div class="source-head"><div><h2>Who is showing up?</h2><p>Exact visible sources from this one answer capture.</p></div><span class="source-count">04 SOURCES</span></div>
+                <div class="filters"><button class="filter active" data-filter="all">All</button><button class="filter" data-filter="legal-news">Legal news</button><button class="filter" data-filter="intake">Intake</button></div>
+                <div class="source-list">
+                  <article class="source-item" data-type="legal-news"><i class="signal"></i><div><div class="source-name"><a href="https://www.classaction.org/news/class-action-lawsuit-claims-7tabz-kratom-is-highly-addictive-and-dangerous" target="_blank" rel="noopener">ClassAction.org</a><span class="source-label">Legal news</span></div><div class="source-desc">Reports on the 7tabz complaint and identifies a case number.</div><div class="source-boundary">Publisher reporting; complaint and court docket remain primary for status.</div></div></article>
+                  <article class="source-item" data-type="intake"><i class="signal legal"></i><div><div class="source-name"><a href="https://articles.yourlawyer.com/7-oh-addiction-and-overdose-death-lawsuit-lawyers/" target="_blank" rel="noopener">Parker Waichman LLP</a><span class="source-label">Law firm</span></div><div class="source-desc">Lawsuit information, potential claims, and free-consultation intake.</div><div class="source-boundary">Attorney marketing and lead intake; not official case status.</div></div></article>
+                  <article class="source-item" data-type="intake"><i class="signal legal"></i><div><div class="source-name"><a href="https://cohenandmalad.com/personal-injury/kratom" target="_blank" rel="noopener">CohenMalad LLP</a><span class="source-label">Law firm</span></div><div class="source-desc">Kratom litigation marketing page with a legal-help call to action.</div><div class="source-boundary">Attorney marketing and intake; factual assertions need primary-source review.</div></div></article>
+                  <article class="source-item" data-type="intake"><i class="signal legal"></i><div><div class="source-name"><a href="https://www.classaction.org/7-hydroxymitragynine-kratom-lawsuits" target="_blank" rel="noopener">ClassAction.org</a><span class="source-label">Intake alert</span></div><div class="source-desc">Attorney-linked lawsuit alert with a potential-claimant form.</div><div class="source-boundary">Intake context; no official court notice surfaced in the capture.</div></div></article>
+                </div>
+              </section>
+
+              <section class="panel work-order" aria-label="Recommended work order">
+                <div class="work-order-top"><span class="wo-kicker">Recommended work order</span><span class="status-chip">Ready for review</span></div>
+                <h2>Build the official-record guide.</h2>
+                <p>Give the site a credible role in this question: help a reader distinguish a filed complaint, official docket, order, notice, law-firm page, and intake form.</p>
+                <div class="wo-detail"><span>Evidence</span><div>Observed answer contained legal-news and intake pages; no court or agency status record was visibly cited.</div><span>Required</span><div>Primary record links, dated sources, legal-review approval, no eligibility claims.</div></div>
+                <button class="wo-cta" data-toast="Work order WO-7OH-CONTENT-003 opened for legal-review routing."><span>Open work order</span><span>→</span></button>
+              </section>
+            </div>
+          </section>
+
+          <section class="lower-grid" aria-label="Evidence pattern and review">
+            <article class="panel evidence-map">
+              <div class="map-head"><h2>From answer to site work.</h2><p>The product does not claim access to private model reasoning. It shows the observed answer, the public sources around it, and the proof work that can responsibly follow.</p></div>
+              <div class="map-lanes">
+                <div class="lane"><div class="lane-title">Observed answer</div><div class="map-node"><span class="type">Clean session · natural question</span><strong>Four sources point to legal information and intake</strong><p>Exact URLs are preserved with the model surface and capture date.</p></div></div>
+                <div class="lane"><div class="lane-title">Verified context</div><div class="map-node"><span class="type">Publisher relationship</span><strong>One legal-news page; three intake paths</strong><p>The existing set contains commercial legal interests and no visible official record.</p></div><div class="map-node gap"><span class="type">Evidence gap</span><strong>No clear public guide to verifying court records</strong><p>That is a legitimate, specific first-party resource opportunity.</p></div></div>
+                <div class="lane"><div class="lane-title">Approved site work</div><div class="map-node client"><span class="type">Work order</span><strong>Publish a sourced official-record guide</strong><p>Require legal review, cited sources, change log, and explicit limitations.</p></div></div>
+              </div>
+            </article>
+
+            <aside class="panel review-card">
+              <div class="eyebrow">Human decision gate</div>
+              <h2>Nothing high-consequence publishes itself.</h2>
+              <p>Site-management AI receives an evidence-linked work order. It can draft and validate a change, but a qualified reviewer still controls publication.</p>
+              <ul class="checklist"><li><span class="check">✓</span><span>Source URLs and boundaries preserved</span></li><li><span class="check">✓</span><span>Work order has acceptance tests and rollback reference</span></li><li><span class="pending">○</span><span>Legal reviewer approval required before publish</span></li></ul>
+            </aside>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div class="toast" role="status" aria-live="polite" id="toast"></div>
+    <script>
+      const toast = document.getElementById('toast');
+      let timer;
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(timer);
+        timer = setTimeout(() => toast.classList.remove('show'), 3600);
+      }
+      document.querySelectorAll('[data-toast]').forEach((button) => button.addEventListener('click', () => showToast(button.dataset.toast)));
+      document.querySelectorAll('.filter').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.filter').forEach((item) => item.classList.remove('active'));
+          button.classList.add('active');
+          const type = button.dataset.filter;
+          document.querySelectorAll('.source-item').forEach((item) => {
+            item.style.display = type === 'all' || item.dataset.type === type ? 'grid' : 'none';
+          });
+        });
+      });
+      document.getElementById('operator-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const input = document.getElementById('operator-input');
+        const message = input.value.trim();
+        if (!message) { showToast('Ask about a source, an evidence gap, or the next site change.'); return; }
+        showToast('Draft note saved. The live product will attach this conversation to the evidence record.');
+        input.value = '';
+      });
+    </script>
+  </body>
+</html>
