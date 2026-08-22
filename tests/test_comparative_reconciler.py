@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from src.collector.candidate_collector import CandidateCollector
 from src.collector.comparative_reconciler import ComparativeEvidenceReconciler
+from src.collector.execution_registry import CollectorExecutionRegistry
 from src.collector.gap_analyzer import ForensicGapAnalyzer
 from src.collector.query_map_runner import DatasetManifest
 from src.collector.snapshot import SnapshotStore
@@ -1382,6 +1383,9 @@ def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path) -> N
     snapshot_store = SnapshotStore(tmp_path)
     snapshot_store.save_snapshot(b"client snapshot bytes")
     snapshot_store.save_snapshot(b"competitor snapshot bytes")
+    execution_registry = CollectorExecutionRegistry(b"test-execution-registry-signing-key")
+    execution_registry.issue(c_exec)
+    execution_registry.issue(comp_exec)
 
     gap_analyzer = ForensicGapAnalyzer()
     gap_record = gap_analyzer.analyze_gaps(
@@ -1456,6 +1460,7 @@ def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path) -> N
         raw_profile_bytes=raw_profile_bytes,
         human_decision_record=hd_record,
         snapshot_store=snapshot_store,
+        execution_registry=execution_registry,
     )
 
     # Authentic decision matching all 6 quote fields -> successfully promoted to SUPPORTED
@@ -1588,3 +1593,39 @@ def test_execution_with_unauthorized_candidate_is_rejected() -> None:
         ComparativeEvidenceReconciler._validate_execution_authority(
             forged_execution, gap_record, observation, query_map, manifest
         )
+
+
+def test_collector_registry_rejects_new_id_fully_rehashed_execution() -> None:
+    """P0: Public rehashing cannot turn a foreign execution into a collector-issued one."""
+    (
+        _observation, _query_map, _manifest, _profile, _ledger, _raw_ledger_bytes,
+        _raw_qm_bytes, _raw_manifest_bytes, _raw_profile_bytes, _client_evidence,
+        _comp_evidence, c_exec, _comp_exec,
+    ) = _setup_base_fixtures()
+    registry = CollectorExecutionRegistry(b"test-execution-registry-signing-key")
+    registry.issue(c_exec)
+    forged_id = "exec-client-self-consistent-forgery"
+    forged_digest = CollectionExecutionRecord.compute_canonical_digest(
+        execution_id=forged_id,
+        candidate_id=c_exec.candidate_id,
+        target_query_id=c_exec.target_query_id,
+        cited_url=c_exec.cited_url,
+        observation_id=c_exec.observation_id,
+        raw_answer_sha256=c_exec.raw_answer_sha256,
+        profile_id=c_exec.profile_id,
+        profile_sha256=c_exec.profile_sha256,
+        manifest_sha256=c_exec.manifest_sha256,
+        query_map_sha256=c_exec.query_map_sha256,
+        source_ledger_sha256=c_exec.source_ledger_sha256,
+        evidence_id=c_exec.evidence_id,
+        verifier_run_id=c_exec.verifier_run_id,
+        snapshot_sha256=c_exec.snapshot_sha256,
+        execution_timestamp=c_exec.execution_timestamp,
+    )
+    forged_execution = c_exec.model_copy(
+        update={"execution_id": forged_id, "canonical_digest": forged_digest}
+    )
+    assert forged_execution.verify_integrity() is True
+
+    with pytest.raises(ValueError, match="is not registered"):
+        registry.verify_issued(forged_execution)

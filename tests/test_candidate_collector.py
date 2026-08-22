@@ -11,6 +11,7 @@ from typing import Dict, List
 import pytest
 
 from src.collector.candidate_collector import CandidateCollector
+from src.collector.execution_registry import CollectorExecutionRegistry
 from src.collector.gap_analyzer import ForensicGapAnalyzer
 from src.collector.query_map_runner import DatasetManifest, ManifestSourceCandidate
 from src.collector.snapshot import SnapshotStore
@@ -301,7 +302,8 @@ def test_authorized_candidate_collection_success(
 
     # Execute CandidateCollector
     store = SnapshotStore(base_dir=tmp_path / "snapshots")
-    collector = CandidateCollector(snapshot_store=store)
+    registry = CollectorExecutionRegistry(b"test-execution-registry-signing-key")
+    collector = CandidateCollector(snapshot_store=store, execution_registry=registry)
 
     updated_ledger, updated_gap_record = collector.collect_candidate(
         candidate_id=cand.candidate_id,
@@ -329,6 +331,8 @@ def test_authorized_candidate_collection_success(
 
     # Verify updated gap record digest passes verification
     assert updated_gap_record.verify_integrity() is True
+    assert len(updated_gap_record.collection_executions) == 1
+    registry.verify_issued(updated_gap_record.collection_executions[0])
 
 
 def test_tampered_or_mismatched_gap_record_fails_closed(

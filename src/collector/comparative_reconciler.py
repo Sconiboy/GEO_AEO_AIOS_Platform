@@ -29,6 +29,7 @@ from ..domain.observation import AnswerObservation
 from ..domain.profile import SubjectProfile
 from ..domain.query_map import QueryMap
 from .gap_analyzer import ForensicGapAnalyzer
+from .execution_registry import CollectorExecutionRegistry
 from .query_map_runner import DatasetManifest
 from .snapshot import SnapshotStore
 
@@ -149,6 +150,7 @@ class ComparativeEvidenceReconciler:
         expected_role: SourceRelationship,
         human_decision_record: Optional[HumanDecisionRecord] = None,
         snapshot_store: Optional[SnapshotStore] = None,
+        execution_registry: Optional[CollectorExecutionRegistry] = None,
     ) -> ClaimExcerptAssessment:
         """
         Evaluates an answer-surface statement claim against a verified evidence record excerpt resolved from the source ledger.
@@ -184,6 +186,11 @@ class ComparativeEvidenceReconciler:
                             break
 
                     if matching_quote:
+                        if not execution_registry:
+                            raise ValueError(
+                                "Comparative Reconciliation Blocked: no approved collector execution registry was provided for human promotion."
+                            )
+                        execution_registry.verify_issued(execution)
                         cls._verify_retained_snapshot(evidence, execution, snapshot_store)
                         return ClaimExcerptAssessment(
                             statement_id=statement_id,
@@ -236,6 +243,7 @@ class ComparativeEvidenceReconciler:
         human_decision_record: Optional[HumanDecisionRecord] = None,
         timestamp: Optional[datetime] = None,
         snapshot_store: Optional[SnapshotStore] = None,
+        execution_registry: Optional[CollectorExecutionRegistry] = None,
     ) -> ComparativeEvidenceRecord:
         """
         Executes bounded comparative evidence reconciliation parsing AuditRun directly from raw_ledger_bytes.
@@ -508,6 +516,7 @@ class ComparativeEvidenceReconciler:
                     expected_role=SourceRelationship.CLIENT_OWNED,
                     human_decision_record=human_decision_record,
                     snapshot_store=snapshot_store,
+                    execution_registry=execution_registry,
                 )
             )
             competitor_assessments.append(
@@ -519,6 +528,7 @@ class ComparativeEvidenceReconciler:
                     expected_role=SourceRelationship.COMPETITOR_OWNED,
                     human_decision_record=human_decision_record,
                     snapshot_store=snapshot_store,
+                    execution_registry=execution_registry,
                 )
             )
 

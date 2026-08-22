@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 from ..collector.gap_analyzer import ForensicGapAnalyzer
+from ..collector.execution_registry import CollectorExecutionRegistry
 from ..collector.policy import SourcePolicy
 from ..collector.query_map_runner import DatasetManifest
 from ..collector.snapshot import SnapshotStore
@@ -38,9 +39,11 @@ class CandidateCollector:
         self,
         snapshot_store: Optional[SnapshotStore] = None,
         block_private_ips: bool = True,
+        execution_registry: Optional[CollectorExecutionRegistry] = None,
     ):
         self.snapshot_store = snapshot_store or SnapshotStore()
         self.block_private_ips = block_private_ips
+        self.execution_registry = execution_registry or CollectorExecutionRegistry.ephemeral()
 
     def collect_candidate(
         self,
@@ -198,8 +201,7 @@ class CandidateCollector:
                 execution_timestamp=exec_ts,
             )
 
-            existing_execs.append(
-                CollectionExecutionRecord(
+            created_execution = CollectionExecutionRecord(
                     execution_id=exec_id,
                     candidate_id=cand.candidate_id,
                     target_query_id=cand.target_query_id,
@@ -216,8 +218,9 @@ class CandidateCollector:
                     snapshot_sha256=snap_sha256,
                     execution_timestamp=exec_ts,
                     canonical_digest=exec_digest,
-                )
             )
+            self.execution_registry.issue(created_execution)
+            existing_execs.append(created_execution)
         else:
             attempt_id = f"car-{cand.candidate_id}"
             att_digest = CollectionAttemptRecord.compute_canonical_digest(

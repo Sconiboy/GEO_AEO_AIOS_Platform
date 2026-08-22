@@ -8,5 +8,7 @@ __pycache__/
 htmlcov/
 data/snapshots/*
 !data/snapshots/.gitkeep
+data/execution_registry/*
+!data/execution_registry/.gitkeep
 reports/*
 !reports/.gitkeep
