@@ -409,6 +409,48 @@ def test_neutral_editorial_citation_classification(sample_subject_profile: Subje
     assert record.attribution_status == AttributionStatus.THIRD_PARTY_ONLY_CITATIONS
 
 
+def test_client_ledger_evidence_is_not_mistaken_for_client_answer_citation(
+    sample_subject_profile: SubjectProfile,
+) -> None:
+    """A client-owned source in the ledger cannot make a competitor-only answer look client-cited."""
+    qm_path = Path("data/fixtures/sample_query_map.json")
+    manifest_path = Path("data/fixtures/live_pep20_manifest.json")
+    ledger_path = Path("data/fixtures/emitted_pep20_source_ledger.json")
+    obs_path = Path("data/fixtures/emitted_pep20_observation.json")
+
+    raw_qm_bytes = qm_path.read_bytes()
+    query_map = QueryMap.model_validate_json(raw_qm_bytes)
+    raw_manifest_bytes = manifest_path.read_bytes()
+    manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+    raw_ledger_bytes = ledger_path.read_bytes()
+    source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+    original_observation = AnswerObservation.model_validate_json(obs_path.read_bytes())
+
+    competitor_only_text = "See https://rust-lang.org/learn for the Rust reference."
+    competitor_only_observation = original_observation.model_copy(
+        update={
+            "raw_answer_text": competitor_only_text,
+            "raw_answer_sha256": hashlib.sha256(competitor_only_text.encode("utf-8")).hexdigest(),
+        }
+    )
+
+    raw_profile_bytes = sample_subject_profile.model_dump_json().encode("utf-8")
+    record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=sample_subject_profile,
+        observation=competitor_only_observation,
+        source_ledger=source_ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+    )
+
+    assert record.attribution_status == AttributionStatus.CITED_COMPETITOR_OBSERVED
+    assert record.competitor_patterns[0].client_domain_cited is False
+
+
 def test_exact_url_verification_matching_not_domain_only(
     sample_subject_profile: SubjectProfile,
 ) -> None:

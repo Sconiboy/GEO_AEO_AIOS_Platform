@@ -1,0 +1,155 @@
+{
+  "analysis_id": "fga-rec-obs-claude-b2b-saas-seo-20260822-001",
+  "observation_id": "obs-claude-b2b-saas-seo-20260822-001",
+  "raw_answer_sha256": "aa32c964f39fbfa8ccce05e291d3608e6fb9cf58b7e04598fea2f445babba49a",
+  "source_ledger_run_id": "run-qm-qm-claude-b2b-saas-seo-20260822",
+  "source_ledger_sha256": "4a73dc46591b44fa013f537e9d814adef5d0091a8e88bb564a6a6736e3aea1d3",
+  "query_map_sha256": "8edf25f55496bac90e999c0f7f35126af37620889560c79fe663c56487524542",
+  "manifest_sha256": "e900331706c2025ffe2178a58a10933097845a8be82fb70b3065312a1145d74b",
+  "profile_id": "profile-searchbloom-virayo-public-20260822",
+  "profile_sha256": "82813d01fccdebdd8e5b4fea77d3a637ef93e6387a158b810d1433624390b922",
+  "attribution_status": "cited_competitor_observed",
+  "competitor_patterns": [
+    {
+      "pattern_id": "pat-q-claude-b2b-saas-seo-001",
+      "target_query_id": "q-claude-b2b-saas-seo-001",
+      "total_sources_evaluated": 2,
+      "top_cited_domains": [
+        {
+          "domain": "virayo.com",
+          "citation_count": 1,
+          "source_type": "vendor_marketing",
+          "source_relationship": "competitor_owned"
+        },
+        {
+          "domain": "www.searchbloom.com",
+          "citation_count": 1,
+          "source_type": "vendor_marketing",
+          "source_relationship": "client_owned"
+        }
+      ],
+      "client_domain_cited": false,
+      "answer_citations": [
+        {
+          "url": "https://virayo.com/saas-seo",
+          "domain": "virayo.com",
+          "is_explicit_citation": true,
+          "source_relationship": "competitor_owned",
+          "matched_competitor_entity": "Virayo"
+        },
+        {
+          "url": "https://www.kalungi.com/services/seo",
+          "domain": "www.kalungi.com",
+          "is_explicit_citation": true,
+          "source_relationship": "unknown",
+          "matched_competitor_entity": null
+        },
+        {
+          "url": "https://productiveshop.com/b2b-seo-agency-for-saas-companies/",
+          "domain": "productiveshop.com",
+          "is_explicit_citation": true,
+          "source_relationship": "unknown",
+          "matched_competitor_entity": null
+        },
+        {
+          "url": "https://growtika.com/services/saas-seo",
+          "domain": "growtika.com",
+          "is_explicit_citation": true,
+          "source_relationship": "unknown",
+          "matched_competitor_entity": null
+        },
+        {
+          "url": "https://cuttingedgepr.com/articles/6-best-b2b-saas-seo-agencies-in-2026-a-brief-overview/",
+          "domain": "cuttingedgepr.com",
+          "is_explicit_citation": true,
+          "source_relationship": "unknown",
+          "matched_competitor_entity": null
+        }
+      ],
+      "attribution_status": "cited_competitor_observed"
+    }
+  ],
+  "collection_candidates": [
+    {
+      "candidate_id": "occ-q-claude-b2b-saas-seo-001-6efe9f15",
+      "target_query_id": "q-claude-b2b-saas-seo-001",
+      "cited_url": "https://www.kalungi.com/services/seo",
+      "cited_domain": "www.kalungi.com",
+      "source_relationship": "unknown",
+      "matched_competitor_entity": null,
+      "matched_manifest_query_id": null,
+      "requires_human_manifest_approval": true,
+      "finding_basis": {
+        "observation_id": "obs-claude-b2b-saas-seo-20260822-001",
+        "statement_id": "obs-answer-citation",
+        "evidence_ids": [],
+        "source_relationships": [
+          "unknown"
+        ]
+      },
+      "action_hypothesis": "Collection Candidate Proposal for Review: Observed citation 'https://www.kalungi.com/services/seo' is unverified in source ledger and requires explicit human approval and manifest policy update prior to verifier fetch."
+    },
+    {
+      "candidate_id": "occ-q-claude-b2b-saas-seo-001-92bc47a9",
+      "target_query_id": "q-claude-b2b-saas-seo-001",
+      "cited_url": "https://productiveshop.com/b2b-seo-agency-for-saas-companies/",
+      "cited_domain": "productiveshop.com",
+      "source_relationship": "unknown",
+      "matched_competitor_entity": null,
+      "matched_manifest_query_id": null,
+      "requires_human_manifest_approval": true,
+      "finding_basis": {
+        "observation_id": "obs-claude-b2b-saas-seo-20260822-001",
+        "statement_id": "obs-answer-citation",
+        "evidence_ids": [],
+        "source_relationships": [
+          "unknown"
+        ]
+      },
+      "action_hypothesis": "Collection Candidate Proposal for Review: Observed citation 'https://productiveshop.com/b2b-seo-agency-for-saas-companies/' is unverified in source ledger and requires explicit human approval and manifest policy update prior to verifier fetch."
+    },
+    {
+      "candidate_id": "occ-q-claude-b2b-saas-seo-001-29dd1283",
+      "target_query_id": "q-claude-b2b-saas-seo-001",
+      "cited_url": "https://growtika.com/services/saas-seo",
+      "cited_domain": "growtika.com",
+      "source_relationship": "unknown",
+      "matched_competitor_entity": null,
+      "matched_manifest_query_id": null,
+      "requires_human_manifest_approval": true,
+      "finding_basis": {
+        "observation_id": "obs-claude-b2b-saas-seo-20260822-001",
+        "statement_id": "obs-answer-citation",
+        "evidence_ids": [],
+        "source_relationships": [
+          "unknown"
+        ]
+      },
+      "action_hypothesis": "Collection Candidate Proposal for Review: Observed citation 'https://growtika.com/services/saas-seo' is unverified in source ledger and requires explicit human approval and manifest policy update prior to verifier fetch."
+    },
+    {
+      "candidate_id": "occ-q-claude-b2b-saas-seo-001-fdb412e2",
+      "target_query_id": "q-claude-b2b-saas-seo-001",
+      "cited_url": "https://cuttingedgepr.com/articles/6-best-b2b-saas-seo-agencies-in-2026-a-brief-overview/",
+      "cited_domain": "cuttingedgepr.com",
+      "source_relationship": "unknown",
+      "matched_competitor_entity": null,
+      "matched_manifest_query_id": null,
+      "requires_human_manifest_approval": true,
+      "finding_basis": {
+        "observation_id": "obs-claude-b2b-saas-seo-20260822-001",
+        "statement_id": "obs-answer-citation",
+        "evidence_ids": [],
+        "source_relationships": [
+          "unknown"
+        ]
+      },
+      "action_hypothesis": "Collection Candidate Proposal for Review: Observed citation 'https://cuttingedgepr.com/articles/6-best-b2b-saas-seo-agencies-in-2026-a-brief-overview/' is unverified in source ledger and requires explicit human approval and manifest policy update prior to verifier fetch."
+    }
+  ],
+  "collection_executions": [],
+  "collection_attempts": [],
+  "evidence_gaps": [],
+  "prioritized_actions": [],
+  "canonical_digest": "2b0ae0feed2556fdbcc1330071ee2b86b04971527cce4f3edcabf32018c9185c"
+}

@@ -1,0 +1,29 @@
+{
+  "observation_id": "obs-claude-b2b-saas-seo-20260822-001",
+  "query_id": "q-claude-b2b-saas-seo-001",
+  "query_map_id": "qm-claude-b2b-saas-seo-20260822",
+  "source_ledger_run_id": "run-qm-qm-claude-b2b-saas-seo-20260822",
+  "query_map_sha256": "8edf25f55496bac90e999c0f7f35126af37620889560c79fe663c56487524542",
+  "manifest_sha256": "e900331706c2025ffe2178a58a10933097845a8be82fb70b3065312a1145d74b",
+  "source_ledger_sha256": "4a73dc46591b44fa013f537e9d814adef5d0091a8e88bb564a6a6736e3aea1d3",
+  "provider_name": "Anthropic",
+  "model_identifier": "Haiku 4.5 Extended",
+  "capture_timestamp": "2026-08-22T14:43:58Z",
+  "capture_method": "human_operator_console",
+  "capture_artifact": {
+    "artifact_id": "artifact-obs-claude-b2b-saas-seo-20260822-001",
+    "session_id": "claude-e9cbf5c8-a0e3-42e2-89db-7c7a4268b9e4",
+    "artifact_type": "operator_console_raw_transcript_export",
+    "artifact_path_or_uri": "/home/ubuntu/geo-aeo-platform/data/prepilot/claude_b2b_saas_governed_transcript.txt",
+    "artifact_sha256": "bce3e367b8ae541b58109eeb9e48e095c3a79251b7b9cfd6d18ac8d487213dc2",
+    "raw_output_sha256": "aa32c964f39fbfa8ccce05e291d3608e6fb9cf58b7e04598fea2f445babba49a",
+    "operator_identity": "Benji",
+    "captured_at": "2026-08-22T14:43:58Z"
+  },
+  "raw_answer_text": "Based on recent search results, here are five B2B SaaS SEO specialists:\n\nSearched the web\n\n1. Virayo\n\nSpecializes in B2B SaaS with 12+ years of experience, building organic pipeline across traditional search and AI discovery (GEO), and typically delivers results within 60\u201390 days for clients across martech, salestech, fintech, and cybersecurity.\nVirayo\n\nSource: https://virayo.com/saas-seo\n\n2. Kalungi\n\nOffers full-stack marketing services with an SEO team that takes a full-funnel approach, emphasizing revenue-focused outcomes and technical audits rather than traffic metrics alone.\nKalungi\n\nSource: https://www.kalungi.com/services/seo\n\n3. Productive Shop\n\nA B2B marketing consultancy focused on technology and SaaS, serving high-tech industries like cybersecurity, data management, and digital banking with tailored inbound marketing and SEO strategies.\nProductive Shop\n\nSource: https://productiveshop.com/b2b-seo-agency-for-saas-companies/\n\n4. Growtika\n\nPositions organic search as the highest-ROI channel for B2B SaaS and combines traditional SEO with generative engine optimization (GEO) to reduce customer acquisition cost and drive qualified pipeline.\nGrowtika\n\nSource: https://growtika.com/services/saas-seo\n\n5. Directive Consulting\n\nFounded in 2014, this performance marketing agency for technology companies spans SEO, GEO, content writing, and revenue operations with investment in proprietary research ($2.2M annually) and works with large enterprise clients like Cisco, ZoomInfo, and Gong.\nCutting Edge PR\n\nSource: https://cuttingedgepr.com/articles/6-best-b2b-saas-seo-agencies-in-2026-a-brief-overview/",
+  "raw_answer_sha256": "aa32c964f39fbfa8ccce05e291d3608e6fb9cf58b7e04598fea2f445babba49a",
+  "extracted_statements": [],
+  "operator_notes": "Bounded public non-client pre-pilot. Visible cited answer captured after the approved QueryMap, DatasetManifest, SubjectProfile, and initial source ledger were frozen.",
+  "locale": "en-US",
+  "region": "US"
+}

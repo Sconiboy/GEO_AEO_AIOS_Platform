@@ -269,8 +269,13 @@ class ForensicGapAnalyzer:
             for d, cnt in sorted(domain_counts.items(), key=lambda x: x[1], reverse=True)
         ]
 
+        # Evidence in the ledger establishes what has been collected; it does not
+        # establish what the model cited. This flag must be derived exclusively
+        # from explicit answer citations to avoid falsely reporting a client
+        # citation merely because a client-owned source was collected.
         client_domain_cited = any(
-            rel == SourceRelationship.CLIENT_OWNED for rel in domain_relationships.values()
+            citation.source_relationship == SourceRelationship.CLIENT_OWNED
+            for citation in answer_citations
         )
 
         # Competitor Attribution Status Derivation (Directly from Answer Citations!)
