@@ -17,6 +17,21 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 
 ---
 
+## 🔗 Current Workstream: Commercial GA4 + Search Console Connection
+
+### Task AG-GOOGLE-1: Read-Only Google OAuth and Workspace-Scoped Data Adapters
+- **Goal**: Implement the commercial, API-only Google connection for the Evidence Pattern Map according to `docs/ANTIGRAVITY_GOOGLE_INTEGRATION_BRIEF.md`.
+- **Scope**:
+  - Google OAuth with PKCE, state validation, and only `analytics.readonly` plus `webmasters.readonly` scopes.
+  - Server-side encrypted credential lifecycle, GA4/Search Console property selection, validation, refresh, disconnect, and audit events.
+  - Workspace isolation, bounded aggregate report snapshots, versioned answer-engine referral mapping, and release annotation comparison inputs.
+  - Adversarial tests for OAuth-state failure, token nonexposure, workspace/property mismatch, refresh idempotency, disconnect, and direct/(none) labeling.
+- **Hard boundaries**: No customer upload path; no browser-side token storage; no auto-publication to client sites; no claim that direct/(none) traffic is LLM traffic.
+- **Review gate**: Do not declare complete until the test suite, migrations, implementation note, and a Manus evidence/security review are available.
+- **Status**: READY FOR IMPLEMENTATION
+
+---
+
 ## ⚡ Revised Sprint 1: Foundation & Evidence Ledger Contracts
 
 ### Task A-1: Repository Foundation & Domain Contracts
