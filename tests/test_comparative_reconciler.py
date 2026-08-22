@@ -6,6 +6,7 @@ Includes full 13-point adversarial test matrix defending every quote and collect
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 import pytest
 from pydantic import ValidationError
 
@@ -13,15 +14,69 @@ from src.collector.candidate_collector import CandidateCollector
 from src.collector.comparative_reconciler import ComparativeEvidenceReconciler
 from src.collector.gap_analyzer import ForensicGapAnalyzer
 from src.collector.query_map_runner import DatasetManifest
+from src.collector.snapshot import SnapshotStore
 from src.domain.candidate_collection import CollectionExecutionRecord
 from src.domain.comparative import ComparativeEvidenceRecord
 from src.domain.enums import ReconciliationMethod, ReconciliationStatus, SourceRelationship, VerificationStatus
+from src.domain.gap_analysis import FindingBasis, ForensicGapAnalysisRecord, ObservedCitationCollectionCandidate
 from src.domain.human_decision import HumanDecisionRecord, HumanStatementDecision, QuotedEvidencePassage
 from src.domain.models import AuditRun, EvidenceRecord, VerificationArtifact
 from src.domain.observation import AnswerObservation
 from src.domain.profile import SubjectProfile
 from src.domain.query_map import QueryMap
 from src.exporter.report import ReportExporter
+
+
+def _with_authorized_execution_candidates(
+    gap_record: ForensicGapAnalysisRecord,
+) -> ForensicGapAnalysisRecord:
+    """Adds test-only authorized candidates and recomputes the immutable gap record."""
+    candidates = list(gap_record.collection_candidates)
+    known_ids = {candidate.candidate_id for candidate in candidates}
+    for execution in gap_record.collection_executions:
+        if execution.candidate_id in known_ids:
+            continue
+        parsed_url = urlparse(execution.cited_url)
+        candidates.append(
+            ObservedCitationCollectionCandidate(
+                candidate_id=execution.candidate_id,
+                target_query_id=execution.target_query_id,
+                cited_url=execution.cited_url,
+                cited_domain=parsed_url.hostname or execution.cited_url,
+                source_relationship=SourceRelationship.UNKNOWN,
+                matched_manifest_query_id=execution.target_query_id,
+                requires_human_manifest_approval=False,
+                finding_basis=FindingBasis(
+                    observation_id=gap_record.observation_id,
+                    statement_id="stmt-001",
+                    evidence_ids=[execution.evidence_id],
+                    source_relationships=[SourceRelationship.UNKNOWN],
+                ),
+                action_hypothesis="Test-only authorized candidate retained for execution provenance validation.",
+            )
+        )
+        known_ids.add(execution.candidate_id)
+    digest = gap_record.compute_canonical_digest(
+        analysis_id=gap_record.analysis_id,
+        observation_id=gap_record.observation_id,
+        raw_answer_sha256=gap_record.raw_answer_sha256,
+        source_ledger_run_id=gap_record.source_ledger_run_id,
+        source_ledger_sha256=gap_record.source_ledger_sha256,
+        query_map_sha256=gap_record.query_map_sha256,
+        manifest_sha256=gap_record.manifest_sha256,
+        profile_id=gap_record.profile_id,
+        profile_sha256=gap_record.profile_sha256,
+        attribution_status=gap_record.attribution_status,
+        competitor_patterns=gap_record.competitor_patterns,
+        collection_candidates=candidates,
+        collection_executions=gap_record.collection_executions,
+        collection_attempts=gap_record.collection_attempts,
+        evidence_gaps=gap_record.evidence_gaps,
+        prioritized_actions=gap_record.prioritized_actions,
+    )
+    return gap_record.model_copy(
+        update={"collection_candidates": candidates, "canonical_digest": digest}
+    )
 
 
 def test_comparative_evidence_reconciler_execution() -> None:
@@ -46,7 +101,7 @@ def test_comparative_evidence_reconciler_execution() -> None:
         verifier_run_id="vrun-client-001",
         verification_timestamp=datetime.now(timezone.utc),
         verifier_method="PARSED_VISIBLE_TEXT_BS4",
-        snapshot_sha256="1e2b8d7404d38ac6999999999999999999999999999999999999999999999999",
+        snapshot_sha256=hashlib.sha256(b"client snapshot bytes").hexdigest(),
         quote_exact_match=True,
         final_url="https://peps.python.org/pep-0020/",
         http_status=200,
@@ -59,7 +114,7 @@ def test_comparative_evidence_reconciler_execution() -> None:
         verifier_run_id="vrun-comp-001",
         verification_timestamp=datetime.now(timezone.utc),
         verifier_method="PARSED_VISIBLE_TEXT_BS4",
-        snapshot_sha256="2f3c9e8505e49bd7000000000000000000000000000000000000000000000000",
+        snapshot_sha256=hashlib.sha256(b"competitor snapshot bytes").hexdigest(),
         quote_exact_match=True,
         final_url="https://doc.rust-lang.org/book/",
         http_status=200,
@@ -76,6 +131,7 @@ def test_comparative_evidence_reconciler_execution() -> None:
         is_independent=False,
         opened_excerpt="Beautiful is better than ugly. Explicit is better than implicit. Simple is better than complex.",
         verification_artifact=client_art,
+        snapshot_id=f"snap-{client_art.snapshot_sha256[:16]}",
     )
 
     comp_evidence = EvidenceRecord(
@@ -86,6 +142,7 @@ def test_comparative_evidence_reconciler_execution() -> None:
         is_independent=True,
         opened_excerpt="The Rust Programming Language",
         verification_artifact=comp_art,
+        snapshot_id=f"snap-{comp_art.snapshot_sha256[:16]}",
     )
 
     ledger = AuditRun(
@@ -186,6 +243,7 @@ def test_comparative_evidence_reconciler_execution() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=exec_records,
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     record = reconciler.compare_evidence(
@@ -328,7 +386,7 @@ def _setup_base_fixtures():
         verifier_run_id="vrun-client-001",
         verification_timestamp=datetime.now(timezone.utc),
         verifier_method="PARSED_VISIBLE_TEXT_BS4",
-        snapshot_sha256="1e2b8d7404d38ac6999999999999999999999999999999999999999999999999",
+        snapshot_sha256=hashlib.sha256(b"client snapshot bytes").hexdigest(),
         quote_exact_match=True,
         final_url="https://peps.python.org/pep-0020/",
         http_status=200,
@@ -340,7 +398,7 @@ def _setup_base_fixtures():
         verifier_run_id="vrun-comp-001",
         verification_timestamp=datetime.now(timezone.utc),
         verifier_method="PARSED_VISIBLE_TEXT_BS4",
-        snapshot_sha256="2f3c9e8505e49bd7000000000000000000000000000000000000000000000000",
+        snapshot_sha256=hashlib.sha256(b"competitor snapshot bytes").hexdigest(),
         quote_exact_match=True,
         final_url="https://doc.rust-lang.org/book/",
         http_status=200,
@@ -357,6 +415,7 @@ def _setup_base_fixtures():
         is_independent=False,
         opened_excerpt="Beautiful is better than ugly.",
         verification_artifact=client_art,
+        snapshot_id=f"snap-{client_art.snapshot_sha256[:16]}",
     )
     comp_evidence = EvidenceRecord(
         evidence_id="ev-comp-rustbook",
@@ -366,6 +425,7 @@ def _setup_base_fixtures():
         is_independent=True,
         opened_excerpt="The Rust Programming Language",
         verification_artifact=comp_art,
+        snapshot_id=f"snap-{comp_art.snapshot_sha256[:16]}",
     )
 
     ledger = AuditRun(
@@ -481,6 +541,7 @@ def test_forged_execution_digest_rejected() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[forged_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     with pytest.raises(ValueError, match="failed integrity verification"):
@@ -559,6 +620,7 @@ def test_same_evidence_id_foreign_execution_rejected() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[foreign_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     with pytest.raises(ValueError, match="observation_id .* != observation ID"):
@@ -635,6 +697,7 @@ def test_execution_url_mismatch_rejected() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[wrong_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     with pytest.raises(ValueError, match="cited_url .* != evidence URL"):
@@ -711,6 +774,7 @@ def test_execution_verifier_run_mismatch_rejected() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[wrong_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     with pytest.raises(ValueError, match="verifier_run_id .* != artifact verifier_run_id"):
@@ -787,6 +851,7 @@ def test_execution_snapshot_mismatch_rejected() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[wrong_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     with pytest.raises(ValueError, match="snapshot_sha256 .* != artifact snapshot_sha256"):
@@ -863,6 +928,7 @@ def test_execution_ledger_hash_mismatch_rejected() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[wrong_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     reconciler = ComparativeEvidenceReconciler()
     with pytest.raises(ValueError, match="source_ledger_sha256 .* != raw ledger SHA-256"):
@@ -982,10 +1048,11 @@ def test_mismatched_quote_evidence_url_prevents_promotion() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[c_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     stmt_id = observation.extracted_statements[0].statement_id
     hd_dec = HumanStatementDecision(
-        decision_id="hsd-wrong-url",
+    decision_id="hsd-wrong-url",
         statement_id=stmt_id,
         decision_status=ReconciliationStatus.SUPPORTED,
         declared_reviewer_identity="auditor-benjamin",
@@ -1067,10 +1134,11 @@ def test_mismatched_quote_snapshot_prevents_promotion() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[c_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     stmt_id = observation.extracted_statements[0].statement_id
     hd_dec = HumanStatementDecision(
-        decision_id="hsd-wrong-snap",
+    decision_id="hsd-wrong-snap",
         statement_id=stmt_id,
         decision_status=ReconciliationStatus.SUPPORTED,
         declared_reviewer_identity="auditor-benjamin",
@@ -1152,10 +1220,11 @@ def test_mismatched_quote_verifier_run_prevents_promotion() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[c_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     stmt_id = observation.extracted_statements[0].statement_id
     hd_dec = HumanStatementDecision(
-        decision_id="hsd-wrong-vrun",
+    decision_id="hsd-wrong-vrun",
         statement_id=stmt_id,
         decision_status=ReconciliationStatus.SUPPORTED,
         declared_reviewer_identity="auditor-benjamin",
@@ -1237,10 +1306,11 @@ def test_mismatched_quote_execution_id_prevents_promotion() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[c_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     stmt_id = observation.extracted_statements[0].statement_id
     hd_dec = HumanStatementDecision(
-        decision_id="hsd-mismatched-exec-quote",
+    decision_id="hsd-mismatched-exec-quote",
         statement_id=stmt_id,
         decision_status=ReconciliationStatus.SUPPORTED,
         declared_reviewer_identity="auditor-benjamin",
@@ -1301,13 +1371,17 @@ def test_mismatched_quote_execution_id_prevents_promotion() -> None:
     assert record.client_claim_assessments[0].assessment_status != ReconciliationStatus.SUPPORTED
 
 
-def test_authentic_sprint851_comparative_promotion_succeeds() -> None:
+def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path) -> None:
     """P0 TEST 13: Authentic HumanStatementDecision matching all 6 quote fields promotes claim assessment to SUPPORTED."""
     (
         observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
         raw_qm_bytes, raw_manifest_bytes, raw_profile_bytes, client_evidence,
         comp_evidence, c_exec, comp_exec
     ) = _setup_base_fixtures()
+
+    snapshot_store = SnapshotStore(tmp_path)
+    snapshot_store.save_snapshot(b"client snapshot bytes")
+    snapshot_store.save_snapshot(b"competitor snapshot bytes")
 
     gap_analyzer = ForensicGapAnalyzer()
     gap_record = gap_analyzer.analyze_gaps(
@@ -1322,10 +1396,11 @@ def test_authentic_sprint851_comparative_promotion_succeeds() -> None:
         raw_profile_bytes=raw_profile_bytes,
         collection_executions=[c_exec, comp_exec],
     )
+    gap_record = _with_authorized_execution_candidates(gap_record)
 
     stmt_id = observation.extracted_statements[0].statement_id
     hd_dec = HumanStatementDecision(
-        decision_id="hsd-authentic-sprint851",
+    decision_id="hsd-authentic-sprint851",
         statement_id=stmt_id,
         decision_status=ReconciliationStatus.SUPPORTED,
         declared_reviewer_identity="auditor-benjamin",
@@ -1380,7 +1455,136 @@ def test_authentic_sprint851_comparative_promotion_succeeds() -> None:
         raw_ledger_bytes=raw_ledger_bytes,
         raw_profile_bytes=raw_profile_bytes,
         human_decision_record=hd_record,
+        snapshot_store=snapshot_store,
     )
 
     # Authentic decision matching all 6 quote fields -> successfully promoted to SUPPORTED
     assert record.client_claim_assessments[0].assessment_status == ReconciliationStatus.SUPPORTED
+
+
+def test_gap_analyzer_rejects_same_run_id_substituted_ledger_model() -> None:
+    """P0: Raw ledger bytes, not a same-run-ID model, govern gap analysis."""
+    (
+        observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
+        raw_qm_bytes, raw_manifest_bytes, raw_profile_bytes, _client_evidence,
+        _comp_evidence, _c_exec, _comp_exec,
+    ) = _setup_base_fixtures()
+    substituted_ledger = ledger.model_copy(update={"evidence_ledger": {}})
+
+    with pytest.raises(ValueError, match="Canonical artifact mismatch: supplied AuditRun"):
+        ForensicGapAnalyzer.analyze_gaps(
+            subject_profile=profile,
+            observation=observation,
+            source_ledger=substituted_ledger,
+            query_map=query_map,
+            manifest=manifest,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )
+
+
+def test_comparator_rejects_substituted_profile_model() -> None:
+    """P0: Relationship classification cannot use a profile different from raw bytes."""
+    (
+        observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
+        raw_qm_bytes, raw_manifest_bytes, raw_profile_bytes, client_evidence,
+        comp_evidence, c_exec, comp_exec,
+    ) = _setup_base_fixtures()
+    gap_record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=profile,
+        observation=observation,
+        source_ledger=ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+        collection_executions=[c_exec, comp_exec],
+    )
+    gap_record = _with_authorized_execution_candidates(gap_record)
+    substituted_profile = profile.model_copy(update={"profile_id": "profile-substituted"})
+
+    with pytest.raises(ValueError, match="supplied SubjectProfile does not match its raw bytes"):
+        ComparativeEvidenceReconciler().compare_evidence(
+            observation=observation,
+            query_map=query_map,
+            gap_record=gap_record,
+            profile=substituted_profile,
+            client_evidence_id=client_evidence.evidence_id,
+            competitor_evidence_id=comp_evidence.evidence_id,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )
+
+
+def test_retained_snapshot_reference_and_bytes_are_required(tmp_path: Path) -> None:
+    """P0: Promotion cannot rely on a digest without reloadable retained bytes."""
+    (
+        _observation, _query_map, _manifest, _profile, _ledger, _raw_ledger_bytes,
+        _raw_qm_bytes, _raw_manifest_bytes, _raw_profile_bytes, client_evidence,
+        _comp_evidence, c_exec, _comp_exec,
+    ) = _setup_base_fixtures()
+    snapshot_store = SnapshotStore(tmp_path)
+    without_reference = client_evidence.model_copy(update={"snapshot_id": None})
+
+    with pytest.raises(ValueError, match="no retained snapshot reference"):
+        ComparativeEvidenceReconciler._verify_retained_snapshot(without_reference, c_exec, snapshot_store)
+    with pytest.raises(ValueError, match="retained snapshot is unavailable"):
+        ComparativeEvidenceReconciler._verify_retained_snapshot(client_evidence, c_exec, snapshot_store)
+
+    snapshot_path = snapshot_store.base_dir / f"{client_evidence.verification_artifact.snapshot_sha256}.txt"
+    snapshot_path.write_bytes(b"substituted snapshot bytes")
+    with pytest.raises(ValueError, match="retained snapshot bytes do not match"):
+        ComparativeEvidenceReconciler._verify_retained_snapshot(client_evidence, c_exec, snapshot_store)
+
+
+def test_execution_with_unauthorized_candidate_is_rejected() -> None:
+    """P0: A self-consistent execution digest does not establish candidate authority."""
+    (
+        observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
+        raw_qm_bytes, raw_manifest_bytes, raw_profile_bytes, _client_evidence,
+        _comp_evidence, c_exec, comp_exec,
+    ) = _setup_base_fixtures()
+    gap_record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=profile,
+        observation=observation,
+        source_ledger=ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+        collection_executions=[c_exec, comp_exec],
+    )
+    gap_record = _with_authorized_execution_candidates(gap_record)
+    forged_digest = CollectionExecutionRecord.compute_canonical_digest(
+        execution_id=c_exec.execution_id,
+        candidate_id="candidate-never-authorized",
+        target_query_id=c_exec.target_query_id,
+        cited_url=c_exec.cited_url,
+        observation_id=c_exec.observation_id,
+        raw_answer_sha256=c_exec.raw_answer_sha256,
+        profile_id=c_exec.profile_id,
+        profile_sha256=c_exec.profile_sha256,
+        manifest_sha256=c_exec.manifest_sha256,
+        query_map_sha256=c_exec.query_map_sha256,
+        source_ledger_sha256=c_exec.source_ledger_sha256,
+        evidence_id=c_exec.evidence_id,
+        verifier_run_id=c_exec.verifier_run_id,
+        snapshot_sha256=c_exec.snapshot_sha256,
+        execution_timestamp=c_exec.execution_timestamp,
+    )
+    forged_execution = c_exec.model_copy(
+        update={"candidate_id": "candidate-never-authorized", "canonical_digest": forged_digest}
+    )
+
+    with pytest.raises(ValueError, match="unauthorized candidate"):
+        ComparativeEvidenceReconciler._validate_execution_authority(
+            forged_execution, gap_record, observation, query_map, manifest
+        )

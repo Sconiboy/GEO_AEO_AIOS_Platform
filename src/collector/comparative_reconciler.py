@@ -21,7 +21,7 @@ from ..domain.comparative import (
     ComparativeEvidenceRecord,
     ComparativeSourceSummary,
 )
-from ..domain.enums import ReconciliationStatus, SourceRelationship, VerificationStatus
+from ..domain.enums import HumanApprovalState, ReconciliationStatus, SourceRelationship, VerificationStatus
 from ..domain.gap_analysis import FindingBasis, ForensicGapAnalysisRecord
 from ..domain.human_decision import HumanDecisionRecord
 from ..domain.models import AuditRun, EvidenceRecord
@@ -29,6 +29,8 @@ from ..domain.observation import AnswerObservation
 from ..domain.profile import SubjectProfile
 from ..domain.query_map import QueryMap
 from .gap_analyzer import ForensicGapAnalyzer
+from .query_map_runner import DatasetManifest
+from .snapshot import SnapshotStore
 
 
 class ComparativeEvidenceReconciler:
@@ -37,6 +39,105 @@ class ComparativeEvidenceReconciler:
     Parses evidence directly from raw_ledger_bytes to guarantee 100% byte-level identity.
     Emits an evidence-governed ComparativeEvidenceRecord with complete 9-hash context binding.
     """
+
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        return url.lower().rstrip("/")
+
+    @classmethod
+    def _validate_execution_authority(
+        cls,
+        execution: CollectionExecutionRecord,
+        gap_record: ForensicGapAnalysisRecord,
+        observation: AnswerObservation,
+        query_map: QueryMap,
+        manifest: DatasetManifest,
+    ) -> None:
+        """Proves that an integrity-valid execution originated from an authorized candidate."""
+        candidate = next(
+            (item for item in gap_record.collection_candidates if item.candidate_id == execution.candidate_id),
+            None,
+        )
+        if not candidate:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' references "
+                f"unauthorized candidate '{execution.candidate_id}'."
+            )
+        if candidate.requires_human_manifest_approval:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: candidate '{candidate.candidate_id}' still requires human manifest approval."
+            )
+        if candidate.target_query_id != observation.query_id or execution.target_query_id != observation.query_id:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' target query is not "
+                f"the current observation query '{observation.query_id}'."
+            )
+        if execution.target_query_id != candidate.target_query_id:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' target query does not "
+                "match its authorized candidate."
+            )
+        if cls._normalize_url(execution.cited_url) != cls._normalize_url(candidate.cited_url):
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' URL does not match "
+                "its authorized candidate."
+            )
+
+        target_query = next((item for item in query_map.queries if item.query_id == execution.target_query_id), None)
+        if not target_query or target_query.approval_state != HumanApprovalState.APPROVED:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' lacks an approved target query."
+            )
+
+        manifest_match = next(
+            (
+                item
+                for item in manifest.candidates
+                if item.query_id == execution.target_query_id
+                and cls._normalize_url(item.url) == cls._normalize_url(execution.cited_url)
+            ),
+            None,
+        )
+        if not manifest_match:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' URL/query is not "
+                "authorized in the current manifest."
+            )
+
+    @staticmethod
+    def _verify_retained_snapshot(
+        evidence: EvidenceRecord,
+        execution: CollectionExecutionRecord,
+        snapshot_store: Optional[SnapshotStore],
+    ) -> None:
+        """Requires reloadable snapshot bytes before a human decision can promote a claim."""
+        artifact = evidence.verification_artifact
+        if not artifact or not evidence.snapshot_id:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: evidence '{evidence.evidence_id}' has no retained snapshot reference."
+            )
+        expected_snapshot_id = f"snap-{artifact.snapshot_sha256[:16]}"
+        if evidence.snapshot_id != expected_snapshot_id:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: evidence '{evidence.evidence_id}' snapshot ID does not match its digest."
+            )
+        if not snapshot_store:
+            raise ValueError("Comparative Reconciliation Blocked: no approved snapshot resolver was provided for human promotion.")
+        try:
+            retained_bytes = snapshot_store.load_snapshot(artifact.snapshot_sha256)
+        except FileNotFoundError as exc:
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: retained snapshot is unavailable for evidence '{evidence.evidence_id}'."
+            ) from exc
+        retained_sha256 = hashlib.sha256(retained_bytes).hexdigest()
+        if retained_sha256.lower() != artifact.snapshot_sha256.lower():
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: retained snapshot bytes do not match evidence '{evidence.evidence_id}' digest."
+            )
+        if execution.snapshot_sha256.lower() != retained_sha256.lower():
+            raise ValueError(
+                f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' snapshot digest does not match retained bytes."
+            )
 
     @classmethod
     def evaluate_claim_support(
@@ -47,6 +148,7 @@ class ComparativeEvidenceReconciler:
         execution: Optional[CollectionExecutionRecord],
         expected_role: SourceRelationship,
         human_decision_record: Optional[HumanDecisionRecord] = None,
+        snapshot_store: Optional[SnapshotStore] = None,
     ) -> ClaimExcerptAssessment:
         """
         Evaluates an answer-surface statement claim against a verified evidence record excerpt resolved from the source ledger.
@@ -82,6 +184,7 @@ class ComparativeEvidenceReconciler:
                             break
 
                     if matching_quote:
+                        cls._verify_retained_snapshot(evidence, execution, snapshot_store)
                         return ClaimExcerptAssessment(
                             statement_id=statement_id,
                             statement_text=statement_text,
@@ -132,6 +235,7 @@ class ComparativeEvidenceReconciler:
         raw_profile_bytes: bytes,
         human_decision_record: Optional[HumanDecisionRecord] = None,
         timestamp: Optional[datetime] = None,
+        snapshot_store: Optional[SnapshotStore] = None,
     ) -> ComparativeEvidenceRecord:
         """
         Executes bounded comparative evidence reconciliation parsing AuditRun directly from raw_ledger_bytes.
@@ -151,6 +255,30 @@ class ComparativeEvidenceReconciler:
         manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
         ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
         profile_sha256 = hashlib.sha256(raw_profile_bytes).hexdigest()
+
+        # P0: All caller-supplied artifact models must match the authoritative raw
+        # bytes. Relationship classification and candidate authorization below use
+        # the parsed objects, never a potentially substituted in-memory model.
+        try:
+            parsed_profile = SubjectProfile.model_validate_json(raw_profile_bytes)
+            parsed_query_map = QueryMap.model_validate_json(raw_qm_bytes)
+            parsed_manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+        except Exception as exc:
+            raise ValueError(f"Comparative Reconciliation Blocked: Canonical artifact parsing failed: {exc}") from exc
+
+        supplied_artifacts = (
+            ("SubjectProfile", profile, parsed_profile),
+            ("QueryMap", query_map, parsed_query_map),
+        )
+        for artifact_name, supplied, parsed in supplied_artifacts:
+            if supplied.model_dump(mode="json") != parsed.model_dump(mode="json"):
+                raise ValueError(
+                    f"Comparative Reconciliation Blocked: supplied {artifact_name} does not match its raw bytes."
+                )
+
+        profile = parsed_profile
+        query_map = parsed_query_map
+        manifest = parsed_manifest
 
         # Step 2: Validate gap_record binding to raw_ledger_bytes
         if gap_record.source_ledger_sha256.lower() != ledger_sha256.lower():
@@ -277,6 +405,8 @@ class ComparativeEvidenceReconciler:
         if client_exec.query_map_sha256.lower() != qm_sha256.lower():
             raise ValueError(f"Comparative Reconciliation Blocked: Client execution query_map_sha256 ('{client_exec.query_map_sha256}') != raw query_map SHA-256 ('{qm_sha256}').")
 
+        cls._validate_execution_authority(client_exec, gap_record, observation, query_map, manifest)
+
         client_summary = ComparativeSourceSummary(
             domain=client_dom,
             url=client_evidence.url,
@@ -349,6 +479,8 @@ class ComparativeEvidenceReconciler:
         if comp_exec.query_map_sha256.lower() != qm_sha256.lower():
             raise ValueError(f"Comparative Reconciliation Blocked: Competitor execution query_map_sha256 ('{comp_exec.query_map_sha256}') != raw query_map SHA-256 ('{qm_sha256}').")
 
+        cls._validate_execution_authority(comp_exec, gap_record, observation, query_map, manifest)
+
         competitor_summary = ComparativeSourceSummary(
             domain=comp_dom,
             url=competitor_evidence.url,
@@ -375,6 +507,7 @@ class ComparativeEvidenceReconciler:
                     execution=client_exec,
                     expected_role=SourceRelationship.CLIENT_OWNED,
                     human_decision_record=human_decision_record,
+                    snapshot_store=snapshot_store,
                 )
             )
             competitor_assessments.append(
@@ -385,6 +518,7 @@ class ComparativeEvidenceReconciler:
                     execution=comp_exec,
                     expected_role=SourceRelationship.COMPETITOR_OWNED,
                     human_decision_record=human_decision_record,
+                    snapshot_store=snapshot_store,
                 )
             )
 

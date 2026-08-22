@@ -169,6 +169,7 @@ class ForensicGapAnalyzer:
         reconciliation: Optional[ObservationReconciliation] = None,
         collection_executions: Optional[List[CollectionExecutionRecord]] = None,
         collection_attempts: Optional[List[CollectionAttemptRecord]] = None,
+        prior_collection_candidates: Optional[List[ObservedCitationCollectionCandidate]] = None,
     ) -> ForensicGapAnalysisRecord:
         """
         Executes forensic gap analysis:
@@ -185,6 +186,34 @@ class ForensicGapAnalyzer:
         manifest_sha256 = hashlib.sha256(raw_manifest_bytes).hexdigest()
         ledger_sha256 = hashlib.sha256(raw_ledger_bytes).hexdigest()
         profile_sha256 = hashlib.sha256(raw_profile_bytes).hexdigest()
+
+        # P0: Raw artifacts, not caller-supplied models, are authoritative for every
+        # ledger-derived finding. The supplied models remain an explicit consistency
+        # check so a same-ID or same-run-ID substitution cannot influence analysis.
+        try:
+            parsed_profile = SubjectProfile.model_validate_json(raw_profile_bytes)
+            parsed_query_map = QueryMap.model_validate_json(raw_qm_bytes)
+            parsed_manifest = DatasetManifest.model_validate_json(raw_manifest_bytes)
+            parsed_source_ledger = AuditRun.model_validate_json(raw_ledger_bytes)
+        except Exception as exc:
+            raise ValueError(f"Canonical artifact parsing failed: {exc}") from exc
+
+        supplied_artifacts = (
+            ("SubjectProfile", subject_profile, parsed_profile),
+            ("QueryMap", query_map, parsed_query_map),
+            ("DatasetManifest", manifest, parsed_manifest),
+            ("AuditRun", source_ledger, parsed_source_ledger),
+        )
+        for artifact_name, supplied, parsed_artifact in supplied_artifacts:
+            if supplied.model_dump(mode="json") != parsed_artifact.model_dump(mode="json"):
+                raise ValueError(
+                    f"Canonical artifact mismatch: supplied {artifact_name} does not match its raw bytes."
+                )
+
+        subject_profile = parsed_profile
+        query_map = parsed_query_map
+        manifest = parsed_manifest
+        source_ledger = parsed_source_ledger
 
         # Gate: Validate human decision context bindings if supplied
         if human_decision:
@@ -216,8 +245,8 @@ class ForensicGapAnalyzer:
                 if ev.verification_artifact and ev.verification_artifact.final_url:
                     verified_canonical_urls.add(ev.verification_artifact.final_url.lower().rstrip("/"))
 
-                parsed = urlparse(ev.url)
-                dom = parsed.hostname.lower() if parsed.hostname else ev.url
+                parsed_url = urlparse(ev.url)
+                dom = parsed_url.hostname.lower() if parsed_url.hostname else ev.url
                 rel, _ = cls.classify_source_relationship(
                     domain=dom,
                     subject_profile=subject_profile,
@@ -320,6 +349,17 @@ class ForensicGapAnalyzer:
                         action_hypothesis=hypothesis,
                     )
                 )
+
+        # Once a candidate has been authorized and collected, its URL may now be
+        # verified and therefore no longer be re-emitted above. Retain it as part
+        # of the immutable gap-record provenance so comparative promotion can
+        # resolve every execution to the candidate that authorized it.
+        if prior_collection_candidates:
+            candidate_ids = {candidate.candidate_id for candidate in collection_candidates}
+            for candidate in prior_collection_candidates:
+                if candidate.candidate_id not in candidate_ids:
+                    collection_candidates.append(candidate)
+                    candidate_ids.add(candidate.candidate_id)
 
         # Step 4: Three-Way Statement Evidence Assessment
         supported_statement_ids: Set[str] = set()

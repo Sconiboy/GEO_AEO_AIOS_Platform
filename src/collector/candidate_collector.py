@@ -284,6 +284,7 @@ class CandidateCollector:
             human_decision=human_decision,
             collection_executions=existing_execs,
             collection_attempts=existing_attempts,
+            prior_collection_candidates=list(gap_record.collection_candidates),
         )
 
         return updated_source_ledger, updated_gap_record
