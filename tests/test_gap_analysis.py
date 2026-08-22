@@ -587,7 +587,16 @@ def test_replayed_human_decision_context_mismatch_rejected(sample_subject_profil
         decision_id="hdec-stmt-001",
         statement_id="stmt-001",
         decision_status=ReconciliationStatus.SUPPORTED,
-        quoted_evidence=[QuotedEvidencePassage(evidence_id="ev-b6868a371278", quoted_passage="Readability counts.")],
+        quoted_evidence=[
+            QuotedEvidencePassage(
+                evidence_id="ev-b6868a371278",
+                evidence_url="https://peps.python.org/pep-0020/",
+                snapshot_sha256="1e2b8d7404d38ac66e3f685c06490787fdd60391b79c338f20b390901aab899d",
+                verifier_run_id="vrun-001",
+                collection_execution_id="cer-001",
+                quoted_passage="Readability counts.",
+            )
+        ],
         auditor_rationale="Verified readability quote.",
         declared_reviewer_identity="Lead Auditor",
         decision_timestamp=datetime(2026, 8, 21, 0, 0, 0, tzinfo=timezone.utc),

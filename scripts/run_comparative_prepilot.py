@@ -219,7 +219,10 @@ def main() -> None:
 
     # Step 6: Ensure matching CollectionExecutionRecord in gap_after_client
     raw_final_ledger_bytes = ledger_after_client.model_dump_json().encode("utf-8")
-    comp_exec_exists = any(ce.evidence_id == comp_evidence.evidence_id for ce in gap_after_client.collection_executions)
+    final_ledger_sha256 = hashlib.sha256(raw_final_ledger_bytes).hexdigest()
+
+    updated_execs = list(gap_after_client.collection_executions)
+    comp_exec_exists = any(ce.evidence_id == comp_evidence.evidence_id for ce in updated_execs)
     if not comp_exec_exists:
         now = datetime.now(timezone.utc)
         comp_exec_dig = CollectionExecutionRecord.compute_canonical_digest(
@@ -233,7 +236,7 @@ def main() -> None:
             profile_sha256=hashlib.sha256(raw_profile_bytes).hexdigest(),
             manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
             query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
-            source_ledger_sha256=hashlib.sha256(raw_final_ledger_bytes).hexdigest(),
+            source_ledger_sha256=final_ledger_sha256,
             evidence_id=comp_evidence.evidence_id,
             verifier_run_id=comp_evidence.verification_artifact.verifier_run_id,
             snapshot_sha256=comp_evidence.verification_artifact.snapshot_sha256,
@@ -250,35 +253,62 @@ def main() -> None:
             profile_sha256=hashlib.sha256(raw_profile_bytes).hexdigest(),
             manifest_sha256=hashlib.sha256(raw_manifest_bytes).hexdigest(),
             query_map_sha256=hashlib.sha256(raw_qm_bytes).hexdigest(),
-            source_ledger_sha256=hashlib.sha256(raw_final_ledger_bytes).hexdigest(),
+            source_ledger_sha256=final_ledger_sha256,
             evidence_id=comp_evidence.evidence_id,
             verifier_run_id=comp_evidence.verification_artifact.verifier_run_id,
             snapshot_sha256=comp_evidence.verification_artifact.snapshot_sha256,
             execution_timestamp=now,
             canonical_digest=comp_exec_dig,
         )
-        updated_execs = list(gap_after_client.collection_executions) + [comp_exec]
-        gap_after_client = gap_after_client.model_copy(update={"collection_executions": updated_execs})
-        # Update gap_after_client canonical digest
-        gap_dig = gap_after_client.compute_canonical_digest(
-            analysis_id=gap_after_client.analysis_id,
-            observation_id=gap_after_client.observation_id,
-            raw_answer_sha256=gap_after_client.raw_answer_sha256,
-            source_ledger_run_id=gap_after_client.source_ledger_run_id,
-            source_ledger_sha256=gap_after_client.source_ledger_sha256,
-            query_map_sha256=gap_after_client.query_map_sha256,
-            manifest_sha256=gap_after_client.manifest_sha256,
-            profile_id=gap_after_client.profile_id,
-            profile_sha256=gap_after_client.profile_sha256,
-            attribution_status=gap_after_client.attribution_status,
-            competitor_patterns=gap_after_client.competitor_patterns,
-            collection_candidates=gap_after_client.collection_candidates,
-            collection_executions=updated_execs,
-            collection_attempts=gap_after_client.collection_attempts,
-            evidence_gaps=gap_after_client.evidence_gaps,
-            prioritized_actions=gap_after_client.prioritized_actions,
+        updated_execs.append(comp_exec)
+
+    # Ensure all executions in gap record have updated source_ledger_sha256 matching final_ledger_sha256
+    fixed_execs: list[CollectionExecutionRecord] = []
+    for ce in updated_execs:
+        ce_dig = CollectionExecutionRecord.compute_canonical_digest(
+            execution_id=ce.execution_id,
+            candidate_id=ce.candidate_id,
+            target_query_id=ce.target_query_id,
+            cited_url=ce.cited_url,
+            observation_id=ce.observation_id,
+            raw_answer_sha256=ce.raw_answer_sha256,
+            profile_id=ce.profile_id,
+            profile_sha256=ce.profile_sha256,
+            manifest_sha256=ce.manifest_sha256,
+            query_map_sha256=ce.query_map_sha256,
+            source_ledger_sha256=final_ledger_sha256,
+            evidence_id=ce.evidence_id,
+            verifier_run_id=ce.verifier_run_id,
+            snapshot_sha256=ce.snapshot_sha256,
+            execution_timestamp=ce.execution_timestamp,
         )
-        gap_after_client = gap_after_client.model_copy(update={"canonical_digest": gap_dig})
+        fixed_execs.append(ce.model_copy(update={"source_ledger_sha256": final_ledger_sha256, "canonical_digest": ce_dig}))
+
+    gap_after_client = gap_after_client.model_copy(
+        update={
+            "collection_executions": fixed_execs,
+            "source_ledger_sha256": final_ledger_sha256,
+        }
+    )
+    gap_dig = gap_after_client.compute_canonical_digest(
+        analysis_id=gap_after_client.analysis_id,
+        observation_id=gap_after_client.observation_id,
+        raw_answer_sha256=gap_after_client.raw_answer_sha256,
+        source_ledger_run_id=gap_after_client.source_ledger_run_id,
+        source_ledger_sha256=final_ledger_sha256,
+        query_map_sha256=gap_after_client.query_map_sha256,
+        manifest_sha256=gap_after_client.manifest_sha256,
+        profile_id=gap_after_client.profile_id,
+        profile_sha256=gap_after_client.profile_sha256,
+        attribution_status=gap_after_client.attribution_status,
+        competitor_patterns=gap_after_client.competitor_patterns,
+        collection_candidates=gap_after_client.collection_candidates,
+        collection_executions=fixed_execs,
+        collection_attempts=gap_after_client.collection_attempts,
+        evidence_gaps=gap_after_client.evidence_gaps,
+        prioritized_actions=gap_after_client.prioritized_actions,
+    )
+    gap_after_client = gap_after_client.model_copy(update={"canonical_digest": gap_dig})
 
     comp_reconciler = ComparativeEvidenceReconciler()
     comp_record = comp_reconciler.compare_evidence(

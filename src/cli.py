@@ -434,12 +434,16 @@ def run_cli_human_decision(
                     f"Fabricated quote rejected: Passage '{quote}' is not a verbatim substring of opened_excerpt for evidence record '{eid}'."
                 )
 
-            snap_hash = ev.verification_artifact.snapshot_sha256 if ev.verification_artifact else None
+            snap_hash = ev.verification_artifact.snapshot_sha256 if ev.verification_artifact else "0" * 64
+            verifier_run = ev.verification_artifact.verifier_run_id if ev.verification_artifact else "vrun-001"
             quoted_evidence_list.append(
                 QuotedEvidencePassage(
                     evidence_id=eid,
-                    quoted_passage=quote,
+                    evidence_url=ev.url,
                     snapshot_sha256=snap_hash,
+                    verifier_run_id=verifier_run,
+                    collection_execution_id=f"cer-cli-{eid}",
+                    quoted_passage=quote,
                 )
             )
 

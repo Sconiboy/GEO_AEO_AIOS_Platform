@@ -183,9 +183,12 @@ class ReportExporter:
             lines.append(f"- **Auditor Technical Rationale**: {dec.auditor_rationale}")
             lines.append(f"- **Verified Quoted Evidence Passages**:")
             for qe in dec.quoted_evidence:
-                snap_str = f" (Snapshot: `{qe.snapshot_sha256[:12]}...`)" if qe.snapshot_sha256 else ""
-                lines.append(f"  - **Evidence ID**: `{qe.evidence_id}`{snap_str}")
-                lines.append(f"    > *\"{qe.quoted_passage}\"*")
+                lines.append(f"  - **Evidence ID**: `{qe.evidence_id}`")
+                lines.append(f"    - **URL**: [{qe.evidence_url}]({qe.evidence_url})")
+                lines.append(f"    - **Verifier Run ID**: `{qe.verifier_run_id}`")
+                lines.append(f"    - **Collection Execution ID**: `{qe.collection_execution_id}`")
+                lines.append(f"    - **Snapshot Hash**: `{qe.snapshot_sha256[:16]}...`")
+                lines.append(f"    - **Quoted Passage**: *\"{qe.quoted_passage}\"*")
             lines.append("")
 
         lines.append("---")

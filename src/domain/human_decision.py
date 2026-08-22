@@ -1,8 +1,8 @@
 """
-Human Semantic Decision Domain Contracts (Sprint 6.4.1)
+Human Semantic Decision Domain Contracts (Sprint 8.5.1 Remediated)
 Defines immutable, content-addressed decision records representing human auditor governance.
 Enforces verbatim quote validation against opened evidence excerpts, quote-evidence pairing,
-declared reviewer identity, and timestamp digest binding.
+verifier run, snapshot digest, collection execution ID, declared reviewer identity, and timestamp digest binding.
 """
 
 import hashlib
@@ -16,14 +16,18 @@ from .enums import ReconciliationMethod, ReconciliationStatus
 
 class QuotedEvidencePassage(BaseModel):
     """
-    Explicit binding between a cited evidence record and a verbatim quoted passage.
+    Explicit binding between a cited evidence record, exact URL, verifier run ID, snapshot digest, collection execution ID,
+    and a verbatim quoted passage.
     """
 
     model_config = {"frozen": True}
 
     evidence_id: str = Field(..., description="Cited EvidenceRecord ID from Source Ledger")
+    evidence_url: str = Field(..., min_length=1, description="Exact cited evidence URL")
+    snapshot_sha256: str = Field(..., min_length=64, description="Durable HTML snapshot SHA-256 reference digest")
+    verifier_run_id: str = Field(..., min_length=1, description="Verifier run ID from verification artifact")
+    collection_execution_id: str = Field(..., min_length=1, description="Collection execution record ID")
     quoted_passage: str = Field(..., min_length=1, description="Verbatim passage extracted from evidence opened_excerpt")
-    snapshot_sha256: Optional[str] = Field(default=None, description="Durable snapshot SHA-256 reference digest")
 
 
 class HumanStatementDecision(BaseModel):
@@ -47,7 +51,7 @@ class HumanDecisionRecord(BaseModel):
     """
     Content-addressed, immutable record of human governance decisions over an AnswerObservation reconciliation.
     Binds exact observation ID, raw answer SHA-256, source ledger run ID, raw ledger SHA-256, query map SHA-256, and manifest SHA-256.
-    Includes decision timestamps, reconciliation methods, and quoted evidence bindings in canonical digest.
+    Includes decision timestamps, reconciliation methods, and full 6-binding quoted evidence passages in canonical digest.
     """
 
     model_config = {"frozen": True}
@@ -76,7 +80,7 @@ class HumanDecisionRecord(BaseModel):
     ) -> str:
         """
         Computes deterministic SHA-256 canonical digest covering all context bindings,
-        timestamps, methods, declared reviewer identity, and paired quoted evidence.
+        timestamps, methods, declared reviewer identity, and 6-binding quoted evidence passages.
         """
         payload = {
             "decision_record_id": decision_record_id,
@@ -94,8 +98,11 @@ class HumanDecisionRecord(BaseModel):
                     "quoted_evidence": [
                         {
                             "evidence_id": q.evidence_id,
+                            "evidence_url": q.evidence_url,
+                            "snapshot_sha256": q.snapshot_sha256.lower(),
+                            "verifier_run_id": q.verifier_run_id,
+                            "collection_execution_id": q.collection_execution_id,
                             "quoted_passage": q.quoted_passage,
-                            "snapshot_sha256": q.snapshot_sha256,
                         }
                         for q in sorted(d.quoted_evidence, key=lambda x: (x.evidence_id, x.quoted_passage))
                     ],

@@ -14,8 +14,11 @@
       "quoted_evidence": [
         {
           "evidence_id": "ev-2968acf27391",
-          "quoted_passage": "Explicit is better than implicit. Simple is better than complex.",
-          "snapshot_sha256": "1e2b8d7404d38ac66e3f685c06490787fdd60391b79c338f20b390901aab899d"
+          "evidence_url": "https://peps.python.org/pep-0020/",
+          "snapshot_sha256": "1e2b8d7404d38ac66e3f685c06490787fdd60391b79c338f20b390901aab899d",
+          "verifier_run_id": "vrun-qm-python-pub-001",
+          "collection_execution_id": "cer-ev-2968acf27391",
+          "quoted_passage": "Explicit is better than implicit. Simple is better than complex."
         }
       ],
       "auditor_rationale": "Human Auditor verification: The Zen of Python (PEP 20) explicitly states that explicit syntax is preferred over implicit magic, semantically supporting statement stmt-001.",
@@ -24,5 +27,5 @@
       "reconciliation_method": "human_auditor_review"
     }
   ],
-  "canonical_digest": "1a60d294d04ad557c4b2710b6d748d3d7fd71829712213008c13c876ad0216f2"
+  "canonical_digest": "912b2dc86e8e2d5294f42785f94ea56558343dd22abcb042813b53e616306af2"
 }

@@ -16,8 +16,11 @@ def test_human_decision_model_integrity_and_timestamp_tampering():
     """P0 TEST: Verify timestamp and reconciliation_method tampering invalidates canonical_digest."""
     qe = QuotedEvidencePassage(
         evidence_id="ev-2968acf27391",
-        quoted_passage="Explicit is better than implicit.",
+        evidence_url="https://peps.python.org/pep-0020/",
         snapshot_sha256="1e2b8d7404d38ac66e3f685c06490787fdd60391b79c338f20b390901aab899d",
+        verifier_run_id="vrun-001",
+        collection_execution_id="cer-001",
+        quoted_passage="Explicit is better than implicit.",
     )
     stmt_dec = HumanStatementDecision(
         decision_id="hdec-stmt-001",
