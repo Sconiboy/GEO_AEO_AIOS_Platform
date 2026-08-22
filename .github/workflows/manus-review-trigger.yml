@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - "docs/MANUS_SPRINT*_REVIEW.md"
+      - "docs/MANUS_AUTOMATED_REVIEW_*.md"
       - "docs/MANUS_REVIEW_AUTOMATION.md"
       - ".github/workflows/manus-review-trigger.yml"
   workflow_dispatch:
@@ -43,7 +44,8 @@ jobs:
           test "$(wc -c < dispatch/review-context.tgz)" -le 15728640
           base64 --wrap=0 dispatch/review-context.tgz > dispatch/review-context.b64
 
-          review_prompt="Review the attached exact Git archive as an independent, evidence-governed reviewer. Repository: $REPOSITORY. Branch: $REVIEWED_REF. Commit: $REVIEWED_COMMIT. Extract the archive and run its stated tests and static type checks. Read docs/MANUS_SPRINT84_REVIEW.md. Approve only if raw ledger bytes are parsed into an AuditRun or proven canonically equivalent to the supplied model; both selected records require OPENED_VERIFIED, retained snapshot, verifier-run, and immutable collection-execution provenance; and every human-promoted quote binds exact evidence ID, URL, snapshot SHA-256, verifier run ID, collection execution ID, and quote text. Try to falsify each control, including raw/model mismatch, absent provenance, optional snapshots, and altered quote provenance. If GitHub write access is available, create only docs/MANUS_SPRINT85_REVIEW.md with the verdict, observed commands, findings, and next action; commit it as Manus Review Bot using docs(review): Manus Sprint 8.5 provenance review [manus-review], then push. Never modify code, workflows, settings, or secrets. Never push when validation is incomplete."
+          review_file="docs/MANUS_AUTOMATED_REVIEW_$REVIEWED_COMMIT.md"
+          review_prompt="Review the attached exact Git archive as an independent, evidence-governed reviewer. Repository: $REPOSITORY. Branch: $REVIEWED_REF. Commit: $REVIEWED_COMMIT. Extract the archive and run its stated tests and static type checks. Read docs/MANUS_SPRINT85_REVIEW.md as the current gate. Approve only if promoted human quotes bind exact evidence ID, URL, quoted text, snapshot SHA-256, verifier-run ID, and collection-execution ID; each selected collection execution verifies its own integrity and exact current evidence/raw-ledger/observation/profile/query-map/manifest context; and the gap record ledger SHA-256 matches the exact raw ledger bytes. Try to falsify every binding, including foreign or forged collection executions. If GitHub write access is available, create only $review_file with the verdict, observed commands, findings, and next action; commit it as Manus Review Bot using docs(review): automated provenance review $REVIEWED_COMMIT [manus-review], then push. Never modify code, workflows, settings, or secrets. Never push when validation is incomplete."
           jq -n --arg content "$review_prompt" --arg title "Forensic provenance review $REVIEWED_COMMIT" --rawfile archive dispatch/review-context.b64 '{message:{content:[{type:"text",text:$content},{type:"file",filename:"review-context.tgz",mime_type:"application/gzip",file_data:("data:application/gzip;base64,"+$archive)}]},title:$title,interactive_mode:false,share_visibility:"private",agent_profile:"manus-1.6"}' > dispatch/request.json
           status="$(curl --silent --show-error --output dispatch/response.json --write-out '%{http_code}' --request POST https://api.manus.ai/v2/task.create --header "x-manus-api-key: $MANUS_API_KEY" --header 'Content-Type: application/json' --data @dispatch/request.json)"
           test "$status" = 200
