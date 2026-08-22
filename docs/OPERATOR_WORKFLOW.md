@@ -11,16 +11,16 @@ This workflow turns the platform into a repeatable service operation. Every stag
 | 0. Scope | Define category, geography, client domains, declared competitors, and commercial question. | SubjectProfile | Approve scope. | Client asks for an unsupported ranking or causal promise. |
 | 1. Query design | Create the buyer-intent QueryMap and cap sources per query. | Frozen QueryMap | Approve each target query. | Queries are vague, unbounded, or prohibited. |
 | 2. Capture policy | Declare model surface, operator, expected citation format, and capture metadata. | Capture protocol | Approve capture conditions. | Login, region, or provider blocks reproducible capture. |
-| 3. Source authorization | List exact candidate URLs, excerpts, domains, and source types. | DatasetManifest | Approve candidates before collection. | URL was only discovered after capture and lacks approval. |
-| 4. Collection | Fetch only approved URLs under source policy and retain snapshots. | AuditRun / source ledger | Review failures and redirects. | Source fails SSRF, content, quote, or snapshot verification. |
-| 5. Observation | Preserve the raw model answer and bind it to all frozen inputs. | AnswerObservation + CaptureArtifact | Validate artifact integrity. | Transcript is reconstructed, metadata is missing, or hashes differ. |
-| 6. Classification | Identify only explicit answer citations and compare exact URLs to evidence. | ForensicGapAnalysisRecord | Review candidates and classification. | Citation is inferred, URL is ambiguous, or subject/competitor ownership is undeclared. |
+| 3. Natural answer capture | Preserve the exact answer to the approved buyer question in a context-neutral session. | AnswerObservation + CaptureArtifact | Validate transcript integrity and session conditions. | Transcript is reconstructed, account-specific context appears, metadata is missing, or hashes differ. |
+| 4. Source candidate review | Turn each visible answer URL into a candidate with publisher context, source type, and entity relationship. | CitationCandidateSet | Approve exact URLs for collection. | Citation is inferred, URL is ambiguous, or publisher context cannot be identified. |
+| 5. Collection | Fetch only approved post-capture candidate URLs under source policy and retain snapshots. | AuditRun / source ledger | Review failures and redirects. | Source fails SSRF, content, quote, or snapshot verification. |
+| 6. Classification | Compare exact observed citations to collected evidence and declared entity relationships. | ForensicGapAnalysisRecord | Review candidates and classification. | Subject or competitor ownership is undeclared. |
 | 7. Semantic review | Compare exact passages and issue a human decision where warranted. | HumanDecisionRecord | Approve, reject, or mark not assessable. | The claim relies on keywords, generic similarity, or no evidence. |
 | 8. Executive report | Convert approved observations and hypotheses into a decision brief and 90-day plan. | Report + artifact appendix | Approve delivery scope. | Report implies causal ranking, universal visibility, or guaranteed outcomes. |
 
 ## Practical Operating Cadence
 
-The first engagement should use a deliberately small panel: three to five approved buyer queries, two accessible model surfaces, and a bounded source manifest. The operator should then decide whether results justify expanding the query panel or whether access quality, evidence quality, or commercial relevance is too weak.
+The first engagement should use a deliberately small panel: three to five approved buyer queries and two accessible model surfaces. Each captured answer creates its own reviewed source-candidate set. The operator should then decide whether results justify expanding the query panel or whether access quality, evidence quality, or commercial relevance is too weak.
 
 | Cadence | Activity | Output |
 | --- | --- | --- |
