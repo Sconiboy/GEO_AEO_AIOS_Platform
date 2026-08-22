@@ -29,7 +29,15 @@ This report answers a limited practical question: **what publicly verifiable evi
 | Evidence sources | `[first-party / editorial / community / review]` | `[opened verified count]` | `[source-type imbalance]` |
 | Audit window | `[UTC range]` | `[timestamps]` | `[time-bound results]` |
 
-## 3. Observed Answer-Surface Evidence
+## 3. Source Evidence Map — Start Here
+
+Show this section before any gap or recommendation. It answers the client’s first question: **“Where did the answer get this?”**
+
+| Surfaced URL | Appeared in answer? | Entity relationship | Source type | Exact verified passage | What it supports | What it does **not** support |
+| --- | --- | --- | --- | --- | --- | --- |
+| `[URL]` | `[yes — explicit / no — independent context]` | `[competitor / client / independent / unknown]` | `[type]` | `[verbatim passage]` | `[narrow factual relevance]` | `[no causal or ranking inference]` |
+
+## 4. Observed Answer-Surface Evidence
 
 For each captured answer, preserve the raw transcript, capture timestamp, provider/model, operator, query ID, and direct URLs. Do not substitute summaries for the artifact.
 
@@ -37,7 +45,7 @@ For each captured answer, preserve the raw transcript, capture timestamp, provid
 | --- | --- | --- | --- | --- | --- |
 | `[query ID]` | `[provider / model]` | `[UTC]` | `[exact URLs or none]` | `[exact URLs and entity]` | `[URLs requiring approval]` |
 
-## 4. Evidence Ecosystem Comparison
+## 5. Evidence Ecosystem Comparison
 
 | Entity / source | Relationship | Source type | Verified passage | Snapshot / verifier reference | What it proves | What it does **not** prove |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -45,7 +53,7 @@ For each captured answer, preserve the raw transcript, capture timestamp, provid
 | `[subject URL]` | Subject-owned | `[type]` | `[verbatim excerpt]` | `[evidence ID / snapshot]` | `[narrow factual scope]` | `[no absence or ranking claim]` |
 | `[third-party URL]` | Independent / community / review | `[type]` | `[verbatim excerpt]` | `[evidence ID / snapshot]` | `[narrow factual scope]` | `[no endorsement inference]` |
 
-## 5. Preliminary Evidence-Gap Hypotheses
+## 6. Preliminary Evidence-Gap Hypotheses
 
 Each hypothesis must be human-reviewed. Use conditional language and link it to exact evidence.
 
@@ -53,7 +61,7 @@ Each hypothesis must be human-reviewed. Use conditional language and link it to 
 | --- | --- | --- | --- | --- |
 | `[e.g., category-specific proof appears more explicit on the competitor source than in the subject source sampled]` | `[observation and evidence IDs]` | `[sample limits and alternative explanations]` | `[candidate / approved / rejected]` | `[reviewer / timestamp]` |
 
-## 6. 90-Day Catch-Up Plan
+## 7. 90-Day Catch-Up Plan
 
 The plan is about **better proof and clearer public evidence**, not manipulation. No action becomes client-ready without an approved hypothesis and success condition.
 
@@ -63,7 +71,7 @@ The plan is about **better proof and clearer public evidence**, not manipulation
 | Days 31–60 | `[create or improve one genuinely useful category-specific source]` | `[owner]` | `[source publishes, is accurate, and can be verified]` | `Do not claim model ranking outcomes.` |
 | Days 61–90 | `[earn legitimate editorial, partner, or community references where appropriate]` | `[owner]` | `[independent source is real and non-incentivized]` | `Do not buy or fabricate reviews, citations, or forum posts.` |
 
-## 7. Measurement Plan
+## 8. Measurement Plan
 
 | Metric | Defined measurement | Review cadence | Failure condition |
 | --- | --- | --- | --- |
@@ -71,7 +79,7 @@ The plan is about **better proof and clearer public evidence**, not manipulation
 | Verified subject evidence coverage | `[opened verified sources by evidence type]` | `[cadence]` | `Sources are generic, stale, or non-verifiable` |
 | Hypothesis progression | `[approved / rejected / unresolved]` | `[cadence]` | `No human review or missing raw artifacts` |
 
-## 8. Explicit Non-Claims
+## 9. Explicit Non-Claims
 
 This report does **not** claim that:
 
@@ -81,12 +89,12 @@ This report does **not** claim that:
 4. missing citation in the sample means the subject cannot be cited elsewhere; or
 5. a recommended action will produce a model-answer outcome.
 
-## 9. Approval Record
+## 10. Approval Record
 
 | Decision | Approver | Timestamp (UTC) | Scope of approval |
 | --- | --- | --- | --- |
 | `[approve / hold / reject]` | `[name]` | `[timestamp]` | `[hypothesis / next collection / client delivery]` |
 
-## 10. Artifact Appendix
+## 11. Artifact Appendix
 
 List the immutable artifacts required to replay this report: QueryMap, DatasetManifest, SubjectProfile, raw source ledger, raw answer transcript, AnswerObservation, gap-analysis record, collection executions, human decision records, and their SHA-256 digests.
