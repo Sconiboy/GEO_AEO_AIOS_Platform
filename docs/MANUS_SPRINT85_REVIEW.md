@@ -1,62 +1,77 @@
-# Manus Sprint 8.5 Comparative Provenance Review
+# Manus Sprint 8.5 Provenance Review
 
-**Reviewed implementation commit:** `81c2db8`  
-**Review context:** `origin/main` at `27753f8`  
-**Status:** **REJECTED — raw-ledger parsing is corrected, but human quote and collection-execution provenance remain insufficient for comparative promotion.**  
+**Reviewed repository:** `Sconiboy/GEO_AEO_AIOS_Platform`
+
+**Reviewed branch and commit:** `main` at `63eef00ccad0924aad17db897d331a148ceb75c9`
+
+**Review basis:** Supplied `review-context.tgz`, independently compared byte-for-byte with a fresh Git archive of the reviewed commit.
+
+**Reviewer:** Manus Review Bot
+
 **Date:** August 22, 2026
+**Verdict:** **REJECTED — validation completed, but two approval-critical provenance controls remain falsifiable.**
 
-## Independent validation
+## Decision
 
-| Check | Observed result |
-| --- | --- |
-| Full test suite | `87 passed` in `8.60s`; total coverage reported as 82%. |
-| Static typing | `mypy src` completed with **no issues** across 27 source files. |
-| Comparative pre-pilot | Completed after setting `PYTHONPATH=.`; it created a comparative record and verified its canonical digest. |
-| Raw-ledger path | The reconciler now parses `raw_ledger_bytes` into an `AuditRun` and resolves selected evidence only from that parsed record. [1] |
+The reviewed comparator materially improves the previous controls. It parses `raw_ledger_bytes` directly into an `AuditRun`, resolves selected evidence from that parsed artifact, requires `OPENED_VERIFIED` status and verifier artifacts, verifies collection-execution digests and context fields, and blocks promotion when any of the six per-quote bindings is altered. [1] [2]
 
-The green suite demonstrates that the submitted implementation is internally consistent with its current tests. It does **not** prove that a human-promoted comparative finding is bound to the exact verifier and collection execution that produced the selected evidence.
+Approval is nevertheless not justified. The upstream gap-analysis API still accepts both a supplied `AuditRun` model and raw-ledger bytes without proving that they are equivalent. An independent harness supplied an **empty** model with the **same run ID** as a raw ledger containing the two selected records; it produced an integrity-valid gap record and then reached full human-supported comparative promotion. The reviewed code treats the common run ID and raw SHA-256 as sufficient, even though the gap analysis itself was derived from a different model. [3]
 
-## What Sprint 8.5 fixed
+The retained-snapshot control is also not enforced. A 64-hex `snapshot_sha256` value with no corresponding file in either retained snapshot location was accepted through human-supported promotion. The comparator validates a non-empty digest string and equality across records; it never resolves retained snapshot bytes or recomputes their SHA-256. [1] [4]
 
-The separate caller-provided `AuditRun` argument is gone. `compare_evidence()` parses the raw ledger artifact directly, checks the parsed run ID against the gap record, and resolves both selected evidence IDs from that parsed ledger. This closes the prior raw-bytes versus in-memory-ledger substitution path. [1]
+> **Approval boundary:** A human-supported comparative conclusion must not be produced when the record that supplies its collection/provenance context was built from a different ledger model than the raw artifact, or when the claimed snapshot cannot be retrieved and hashed.
 
-The comparator also rejects selected evidence that is not `OPENED_VERIFIED`, lacks a verification artifact, lacks a snapshot digest, lacks a verifier-run ID, or lacks a collection-execution object with the same evidence ID. The new omitted-snapshot test correctly shows that a quote lacking `snapshot_sha256` cannot promote a claim. [1] [2]
+| Required approval control | Independent result | Evidence | Status |
+|---|---|---|---|
+| Raw bytes are parsed into `AuditRun` or supplied model is proven canonically equivalent | `ComparativeEvidenceReconciler` parses raw bytes, but `ForensicGapAnalyzer` still trusts a separate supplied model. A same-run-ID empty model reached full promotion against a raw two-record ledger. | `src/collector/comparative_reconciler.py`; `src/collector/gap_analyzer.py`; independent adversarial harness | **FAIL** |
+| Both selected records are `OPENED_VERIFIED` | Unverified selected client evidence was blocked. | Independent harness; `src/collector/comparative_reconciler.py` | **PASS** |
+| Both selected records have verifier-run provenance | Missing artifact and `vrun-unknown` were blocked; a recomputed execution with a wrong verifier run was blocked. | Independent harness; `src/collector/comparative_reconciler.py` | **PASS** |
+| Both selected records have immutable collection-execution provenance | Missing execution, forged execution digest, and recomputed wrong URL/verifier/snapshot/ledger-digest executions were blocked. | Independent harness; `src/domain/candidate_collection.py`; `src/collector/comparative_reconciler.py` | **PASS** |
+| Both selected records have a retained snapshot | A nonexistent 64-hex snapshot digest passed baseline human promotion. No retained-byte lookup or hash verification occurs at promotion. | Independent harness; `src/collector/comparative_reconciler.py`; `src/collector/snapshot.py` | **FAIL** |
+| Every human-promoted quote binds exact evidence ID, URL, snapshot SHA-256, verifier-run ID, collection-execution ID, and quote text | Altering each of the six bindings independently prevented client promotion. | Independent harness; `src/domain/human_decision.py`; `src/collector/comparative_reconciler.py` | **PASS** |
 
-## P0: a human-promoted quote still lacks four required bindings
+## Observed commands and results
 
-`QuotedEvidencePassage` contains only `evidence_id`, `quoted_passage`, and an **optional** `snapshot_sha256`. It has no evidence URL, verifier-run ID, or collection-execution ID. [3] The comparator consequently promotes a human decision after checking only evidence ID, text containment, and snapshot-digest equality. [1]
+The archive contained 126 files and matched a fresh Git archive of the requested commit byte-for-byte. The embedded tar commit identifier was unavailable, so the identity conclusion rests on that complete tree comparison and Git object verification.
 
-This fails the required Sprint 8.5 control. A promoted quote must always bind the exact current **evidence ID, URL, snapshot SHA-256, verifier-run ID, collection-execution ID, and quoted text**. The model cannot represent four of those bindings, so no test can prove them. A record with the right evidence ID and snapshot digest but a wrong execution or verifier would currently still promote.
+| Command | Result |
+|---|---|
+| `git -C repo.git archive ... 63eef00... | tar ...` followed by `diff -r --brief` against the extracted archive | **126 files vs. 126 files; exact tree match** |
+| `pytest` | **89 passed** |
+| `mypy src` | **Success: no issues found in 27 source files** |
+| External adversarial harness (`/home/ubuntu/sprint85_review/sprint85_adversarial.py`) | Baseline authentic promotion passed; altered quote evidence ID, URL, snapshot, verifier run, execution ID, and text did not promote; missing artifact, non-verified evidence, absent execution, unknown verifier sentinel, and recomputed altered execution fields were blocked; raw/model mismatch and nonexistent snapshot retention were accepted. |
 
-## P0: collection execution is selected by evidence ID but not proven authentic or current
+## Findings
 
-The reconciler locates a collection execution with `next(... if ce.evidence_id == selected_evidence_id)` and then copies its `execution_id` into the output. It does not call `CollectionExecutionRecord.verify_integrity()` and does not compare the execution's URL, verifier-run ID, snapshot SHA-256, source-ledger digest, observation, profile, manifest, or query-map context to the selected evidence and current artifacts. [1] [4]
+### P0 — Raw/model identity is not enforced across the provenance pipeline
 
-`ForensicGapAnalysisRecord.verify_integrity()` only verifies its own digest over the child execution’s stored `canonical_digest` field. It does not verify that the child digest is valid, nor that the child’s fields belong to the current raw ledger. [4] Therefore a forged or foreign execution record with the selected evidence ID can satisfy the current existence check and be represented as provenance.
+`ForensicGapAnalyzer.analyze_gaps()` derives verified URLs, evidence counts, collection candidates, and client-evidence state from its `source_ledger` parameter, while it only hashes `raw_ledger_bytes`; it does not parse and use those bytes or compare them to the model. [3] The final comparator only checks the resulting gap record's run ID and raw-ledger hash before parsing raw bytes for its own selected evidence lookup. [1]
 
-## P0: the gap record’s ledger digest is not bound to the raw ledger used for selection
+The independent adversarial result is material: an empty supplied model with the same `run_id` as the raw two-record ledger generated an integrity-valid gap record with `total_sources_evaluated == 0`. That record, along with genuine executions and a correctly bound human decision for the raw ledger, reached `SUPPORTED` assessments for both sources. The control therefore does not establish that the upstream provenance context came from the immutable raw artifact.
 
-The reconciler compares the parsed raw ledger’s `run_id` to the gap record, but it does not compare `gap_record.source_ledger_sha256` to `sha256(raw_ledger_bytes)`. The raw digest is calculated later, and only an optional human-decision record is compared against it. [1] This leaves the collection executions in the gap record able to claim a different ledger artifact that happens to reuse the same run ID.
+### P0 — Snapshot SHA-256 is a claim, not proof of retained bytes
 
-## Required Sprint 8.5.1 remediation
+The selected-record gate rejects a missing or `unknown` digest but accepts any other 64-character digest. [1] `VerificationArtifact` contains only a digest; it does not bind a retained artifact location or content-addressed snapshot record. [4] The promotion path neither reads a snapshot nor recomputes a digest.
 
-| Required change | Acceptance condition |
-| --- | --- |
-| Expand the quote contract | Make `evidence_url`, `verifier_run_id`, and `collection_execution_id` required `QuotedEvidencePassage` fields. Include them in the human-decision canonical digest. |
-| Validate quote provenance at promotion | Compare every quoted field exactly against the parsed evidence and its selected, validated execution. A missing, unknown, or mismatched value must return the non-promoted assessment. |
-| Validate execution provenance | Require `CollectionExecutionRecord.verify_integrity()` and exact equality for evidence ID, URL, verifier-run ID, snapshot digest, raw-ledger digest, observation, profile, manifest, and query-map bindings. |
-| Bind the gap record to raw ledger bytes | Reject when `gap_record.source_ledger_sha256` differs from `sha256(raw_ledger_bytes)`, in addition to the existing run-ID check. |
-| Add adversarial tests | Prove rejection for forged execution digest, same-evidence-ID foreign execution, wrong execution URL, wrong verifier run, wrong execution snapshot, wrong execution ledger hash, and each missing or mismatched quote binding. |
+The independent harness set both selected evidence artifacts and their collection executions to a nonexistent `ff...ff` snapshot digest. There was no matching `.snapshots/<sha>.txt` or `data/snapshots/<sha>.txt` file. The final comparator nevertheless returned human-supported assessments. That directly falsifies the requirement for a **retained** snapshot rather than a syntactically valid hash string.
 
-> The implementation may continue to create an investigation record with non-promoted assessments. It must not issue a human-supported comparative evidence-gap conclusion until every binding above is enforced and adversarially tested.
+### Controls that held under falsification
 
-## Decision boundary
+The final comparative gate correctly failed closed for the following attempted bypasses: client evidence lacking `OPENED_VERIFIED` status, missing verification artifact, absent collection execution, `vrun-unknown`, and recomputed-but-altered execution URL, verifier run, snapshot digest, or source-ledger digest. [1] It also kept the client assessment non-promoted when any one of the required human-quote fields was changed: evidence ID, URL, snapshot SHA-256, verifier run ID, collection execution ID, or quote text. [1] [2]
 
-Sprint 8.5 makes a meaningful correction to raw-ledger identity and removes the snapshot-optional promotion path. It does **not** yet establish that a human adjudication references the real verifier and collection execution responsible for the selected ledger evidence. Approval would overstate the provenance available in the current contracts.
+## Next action
+
+The next remediation must be limited and testable:
+
+1. **Eliminate the separate trusted ledger model from `ForensicGapAnalyzer`, or parse `raw_ledger_bytes` there and use only the parsed ledger.** If an API model remains necessary, reject unless its canonical content and every relevant evidence record exactly match the parsed raw artifact; matching only `run_id` is insufficient.
+2. **Make snapshot retention verifiable at promotion.** Bind a content-addressed snapshot locator or immutable snapshot record to `VerificationArtifact` and `CollectionExecutionRecord`; retrieve the retained bytes and require their recomputed SHA-256 to match the evidence, execution, and human quote bindings before a human-supported assessment is returned.
+3. **Add adversarial tests for both failures.** At minimum, reject a same-run-ID but altered/empty supplied model when raw bytes differ, and reject a digest with no retained snapshot as well as retained bytes whose digest does not match. Keep the current six altered-quote and execution-field tests.
+
+No code, workflow, setting, or secret was changed in this review; this document is the only intended repository modification.
 
 ## References
 
-[1]: ../src/collector/comparative_reconciler.py "Sprint 8.5 comparative reconciler"
-[2]: ../tests/test_comparative_reconciler.py "Focused comparative reconciler tests"
-[3]: ../src/domain/human_decision.py "Human decision and quoted evidence contracts"
-[4]: ../src/domain/candidate_collection.py "Collection execution integrity contract"
+[1]: ../src/collector/comparative_reconciler.py "Comparative provenance gate"
+[2]: ../src/domain/human_decision.py "Human quote evidence contract"
+[3]: ../src/collector/gap_analyzer.py "Gap-analysis ledger input handling"
+[4]: ../src/domain/models.py "Verification artifact contract"
