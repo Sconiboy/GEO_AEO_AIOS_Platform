@@ -1,0 +1,21 @@
+{
+  "manifest_id": "manifest-claude-b2b-saas-seo-20260822",
+  "description": "Pre-approved public non-client source set for one governed Claude B2B SaaS SEO-agency answer recapture. The sources are not rankings and their inclusion does not assert model causality.",
+  "is_non_client_spike": true,
+  "candidates": [
+    {
+      "query_id": "q-claude-b2b-saas-seo-001",
+      "url": "https://virayo.com/saas-seo",
+      "candidate_excerpt": "Virayo is a B2B SaaS SEO agency that builds organic pipeline across traditional search and AI discovery.",
+      "source_type": "vendor_marketing",
+      "is_independent": false
+    },
+    {
+      "query_id": "q-claude-b2b-saas-seo-001",
+      "url": "https://www.searchbloom.com/ai-information/",
+      "candidate_excerpt": "Searchbloom is an award-winning, full-service search marketing agency",
+      "source_type": "vendor_marketing",
+      "is_independent": false
+    }
+  ]
+}

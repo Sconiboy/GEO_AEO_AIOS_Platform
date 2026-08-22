@@ -1,0 +1,81 @@
+{
+  "run_id": "run-qm-qm-claude-b2b-saas-seo-20260822",
+  "client_domain": "Searchbloom public non-client portfolio subject",
+  "category": "B2B SaaS SEO agency services",
+  "created_at": "2026-08-22T14:40:22.097669Z",
+  "is_synthetic_fixture": true,
+  "notice": "CONTROLLED NON-CLIENT DATASET SPIKE - NOT A COMMERCIAL CLIENT AUDIT",
+  "evidence_ledger": {
+    "ev-13cc70238fda": {
+      "evidence_id": "ev-13cc70238fda",
+      "url": "https://virayo.com/saas-seo",
+      "opened_excerpt": "Virayo is a B2B SaaS SEO agency that builds organic pipeline across traditional search and AI discovery.",
+      "source_type": "vendor_marketing",
+      "verification_status": "opened_verified",
+      "failure_category": null,
+      "failure_reason": null,
+      "retrieval_timestamp": "2026-08-22T14:40:19.855936Z",
+      "snapshot_id": "snap-3cc87768be7e8ddd",
+      "is_independent": false,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-250a4479",
+        "verification_timestamp": "2026-08-22T14:40:19.855868Z",
+        "verifier_method": "PARSED_VISIBLE_TEXT_BS4",
+        "snapshot_sha256": "3cc87768be7e8ddddb2a7196630021e2bef260478621e950e109199f284ffb53",
+        "quote_exact_match": true,
+        "final_url": "https://virayo.com/saas-seo",
+        "http_status": 200,
+        "content_type": "text/html",
+        "content_length_bytes": 87402,
+        "retrieval_duration_ms": 2004.4,
+        "policy_warnings": [],
+        "failure_category": null,
+        "failure_reason": null,
+        "limitations": "Manual pre-hop redirect validation under SourcePolicy rules (PARSED_VISIBLE_TEXT_BS4)"
+      }
+    },
+    "ev-ee26f4e4b619": {
+      "evidence_id": "ev-ee26f4e4b619",
+      "url": "https://www.searchbloom.com/ai-information/",
+      "opened_excerpt": "Searchbloom is an award-winning, full-service search marketing agency",
+      "source_type": "vendor_marketing",
+      "verification_status": "opened_verified",
+      "failure_category": null,
+      "failure_reason": null,
+      "retrieval_timestamp": "2026-08-22T14:40:22.097551Z",
+      "snapshot_id": "snap-d5b53bc50ee8fcbd",
+      "is_independent": false,
+      "is_syndicated_duplicate": false,
+      "verification_artifact": {
+        "verifier_run_id": "verifier-run-a35005e6",
+        "verification_timestamp": "2026-08-22T14:40:22.097498Z",
+        "verifier_method": "PARSED_VISIBLE_TEXT_BS4",
+        "snapshot_sha256": "d5b53bc50ee8fcbd5754909285a36f71a16125bd38e2856db938fbc2d906da5f",
+        "quote_exact_match": true,
+        "final_url": "https://www.searchbloom.com/ai-information/",
+        "http_status": 200,
+        "content_type": "text/html",
+        "content_length_bytes": 68567,
+        "retrieval_duration_ms": 1705.65,
+        "policy_warnings": [],
+        "failure_category": null,
+        "failure_reason": null,
+        "limitations": "Manual pre-hop redirect validation under SourcePolicy rules (PARSED_VISIBLE_TEXT_BS4)"
+      }
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "claim-q-claude-b2b-saas-seo-001",
+      "statement": "Verified public source evidence exists for query 'Which SEO agencies specialize in B2B SaaS organic growth? Give 3\u20135 options, state briefly why each may be relevant, and include the exact public source URL supporting each option. Do not say any agency is objectively best. If you cannot provide a URL, say you cannot verify it.' (Intent: informational_evaluation).",
+      "evidence_ids": [
+        "ev-13cc70238fda",
+        "ev-ee26f4e4b619"
+      ],
+      "counter_evidence_ids": [],
+      "uncertainty_notes": "Controlled non-client public dataset run. Rationale: Public non-client portfolio test of whether a cited B2B SaaS SEO agency source and a declared subject source can be compared without ranking, causality, or demand claims.",
+      "confidence": null
+    }
+  ]
+}

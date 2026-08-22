@@ -1,0 +1,16 @@
+{
+  "profile_id": "profile-searchbloom-virayo-public-20260822",
+  "client_profile": {
+    "entity_name": "Searchbloom public non-client portfolio subject",
+    "client_domain": "searchbloom.com",
+    "owned_domains": ["searchbloom.com", "www.searchbloom.com"],
+    "offering_category": "Search marketing services including SEO, AI SEO, and search advertising",
+    "geography": "United States"
+  },
+  "competitor_profiles": [
+    {
+      "competitor_entity_name": "Virayo",
+      "competitor_domains": ["virayo.com", "www.virayo.com"]
+    }
+  ]
+}

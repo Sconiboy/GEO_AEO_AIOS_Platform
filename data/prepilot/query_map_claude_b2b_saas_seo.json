@@ -1,0 +1,30 @@
+{
+  "query_map_id": "qm-claude-b2b-saas-seo-20260822",
+  "entity_name": "Searchbloom public non-client portfolio subject",
+  "category": "B2B SaaS SEO agency services",
+  "target_buyer_persona": "B2B SaaS marketing leader evaluating organic growth and SEO agency options",
+  "geography": "United States",
+  "locale": "en-US",
+  "policy_profile": {
+    "profile_id": "policy-claude-b2b-saas-seo-20260822",
+    "allowed_schemes": ["https"],
+    "max_redirects": 3,
+    "max_response_bytes": 5242880,
+    "timeout_seconds": 10.0,
+    "source_scope": {
+      "scope_id": "scope-claude-b2b-saas-seo-20260822",
+      "allowed_domains": ["virayo.com", "searchbloom.com"],
+      "blocked_domains": [],
+      "max_sources_per_query": 2
+    }
+  },
+  "queries": [
+    {
+      "query_id": "q-claude-b2b-saas-seo-001",
+      "text": "Which SEO agencies specialize in B2B SaaS organic growth? Give 3–5 options, state briefly why each may be relevant, and include the exact public source URL supporting each option. Do not say any agency is objectively best. If you cannot provide a URL, say you cannot verify it.",
+      "intent": "informational_evaluation",
+      "rationale": "Public non-client portfolio test of whether a cited B2B SaaS SEO agency source and a declared subject source can be compared without ranking, causality, or demand claims.",
+      "approval_state": "approved"
+    }
+  ]
+}
