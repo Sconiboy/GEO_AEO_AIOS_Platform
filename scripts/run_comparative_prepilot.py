@@ -7,9 +7,12 @@ Passes all 9 raw artifact bytes to ComparativeEvidenceReconciler.
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
+import tempfile
 from src.collector.candidate_collector import CandidateCollector
 from src.collector.comparative_reconciler import ComparativeEvidenceReconciler
+from src.collector.execution_registry import CollectorExecutionRegistry
 from src.collector.gap_analyzer import ForensicGapAnalyzer
 from src.collector.query_map_runner import DatasetManifest
 from src.domain.candidate_collection import CollectionExecutionRecord
@@ -24,6 +27,18 @@ from src.exporter.report import ReportExporter
 
 def main() -> None:
     print("=== Starting Sprint 8.1 Forensic Comparative Evidence Pre-Pilot ===")
+
+    # This controlled, non-client fixture run needs one temporary shared trusted
+    # issuer so collection records can be selected and verified. Production must
+    # provide protected persistent configuration; partial configuration fails closed.
+    temporary_registry: tempfile.TemporaryDirectory[str] | None = None
+    issuer_id = os.environ.get("GEO_AEO_TRUSTED_ISSUER_ID")
+    issuer_key = os.environ.get("GEO_AEO_TRUSTED_ISSUER_KEY_HEX")
+    if not issuer_id and not issuer_key:
+        temporary_registry = tempfile.TemporaryDirectory(prefix="geo-aeo-prepilot-registry-")
+        os.environ["GEO_AEO_TRUSTED_ISSUER_ID"] = "controlled-prepilot-issuer"
+        os.environ["GEO_AEO_TRUSTED_ISSUER_KEY_HEX"] = os.urandom(32).hex()
+        os.environ["GEO_AEO_EXECUTION_REGISTRY_DIR"] = temporary_registry.name
 
     # Step 1: Load inputs and raw bytes
     qm_path = Path("data/fixtures/sample_query_map.json")
@@ -263,10 +278,14 @@ def main() -> None:
         updated_execs.append(comp_exec)
 
     # Ensure all executions in gap record have updated source_ledger_sha256 matching final_ledger_sha256
+    registry = CollectorExecutionRegistry.from_runtime_environment()
+    if registry is None:
+        raise RuntimeError("Controlled pre-pilot requires a configured trusted execution registry.")
     fixed_execs: list[CollectionExecutionRecord] = []
     for ce in updated_execs:
+        final_execution_id = f"{ce.execution_id}-ledger-{final_ledger_sha256[:12]}"
         ce_dig = CollectionExecutionRecord.compute_canonical_digest(
-            execution_id=ce.execution_id,
+            execution_id=final_execution_id,
             candidate_id=ce.candidate_id,
             target_query_id=ce.target_query_id,
             cited_url=ce.cited_url,
@@ -283,7 +302,15 @@ def main() -> None:
             execution_timestamp=ce.execution_timestamp,
             issuer_id=ce.issuer_id,
         )
-        fixed_execs.append(ce.model_copy(update={"source_ledger_sha256": final_ledger_sha256, "canonical_digest": ce_dig}))
+        final_ledger_execution = ce.model_copy(
+            update={
+                "execution_id": final_execution_id,
+                "source_ledger_sha256": final_ledger_sha256,
+                "canonical_digest": ce_dig,
+                "issuer_attestation": None,
+            }
+        )
+        fixed_execs.append(registry.issue(final_ledger_execution))
 
     gap_after_client = gap_after_client.model_copy(
         update={

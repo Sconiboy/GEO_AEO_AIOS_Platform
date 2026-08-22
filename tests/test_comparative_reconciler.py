@@ -28,6 +28,17 @@ from src.domain.query_map import QueryMap
 from src.exporter.report import ReportExporter
 
 
+_TEST_TRUSTED_ISSUER_KEY = b"test-execution-registry-signing-key"
+
+
+@pytest.fixture(autouse=True)
+def _trusted_issuer_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Each comparative test gets a private runtime issuer and durable registry directory."""
+    monkeypatch.setenv("GEO_AEO_TRUSTED_ISSUER_ID", "trusted-test-issuer")
+    monkeypatch.setenv("GEO_AEO_TRUSTED_ISSUER_KEY_HEX", _TEST_TRUSTED_ISSUER_KEY.hex())
+    monkeypatch.setenv("GEO_AEO_EXECUTION_REGISTRY_DIR", str(tmp_path / "execution-registry"))
+
+
 def _with_authorized_execution_candidates(
     gap_record: ForensicGapAnalysisRecord,
 ) -> ForensicGapAnalysisRecord:
@@ -230,6 +241,9 @@ def test_comparative_evidence_reconciler_execution() -> None:
             canonical_digest=comp_exec_dig,
         ),
     ]
+    registry = CollectorExecutionRegistry.from_runtime_environment()
+    assert registry is not None
+    exec_records = [registry.issue(execution) for execution in exec_records]
 
     gap_analyzer = ForensicGapAnalyzer()
     gap_record = gap_analyzer.analyze_gaps(
@@ -511,6 +525,10 @@ def _setup_base_fixtures():
         execution_timestamp=now,
         canonical_digest=comp_exec_dig,
     )
+    registry = CollectorExecutionRegistry.from_runtime_environment()
+    assert registry is not None
+    c_exec = registry.issue(c_exec)
+    comp_exec = registry.issue(comp_exec)
 
     return (
         observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
@@ -1658,3 +1676,43 @@ def test_trusted_issuer_rejects_execution_attested_by_attacker_registry() -> Non
     assert attacker_attested_execution.verify_integrity() is True
     with pytest.raises(ValueError, match="is not trusted"):
         trusted_registry.verify_issued(attacker_attested_execution)
+
+
+def test_comparator_rejects_unquoted_attacker_issued_selected_execution() -> None:
+    """P0: A foreign selected execution is rejected before summaries or quote evaluation."""
+    (
+        observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
+        raw_qm_bytes, raw_manifest_bytes, raw_profile_bytes, client_evidence,
+        comp_evidence, c_exec, comp_exec,
+    ) = _setup_base_fixtures()
+    attacker_registry = CollectorExecutionRegistry(
+        b"attacker-registry-signing-key-32-byt", issuer_id="attacker-controlled-issuer"
+    )
+    attacker_comp_exec = attacker_registry.issue(comp_exec)
+    gap_record = ForensicGapAnalyzer.analyze_gaps(
+        subject_profile=profile,
+        observation=observation,
+        source_ledger=ledger,
+        query_map=query_map,
+        manifest=manifest,
+        raw_qm_bytes=raw_qm_bytes,
+        raw_manifest_bytes=raw_manifest_bytes,
+        raw_ledger_bytes=raw_ledger_bytes,
+        raw_profile_bytes=raw_profile_bytes,
+        collection_executions=[c_exec, attacker_comp_exec],
+    )
+    gap_record = _with_authorized_execution_candidates(gap_record)
+
+    with pytest.raises(ValueError, match="is not trusted"):
+        ComparativeEvidenceReconciler().compare_evidence(
+            observation=observation,
+            query_map=query_map,
+            gap_record=gap_record,
+            profile=profile,
+            client_evidence_id=client_evidence.evidence_id,
+            competitor_evidence_id=comp_evidence.evidence_id,
+            raw_qm_bytes=raw_qm_bytes,
+            raw_manifest_bytes=raw_manifest_bytes,
+            raw_ledger_bytes=raw_ledger_bytes,
+            raw_profile_bytes=raw_profile_bytes,
+        )

@@ -50,7 +50,9 @@ class CollectorExecutionRegistry:
         except ValueError as exc:
             raise ValueError("Trusted issuer signing key must be hex encoded.") from exc
         directory = os.environ.get("GEO_AEO_EXECUTION_REGISTRY_DIR")
-        return cls(signing_key=signing_key, issuer_id=issuer_id, base_dir=Path(directory) if directory else None)
+        if not directory:
+            raise ValueError("Trusted issuer runtime requires GEO_AEO_EXECUTION_REGISTRY_DIR.")
+        return cls(signing_key=signing_key, issuer_id=issuer_id, base_dir=Path(directory))
 
     def _signature(self, execution: CollectionExecutionRecord) -> str:
         message = f"{self.issuer_id}:{execution.canonical_digest.lower()}".encode("utf-8")

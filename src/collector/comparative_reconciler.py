@@ -414,6 +414,11 @@ class ComparativeEvidenceReconciler:
             raise ValueError(f"Comparative Reconciliation Blocked: Client execution query_map_sha256 ('{client_exec.query_map_sha256}') != raw query_map SHA-256 ('{qm_sha256}').")
 
         self._validate_execution_authority(client_exec, gap_record, observation, query_map, manifest)
+        if not self._trusted_execution_registry:
+            raise ValueError(
+                "Comparative Reconciliation Blocked: no configured trusted collector issuer is available for selected execution verification."
+            )
+        self._trusted_execution_registry.verify_issued(client_exec)
 
         client_summary = ComparativeSourceSummary(
             domain=client_dom,
@@ -488,6 +493,7 @@ class ComparativeEvidenceReconciler:
             raise ValueError(f"Comparative Reconciliation Blocked: Competitor execution query_map_sha256 ('{comp_exec.query_map_sha256}') != raw query_map SHA-256 ('{qm_sha256}').")
 
         self._validate_execution_authority(comp_exec, gap_record, observation, query_map, manifest)
+        self._trusted_execution_registry.verify_issued(comp_exec)
 
         competitor_summary = ComparativeSourceSummary(
             domain=comp_dom,
