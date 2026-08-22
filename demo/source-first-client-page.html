@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A source-first AI visibility evidence report demo." />
+    <title>Evidence Map — AI Visibility Pre-Pilot</title>
+    <style>
+      :root {
+        --ink: #182b38;
+        --ink-soft: #375061;
+        --paper: #f6f3ec;
+        --cream: #fffcf6;
+        --line: #d9d2c4;
+        --line-dark: #b9c3c4;
+        --teal: #0b6f68;
+        --teal-soft: #d8efea;
+        --orange: #e96a36;
+        --orange-soft: #fce2d5;
+        --gold: #e7bc4f;
+        --shadow: 0 18px 48px rgba(24, 43, 56, 0.12);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.45;
+      }
+
+      .shell { max-width: 1240px; margin: 0 auto; padding: 0 28px 56px; }
+      .eyebrow { letter-spacing: 0.11em; text-transform: uppercase; font-size: 0.72rem; font-weight: 800; }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+      }
+      .brand { color: var(--cream); font-weight: 800; letter-spacing: -0.03em; font-size: 1.05rem; }
+      .brand span { color: var(--gold); }
+      .pill {
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #d9e2df;
+        padding: 7px 11px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+
+      .hero-wrap { background: var(--ink); color: var(--cream); }
+      .hero { max-width: 1240px; margin: 0 auto; padding: 0 28px 64px; }
+      .hero-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 52px; align-items: end; padding-top: 68px; }
+      .hero h1 { margin: 12px 0 18px; line-height: 0.98; font-size: clamp(2.6rem, 5vw, 5.4rem); letter-spacing: -0.075em; max-width: 760px; }
+      .hero h1 em { color: var(--gold); font-style: normal; }
+      .hero p { color: #c9d5d3; max-width: 640px; font-size: 1.05rem; margin: 0; }
+      .hero-note { border-left: 2px solid var(--gold); padding: 4px 0 4px 18px; color: #dce6e3; font-size: 0.93rem; }
+      .hero-note strong { color: var(--cream); display: block; margin-bottom: 5px; }
+
+      .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: rgba(255,255,255,0.16);
+        margin-top: 54px;
+        border: 1px solid rgba(255,255,255,0.16);
+      }
+      .metric { background: #203946; padding: 19px 22px; }
+      .metric b { display: block; color: var(--gold); font-size: 1.75rem; letter-spacing: -0.05em; }
+      .metric span { color: #c8d5d2; font-size: 0.8rem; }
+
+      main { margin-top: -28px; position: relative; }
+      .question-card {
+        background: var(--cream);
+        box-shadow: var(--shadow);
+        padding: 34px 38px;
+        border-radius: 4px;
+        border-top: 5px solid var(--gold);
+      }
+      .question-card h2 { font-size: 0.78rem; color: var(--teal); margin: 0 0 10px; }
+      .question-card blockquote { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.35rem, 2.3vw, 2rem); line-height: 1.24; color: #19313e; }
+      .meta { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+      .meta span { font-size: 0.78rem; color: var(--ink-soft); background: #ecf0ec; border-radius: 999px; padding: 6px 9px; }
+
+      .section { padding: 76px 0 0; }
+      .section-head { display: grid; grid-template-columns: 0.35fr 1fr; gap: 28px; margin-bottom: 26px; }
+      .section-head .eyebrow { color: var(--teal); padding-top: 7px; }
+      .section h2 { font-size: clamp(1.8rem, 3.2vw, 3rem); letter-spacing: -0.055em; line-height: 1; margin: 0; }
+      .section h2 span { color: var(--teal); }
+      .section-intro { max-width: 620px; color: var(--ink-soft); margin: 12px 0 0; }
+
+      .answer-ribbon {
+        background: #e7ece9;
+        border: 1px solid var(--line-dark);
+        padding: 19px 22px;
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .answer-ribbon .dot { width: 12px; height: 12px; margin-top: 5px; background: var(--teal); border-radius: 50%; flex: 0 0 auto; }
+      .answer-ribbon strong { display: block; font-size: 0.88rem; }
+      .answer-ribbon p { margin: 3px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+
+      .source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+      .source-card { background: var(--cream); border: 1px solid var(--line); padding: 27px; min-height: 365px; display: flex; flex-direction: column; }
+      .source-card.competitor { border-top: 5px solid var(--orange); }
+      .source-card.context { border-top: 5px solid var(--teal); }
+      .source-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+      .tag { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; padding: 6px 8px; border-radius: 3px; }
+      .tag.cited { color: #984019; background: var(--orange-soft); }
+      .tag.context { color: #075d58; background: var(--teal-soft); }
+      .source-card h3 { font-size: 1.55rem; letter-spacing: -0.05em; margin: 17px 0 4px; }
+      .source-card a { color: var(--teal); overflow-wrap: anywhere; font-size: 0.83rem; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+      .quote { border-left: 2px solid var(--line-dark); padding: 11px 0 11px 14px; margin: 22px 0; color: #314a58; font-family: Georgia, "Times New Roman", serif; font-size: 1.04rem; }
+      .source-footer { margin-top: auto; border-top: 1px solid var(--line); padding-top: 14px; font-size: 0.8rem; color: var(--ink-soft); }
+      .source-footer b { color: var(--ink); }
+
+      .gap-panel { display: grid; grid-template-columns: 0.75fr 1.25fr; gap: 0; border: 1px solid var(--ink); margin-top: 22px; }
+      .gap-mark { background: var(--ink); color: var(--cream); padding: 33px; }
+      .gap-mark .eyebrow { color: var(--gold); }
+      .gap-mark h3 { font-size: 1.8rem; letter-spacing: -0.05em; line-height: 1.05; margin: 13px 0; }
+      .gap-mark p { color: #c6d1ce; margin: 0; font-size: 0.9rem; }
+      .gap-detail { background: var(--cream); padding: 33px; }
+      .gap-detail p { margin: 0 0 18px; font-size: 1.03rem; }
+      .limits { color: var(--ink-soft); font-size: 0.86rem; padding: 14px 15px; background: #f0ede6; border-left: 3px solid var(--gold); }
+
+      .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .plan-card { border: 1px solid var(--line); background: var(--cream); padding: 26px; }
+      .plan-card .number { font-size: 0.78rem; color: var(--orange); font-weight: 800; letter-spacing: 0.08em; }
+      .plan-card h3 { font-size: 1.3rem; line-height: 1.05; letter-spacing: -0.04em; margin: 15px 0 10px; }
+      .plan-card p { color: var(--ink-soft); font-size: 0.91rem; margin: 0; }
+      .plan-card small { display: block; border-top: 1px solid var(--line); margin-top: 20px; padding-top: 13px; color: var(--teal); font-weight: 700; }
+
+      .limits-box { margin-top: 24px; padding: 21px 24px; background: #fff0e6; border: 1px solid #f0cbb7; color: #633e2b; }
+      .limits-box b { display: block; margin-bottom: 5px; }
+
+      .artifact { margin-top: 48px; padding: 28px; border: 1px dashed var(--line-dark); background: rgba(255,255,255,0.3); }
+      .artifact summary { cursor: pointer; font-weight: 800; color: var(--teal); }
+      .artifact ul { columns: 2; padding-left: 20px; color: var(--ink-soft); font-size: 0.86rem; }
+      .artifact code { font-size: 0.78rem; word-break: break-all; }
+
+      footer { border-top: 1px solid var(--line); margin-top: 70px; padding: 24px 0 0; color: var(--ink-soft); font-size: 0.78rem; display: flex; justify-content: space-between; gap: 18px; }
+
+      @media (max-width: 760px) {
+        .shell, .hero { padding-left: 18px; padding-right: 18px; }
+        .hero-grid, .section-head, .gap-panel { grid-template-columns: 1fr; gap: 20px; }
+        .hero { padding-bottom: 42px; }
+        .hero-grid { padding-top: 44px; }
+        .metric-strip, .source-grid, .plan-grid { grid-template-columns: 1fr; }
+        .question-card { padding: 26px; }
+        .section { padding-top: 54px; }
+        .artifact ul { columns: 1; }
+        footer { flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hero-wrap">
+      <div class="hero">
+        <header>
+          <div class="brand">EVIDENCE<span>/</span>MAP</div>
+          <div class="pill">PRELIMINARY NON-CLIENT SAMPLE</div>
+        </header>
+        <div class="hero-grid">
+          <div>
+            <div class="eyebrow">AI visibility, explained with sources</div>
+            <h1>Find the source trail<br /><em>behind the answer.</em></h1>
+            <p>See the exact sources an AI answer surfaced, verify what they say, and turn the evidence gap into a focused next move.</p>
+          </div>
+          <div class="hero-note">
+            <strong>The brief</strong>
+            One captured public answer, the sources it surfaced, and the next evidence question for the team.
+          </div>
+        </div>
+        <div class="metric-strip" aria-label="sample metrics">
+          <div class="metric"><b>1</b><span>captured answer</span></div>
+          <div class="metric"><b>1</b><span>explicit competitor source verified</span></div>
+          <div class="metric"><b>0</b><span>subject citations in this sample</span></div>
+        </div>
+      </div>
+    </div>
+
+    <main class="shell">
+      <section class="question-card" aria-labelledby="question-title">
+        <h2 id="question-title" class="eyebrow">The approved buyer question</h2>
+        <blockquote>“Which SEO agencies specialize in B2B SaaS organic growth? Give 3–5 options, state briefly why each may be relevant, and include the exact public source URL supporting each option. Do not say any agency is objectively best.”</blockquote>
+        <div class="meta"><span>Claude • Haiku 4.5 Extended</span><span>2026-08-22 UTC</span><span>Public non-client pre-pilot</span></div>
+      </section>
+
+      <section class="section" aria-labelledby="sources-title">
+        <div class="section-head">
+          <div class="eyebrow">01 / visible sources</div>
+          <div>
+            <h2 id="sources-title">Start with <span>what the answer showed.</span></h2>
+            <p class="section-intro">The model named several agencies. This page follows the sources that were visible in the answer and approved for collection.</p>
+          </div>
+        </div>
+        <div class="answer-ribbon">
+          <div class="dot" aria-hidden="true"></div>
+          <div><strong>What the model showed</strong><p>Virayo was named and its SaaS SEO URL appeared in the answer. Searchbloom did not appear in this sample.</p></div>
+        </div>
+        <div class="source-grid">
+          <article class="source-card competitor">
+            <div class="source-top"><div class="tag cited">Appeared in answer · cited + verified</div><div class="eyebrow">Competitor-owned</div></div>
+            <h3>Virayo</h3>
+            <a href="https://virayo.com/saas-seo" target="_blank" rel="noreferrer">virayo.com/saas-seo ↗</a>
+            <div class="quote">“Virayo is a B2B SaaS SEO agency that builds organic pipeline across traditional search and AI discovery.”</div>
+            <div class="source-footer"><b>Why this matters:</b> the cited page uses category-specific B2B SaaS and AI-discovery language.<br /><br /><b>Evidence note:</b> expand the sample before drawing a broader pattern.</div>
+          </article>
+          <article class="source-card context">
+            <div class="source-top"><div class="tag context">Collected context · verified</div><div class="eyebrow">Subject-owned</div></div>
+            <h3>Searchbloom</h3>
+            <a href="https://www.searchbloom.com/ai-information/" target="_blank" rel="noreferrer">searchbloom.com/ai-information ↗</a>
+            <div class="quote">“Searchbloom is an award-winning, full-service search marketing agency.”</div>
+            <div class="source-footer"><b>Why this matters:</b> the sampled subject page states a broad search-marketing position.<br /><br /><b>Evidence note:</b> this URL did not appear in the captured answer.</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="gap-title">
+        <div class="section-head">
+          <div class="eyebrow">02 / evidence gap</div>
+          <div><h2 id="gap-title">Turn the source difference into <span>the next question.</span></h2></div>
+        </div>
+        <div class="gap-panel">
+          <div class="gap-mark"><div class="eyebrow">Preliminary hypothesis</div><h3>Specific category proof appeared on the cited page.</h3><p>The sampled subject source uses a broader services statement and did not appear in the captured answer.</p></div>
+          <div class="gap-detail">
+            <p>Next, locate the subject’s strongest B2B SaaS organic-growth and AI-discovery proof. If the evidence exists, make it clear and useful to buyers. If it does not, build the proof before expanding distribution.</p>
+            <div class="limits"><strong>Evidence note:</strong> Build a wider approved sample before treating this source difference as a broader pattern.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="plan-title">
+        <div class="section-head">
+          <div class="eyebrow">03 / next move</div>
+          <div><h2 id="plan-title">Build <span>better proof,</span> then measure it.</h2><p class="section-intro">Use the evidence to improve useful public proof and track the result across a defined sample.</p></div>
+        </div>
+        <div class="plan-grid">
+          <article class="plan-card"><div class="number">01 / DAYS 0–30</div><h3>Verify the existing proof.</h3><p>Inventory category pages, case studies, process documentation, and customer evidence. Separate what is specific and verifiable from generic claims.</p><small>Completion: reviewed evidence inventory</small></article>
+          <article class="plan-card"><div class="number">02 / DAYS 31–60</div><h3>Clarify one useful category page.</h3><p>Improve or create a genuinely helpful page with clear scope, methodology, examples, ownership, and accurate proof for the buyer question.</p><small>Completion: opened-verifiable proof page</small></article>
+          <article class="plan-card"><div class="number">03 / DAYS 61–90</div><h3>Earn useful exposure.</h3><p>Pursue relevant partner, editorial, expert, or community references that add real value and disclose the relationship.</p><small>Completion: real third-party evidence</small></article>
+        </div>
+        <div class="limits-box"><b>Operating rules</b>Use real reviews, useful community participation, disclosed relationships, substantive content, and measurable evidence.</div>
+      </section>
+
+      <details class="artifact">
+        <summary>Open the evidence trail behind this page</summary>
+        <ul>
+          <li>Approved QueryMap: <code>qm-claude-b2b-saas-seo-20260822</code></li>
+          <li>Frozen source ledger: <code>run-qm-qm-claude-b2b-saas-seo-20260822</code></li>
+          <li>Answer observation: <code>obs-claude-b2b-saas-seo-20260822-001</code></li>
+          <li>Virayo evidence: <code>ev-13cc70238fda</code> · opened verified</li>
+          <li>Searchbloom evidence: <code>ev-ee26f4e4b619</code> · opened verified</li>
+          <li>Classification: <code>cited_competitor_observed</code> · client citation: <code>false</code></li>
+        </ul>
+      </details>
+
+      <footer><span>Evidence Map / governed AI visibility reporting</span><span>Source evidence sample · captured 2026-08-22</span></footer>
+    </main>
+  </body>
+</html>
