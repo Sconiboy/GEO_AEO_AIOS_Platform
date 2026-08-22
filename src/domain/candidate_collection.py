@@ -36,6 +36,8 @@ class CollectionExecutionRecord(BaseModel):
     evidence_id: str = Field(..., description="Generated EvidenceRecord ID in ledger")
     verifier_run_id: str = Field(..., description="Verifier run ID")
     snapshot_sha256: str = Field(..., description="Saved HTML snapshot SHA-256 digest")
+    issuer_id: str = Field(default="", description="Configured collector issuer identity bound into the execution digest")
+    issuer_attestation: Optional[str] = Field(default=None, description="Detached authenticity proof issued by the configured collector")
     execution_timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="Explicit UTC timestamp of collection execution",
@@ -60,6 +62,7 @@ class CollectionExecutionRecord(BaseModel):
         verifier_run_id: str,
         snapshot_sha256: str,
         execution_timestamp: datetime,
+        issuer_id: str = "",
     ) -> str:
         """Computes deterministic SHA-256 digest over all execution context bindings."""
         payload: Dict[str, Any] = {
@@ -77,6 +80,7 @@ class CollectionExecutionRecord(BaseModel):
             "evidence_id": evidence_id,
             "verifier_run_id": verifier_run_id,
             "snapshot_sha256": snapshot_sha256.lower(),
+            "issuer_id": issuer_id,
             "execution_timestamp": execution_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         serialized = json.dumps(payload, sort_keys=True)
@@ -100,6 +104,7 @@ class CollectionExecutionRecord(BaseModel):
             verifier_run_id=self.verifier_run_id,
             snapshot_sha256=self.snapshot_sha256,
             execution_timestamp=self.execution_timestamp,
+            issuer_id=self.issuer_id,
         )
         return self.canonical_digest.lower() == expected.lower()
 

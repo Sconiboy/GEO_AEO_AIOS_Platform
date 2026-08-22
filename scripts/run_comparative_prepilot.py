@@ -281,6 +281,7 @@ def main() -> None:
             verifier_run_id=ce.verifier_run_id,
             snapshot_sha256=ce.snapshot_sha256,
             execution_timestamp=ce.execution_timestamp,
+            issuer_id=ce.issuer_id,
         )
         fixed_execs.append(ce.model_copy(update={"source_ledger_sha256": final_ledger_sha256, "canonical_digest": ce_dig}))
 

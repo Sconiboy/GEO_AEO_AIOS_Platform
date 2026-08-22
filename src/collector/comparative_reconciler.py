@@ -41,6 +41,10 @@ class ComparativeEvidenceReconciler:
     Emits an evidence-governed ComparativeEvidenceRecord with complete 9-hash context binding.
     """
 
+    def __init__(self) -> None:
+        """Resolves the platform-trusted issuer from protected runtime configuration."""
+        self._trusted_execution_registry = CollectorExecutionRegistry.from_runtime_environment()
+
     @staticmethod
     def _normalize_url(url: str) -> str:
         return url.lower().rstrip("/")
@@ -140,9 +144,8 @@ class ComparativeEvidenceReconciler:
                 f"Comparative Reconciliation Blocked: execution '{execution.execution_id}' snapshot digest does not match retained bytes."
             )
 
-    @classmethod
     def evaluate_claim_support(
-        cls,
+        self,
         statement_id: str,
         statement_text: str,
         evidence: Optional[EvidenceRecord],
@@ -150,7 +153,6 @@ class ComparativeEvidenceReconciler:
         expected_role: SourceRelationship,
         human_decision_record: Optional[HumanDecisionRecord] = None,
         snapshot_store: Optional[SnapshotStore] = None,
-        execution_registry: Optional[CollectorExecutionRegistry] = None,
     ) -> ClaimExcerptAssessment:
         """
         Evaluates an answer-surface statement claim against a verified evidence record excerpt resolved from the source ledger.
@@ -186,12 +188,12 @@ class ComparativeEvidenceReconciler:
                             break
 
                     if matching_quote:
-                        if not execution_registry:
+                        if not self._trusted_execution_registry:
                             raise ValueError(
-                                "Comparative Reconciliation Blocked: no approved collector execution registry was provided for human promotion."
+                                "Comparative Reconciliation Blocked: no configured trusted collector issuer is available for human promotion."
                             )
-                        execution_registry.verify_issued(execution)
-                        cls._verify_retained_snapshot(evidence, execution, snapshot_store)
+                        self._trusted_execution_registry.verify_issued(execution)
+                        self._verify_retained_snapshot(evidence, execution, snapshot_store)
                         return ClaimExcerptAssessment(
                             statement_id=statement_id,
                             statement_text=statement_text,
@@ -227,9 +229,8 @@ class ComparativeEvidenceReconciler:
             semantic_rationale=f"Verified excerpt present ('{evidence.opened_excerpt[:60]}...'). Candidate for human auditor semantic adjudication.",
         )
 
-    @classmethod
     def compare_evidence(
-        cls,
+        self,
         observation: AnswerObservation,
         query_map: QueryMap,
         gap_record: ForensicGapAnalysisRecord,
@@ -243,7 +244,6 @@ class ComparativeEvidenceReconciler:
         human_decision_record: Optional[HumanDecisionRecord] = None,
         timestamp: Optional[datetime] = None,
         snapshot_store: Optional[SnapshotStore] = None,
-        execution_registry: Optional[CollectorExecutionRegistry] = None,
     ) -> ComparativeEvidenceRecord:
         """
         Executes bounded comparative evidence reconciliation parsing AuditRun directly from raw_ledger_bytes.
@@ -413,7 +413,7 @@ class ComparativeEvidenceReconciler:
         if client_exec.query_map_sha256.lower() != qm_sha256.lower():
             raise ValueError(f"Comparative Reconciliation Blocked: Client execution query_map_sha256 ('{client_exec.query_map_sha256}') != raw query_map SHA-256 ('{qm_sha256}').")
 
-        cls._validate_execution_authority(client_exec, gap_record, observation, query_map, manifest)
+        self._validate_execution_authority(client_exec, gap_record, observation, query_map, manifest)
 
         client_summary = ComparativeSourceSummary(
             domain=client_dom,
@@ -487,7 +487,7 @@ class ComparativeEvidenceReconciler:
         if comp_exec.query_map_sha256.lower() != qm_sha256.lower():
             raise ValueError(f"Comparative Reconciliation Blocked: Competitor execution query_map_sha256 ('{comp_exec.query_map_sha256}') != raw query_map SHA-256 ('{qm_sha256}').")
 
-        cls._validate_execution_authority(comp_exec, gap_record, observation, query_map, manifest)
+        self._validate_execution_authority(comp_exec, gap_record, observation, query_map, manifest)
 
         competitor_summary = ComparativeSourceSummary(
             domain=comp_dom,
@@ -508,7 +508,7 @@ class ComparativeEvidenceReconciler:
 
         for stmt in observation.extracted_statements:
             client_assessments.append(
-                cls.evaluate_claim_support(
+                self.evaluate_claim_support(
                     statement_id=stmt.statement_id,
                     statement_text=stmt.text,
                     evidence=client_evidence,
@@ -516,11 +516,10 @@ class ComparativeEvidenceReconciler:
                     expected_role=SourceRelationship.CLIENT_OWNED,
                     human_decision_record=human_decision_record,
                     snapshot_store=snapshot_store,
-                    execution_registry=execution_registry,
                 )
             )
             competitor_assessments.append(
-                cls.evaluate_claim_support(
+                self.evaluate_claim_support(
                     statement_id=stmt.statement_id,
                     statement_text=stmt.text,
                     evidence=competitor_evidence,
@@ -528,7 +527,6 @@ class ComparativeEvidenceReconciler:
                     expected_role=SourceRelationship.COMPETITOR_OWNED,
                     human_decision_record=human_decision_record,
                     snapshot_store=snapshot_store,
-                    execution_registry=execution_registry,
                 )
             )
 

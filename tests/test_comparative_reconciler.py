@@ -1372,7 +1372,7 @@ def test_mismatched_quote_execution_id_prevents_promotion() -> None:
     assert record.client_claim_assessments[0].assessment_status != ReconciliationStatus.SUPPORTED
 
 
-def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path) -> None:
+def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """P0 TEST 13: Authentic HumanStatementDecision matching all 6 quote fields promotes claim assessment to SUPPORTED."""
     (
         observation, query_map, manifest, profile, ledger, raw_ledger_bytes,
@@ -1383,9 +1383,16 @@ def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path) -> N
     snapshot_store = SnapshotStore(tmp_path)
     snapshot_store.save_snapshot(b"client snapshot bytes")
     snapshot_store.save_snapshot(b"competitor snapshot bytes")
-    execution_registry = CollectorExecutionRegistry(b"test-execution-registry-signing-key")
-    execution_registry.issue(c_exec)
-    execution_registry.issue(comp_exec)
+    signing_key = b"test-execution-registry-signing-key"
+    registry_dir = tmp_path / "execution-registry"
+    monkeypatch.setenv("GEO_AEO_TRUSTED_ISSUER_ID", "trusted-test-issuer")
+    monkeypatch.setenv("GEO_AEO_TRUSTED_ISSUER_KEY_HEX", signing_key.hex())
+    monkeypatch.setenv("GEO_AEO_EXECUTION_REGISTRY_DIR", str(registry_dir))
+    execution_registry = CollectorExecutionRegistry(
+        signing_key, issuer_id="trusted-test-issuer", base_dir=registry_dir
+    )
+    c_exec = execution_registry.issue(c_exec)
+    comp_exec = execution_registry.issue(comp_exec)
 
     gap_analyzer = ForensicGapAnalyzer()
     gap_record = gap_analyzer.analyze_gaps(
@@ -1460,7 +1467,6 @@ def test_authentic_sprint851_comparative_promotion_succeeds(tmp_path: Path) -> N
         raw_profile_bytes=raw_profile_bytes,
         human_decision_record=hd_record,
         snapshot_store=snapshot_store,
-        execution_registry=execution_registry,
     )
 
     # Authentic decision matching all 6 quote fields -> successfully promoted to SUPPORTED
@@ -1602,8 +1608,10 @@ def test_collector_registry_rejects_new_id_fully_rehashed_execution() -> None:
         _raw_qm_bytes, _raw_manifest_bytes, _raw_profile_bytes, _client_evidence,
         _comp_evidence, c_exec, _comp_exec,
     ) = _setup_base_fixtures()
-    registry = CollectorExecutionRegistry(b"test-execution-registry-signing-key")
-    registry.issue(c_exec)
+    registry = CollectorExecutionRegistry(
+        b"test-execution-registry-signing-key", issuer_id="trusted-test-issuer"
+    )
+    c_exec = registry.issue(c_exec)
     forged_id = "exec-client-self-consistent-forgery"
     forged_digest = CollectionExecutionRecord.compute_canonical_digest(
         execution_id=forged_id,
@@ -1621,6 +1629,7 @@ def test_collector_registry_rejects_new_id_fully_rehashed_execution() -> None:
         verifier_run_id=c_exec.verifier_run_id,
         snapshot_sha256=c_exec.snapshot_sha256,
         execution_timestamp=c_exec.execution_timestamp,
+        issuer_id=c_exec.issuer_id,
     )
     forged_execution = c_exec.model_copy(
         update={"execution_id": forged_id, "canonical_digest": forged_digest}
@@ -1629,3 +1638,23 @@ def test_collector_registry_rejects_new_id_fully_rehashed_execution() -> None:
 
     with pytest.raises(ValueError, match="is not registered"):
         registry.verify_issued(forged_execution)
+
+
+def test_trusted_issuer_rejects_execution_attested_by_attacker_registry() -> None:
+    """P0: A caller-supplied registry with another key cannot become the platform issuer."""
+    (
+        _observation, _query_map, _manifest, _profile, _ledger, _raw_ledger_bytes,
+        _raw_qm_bytes, _raw_manifest_bytes, _raw_profile_bytes, _client_evidence,
+        _comp_evidence, c_exec, _comp_exec,
+    ) = _setup_base_fixtures()
+    trusted_registry = CollectorExecutionRegistry(
+        b"trusted-registry-signing-key-32-bytes", issuer_id="platform-trusted-issuer"
+    )
+    attacker_registry = CollectorExecutionRegistry(
+        b"attacker-registry-signing-key-32-byt", issuer_id="attacker-controlled-issuer"
+    )
+    attacker_attested_execution = attacker_registry.issue(c_exec)
+
+    assert attacker_attested_execution.verify_integrity() is True
+    with pytest.raises(ValueError, match="is not trusted"):
+        trusted_registry.verify_issued(attacker_attested_execution)

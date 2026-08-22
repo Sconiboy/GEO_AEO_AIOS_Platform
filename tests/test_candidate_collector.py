@@ -302,7 +302,9 @@ def test_authorized_candidate_collection_success(
 
     # Execute CandidateCollector
     store = SnapshotStore(base_dir=tmp_path / "snapshots")
-    registry = CollectorExecutionRegistry(b"test-execution-registry-signing-key")
+    registry = CollectorExecutionRegistry(
+        b"test-execution-registry-signing-key", issuer_id="trusted-test-issuer"
+    )
     collector = CandidateCollector(snapshot_store=store, execution_registry=registry)
 
     updated_ledger, updated_gap_record = collector.collect_candidate(
