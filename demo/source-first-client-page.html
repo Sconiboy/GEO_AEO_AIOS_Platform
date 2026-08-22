@@ -86,6 +86,9 @@
       .question-card blockquote { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(1.35rem, 2.3vw, 2rem); line-height: 1.24; color: #19313e; }
       .meta { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
       .meta span { font-size: 0.78rem; color: var(--ink-soft); background: #ecf0ec; border-radius: 999px; padding: 6px 9px; }
+      .journey { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
+      .journey-step { display: flex; gap: 10px; color: var(--ink-soft); font-size: 0.83rem; }
+      .journey-step b { display: inline-flex; width: 22px; height: 22px; flex: 0 0 auto; justify-content: center; align-items: center; border-radius: 50%; background: var(--teal); color: white; font-size: 0.7rem; }
 
       .section { padding: 76px 0 0; }
       .section-head { display: grid; grid-template-columns: 0.35fr 1fr; gap: 28px; margin-bottom: 26px; }
@@ -153,6 +156,7 @@
         .hero-grid { padding-top: 44px; }
         .metric-strip, .source-grid, .plan-grid { grid-template-columns: 1fr; }
         .question-card { padding: 26px; }
+        .journey { grid-template-columns: 1fr; }
         .section { padding-top: 54px; }
         .artifact ul { columns: 1; }
         footer { flex-direction: column; }
@@ -164,17 +168,17 @@
       <div class="hero">
         <header>
           <div class="brand">EVIDENCE<span>/</span>MAP</div>
-          <div class="pill">PRELIMINARY NON-CLIENT SAMPLE</div>
+          <div class="pill">EXAMPLE EVIDENCE MAP</div>
         </header>
         <div class="hero-grid">
           <div>
             <div class="eyebrow">AI visibility, explained with sources</div>
             <h1>Find the source trail<br /><em>behind the answer.</em></h1>
-            <p>See the exact sources an AI answer surfaced, verify what they say, and turn the evidence gap into a focused next move.</p>
+            <p>Start with the questions buyers ask. See who appears in the answer, the sources behind it, and the next move for your team.</p>
           </div>
           <div class="hero-note">
-            <strong>The brief</strong>
-            One captured public answer, the sources it surfaced, and the next evidence question for the team.
+            <strong>The outcome</strong>
+            A clear source map and a practical plan for stronger proof and exposure.
           </div>
         </div>
         <div class="metric-strip" aria-label="sample metrics">
@@ -187,9 +191,14 @@
 
     <main class="shell">
       <section class="question-card" aria-labelledby="question-title">
-        <h2 id="question-title" class="eyebrow">The approved buyer question</h2>
-        <blockquote>“Which SEO agencies specialize in B2B SaaS organic growth? Give 3–5 options, state briefly why each may be relevant, and include the exact public source URL supporting each option. Do not say any agency is objectively best.”</blockquote>
-        <div class="meta"><span>Claude • Haiku 4.5 Extended</span><span>2026-08-22 UTC</span><span>Public non-client pre-pilot</span></div>
+        <h2 id="question-title" class="eyebrow">The buyer question</h2>
+        <blockquote>“Who are the best B2B SaaS SEO agencies?”</blockquote>
+        <div class="meta"><span>Real buyer language</span><span>Answer-source map</span><span>Evidence-led action plan</span></div>
+        <div class="journey" aria-label="engagement journey">
+          <div class="journey-step"><b>1</b><span><strong>Start with buyer questions.</strong><br />Use the language your market already uses.</span></div>
+          <div class="journey-step"><b>2</b><span><strong>See the answer and sources.</strong><br />Track who appears and the evidence around them.</span></div>
+          <div class="journey-step"><b>3</b><span><strong>Build the plan.</strong><br />Strengthen proof, content, and legitimate exposure.</span></div>
+        </div>
       </section>
 
       <section class="section" aria-labelledby="sources-title">
@@ -197,12 +206,12 @@
           <div class="eyebrow">01 / visible sources</div>
           <div>
             <h2 id="sources-title">Start with <span>what the answer showed.</span></h2>
-            <p class="section-intro">The model named several agencies. This page follows the sources that were visible in the answer and approved for collection.</p>
+            <p class="section-intro">Here is what a source map looks like after the answer has been captured and the relevant public evidence has been verified.</p>
           </div>
         </div>
         <div class="answer-ribbon">
           <div class="dot" aria-hidden="true"></div>
-          <div><strong>What the model showed</strong><p>Virayo was named and its SaaS SEO URL appeared in the answer. Searchbloom did not appear in this sample.</p></div>
+          <div><strong>Example answer result</strong><p>Virayo appeared with its SaaS SEO URL. Searchbloom did not appear in this sample.</p></div>
         </div>
         <div class="source-grid">
           <article class="source-card competitor">
@@ -224,11 +233,11 @@
 
       <section class="section" aria-labelledby="gap-title">
         <div class="section-head">
-          <div class="eyebrow">02 / evidence gap</div>
+          <div class="eyebrow">02 / evidence opportunity</div>
           <div><h2 id="gap-title">Turn the source difference into <span>the next question.</span></h2></div>
         </div>
         <div class="gap-panel">
-          <div class="gap-mark"><div class="eyebrow">Preliminary hypothesis</div><h3>Specific category proof appeared on the cited page.</h3><p>The sampled subject source uses a broader services statement and did not appear in the captured answer.</p></div>
+          <div class="gap-mark"><div class="eyebrow">The opportunity</div><h3>Specific category proof appeared on the cited page.</h3><p>The sampled subject source uses a broader services statement and did not appear in the captured answer.</p></div>
           <div class="gap-detail">
             <p>Next, locate the subject’s strongest B2B SaaS organic-growth and AI-discovery proof. If the evidence exists, make it clear and useful to buyers. If it does not, build the proof before expanding distribution.</p>
             <div class="limits"><strong>Evidence note:</strong> Build a wider approved sample before treating this source difference as a broader pattern.</div>
@@ -261,7 +270,7 @@
         </ul>
       </details>
 
-      <footer><span>Evidence Map / governed AI visibility reporting</span><span>Source evidence sample · captured 2026-08-22</span></footer>
+      <footer><span>Evidence Map / source-led AI visibility reporting</span><span>Example evidence map · captured source sample</span></footer>
     </main>
   </body>
 </html>
