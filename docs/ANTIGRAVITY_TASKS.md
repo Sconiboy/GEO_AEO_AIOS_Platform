@@ -945,19 +945,24 @@ Antigravity fully endorses Manus's **Evidence-Governed LLM Visibility Audit** pa
 - [x] Task A-43: Immutable Source Ledger Resolution, Verifier Snapshot Digest Proof, and Evidence ID/Snapshot binding.
 - [x] Task A-44: Direct Raw-Ledger Bytes Parsing, Non-Fallback Verifier Artifact Proof, and Mandatory Human Quote Snapshot Digest.
 - [x] Task A-45: Complete 6-Binding Quoted Evidence Contract, Execution Integrity Verification, and Raw Ledger Gap Digest Gate.
+- [x] Task A-46: Complete 13-Point Adversarial Test Proof Matrix for Comparative Provenance Gate.
 
-## ⚖️ Sprint 8.5.1: Complete Quoted Evidence & Collection Execution Provenance Verification
+## ⚖️ Sprint 8.5.2: Complete Adversarial Test Proof Matrix for Comparative Provenance Gate
 
-### Task A-45: Complete 6-Binding Quoted Evidence Contract, Execution Integrity Verification, and Raw Ledger Gap Digest Gate
-- **Goal**: Implement Sprint 8.5.1 complete provenance remediations based on Manus's review ([`docs/MANUS_SPRINT85_REVIEW.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/docs/MANUS_SPRINT85_REVIEW.md)):
-  - Expanded `QuotedEvidencePassage` contract ([`src/domain/human_decision.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/domain/human_decision.py)) to require 6 non-null binding fields: `evidence_id`, `evidence_url`, `snapshot_sha256`, `verifier_run_id`, `collection_execution_id`, and `quoted_passage`. Updated `HumanDecisionRecord.compute_canonical_digest()` to bind all 6 fields.
-  - Enforced full execution provenance verification in `ComparativeEvidenceReconciler.compare_evidence()` ([`src/collector/comparative_reconciler.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/src/collector/comparative_reconciler.py)):
-    - Requires `exec_record.verify_integrity() is True` for both client and competitor executions.
-    - Validates exact field equality between executions and current context artifacts (`cited_url`, `verifier_run_id`, `snapshot_sha256`, `source_ledger_sha256`, `observation_id`, `raw_answer_sha256`, `profile_id`, `profile_sha256`, `manifest_sha256`, `query_map_sha256`).
-  - Bound gap record to raw ledger bytes: Enforced `gap_record.source_ledger_sha256.lower() == sha256(raw_ledger_bytes).lower()` in `compare_evidence()`.
-  - Enforced 6-field quote provenance matching at promotion in `evaluate_claim_support()`: Status promotion to `SUPPORTED` requires exact equality across all 6 quote fields against evidence and execution. Mismatch defaults to `CANDIDATE_FOR_HUMAN_SEMANTIC_REVIEW`.
-  - Added adversarial tests in `tests/test_comparative_reconciler.py`:
-    - `test_forged_execution_digest_rejected`: Proves forged execution digest is rejected.
-    - `test_mismatched_quote_execution_id_prevents_promotion`: Proves mismatched collection_execution_id in quote prevents status promotion.
-    - `test_authentic_sprint851_comparative_promotion_succeeds`: Proves authentic decision matching all 6 quote fields promotes claim assessment to `SUPPORTED`.
-- **Status**: COMPLETED (89 unit tests passing, 82% total code coverage, 100% coverage on `domain/comparative.py` and `domain/human_decision.py`, 0 Mypy static type errors).
+### Task A-46: Complete 13-Point Adversarial Test Proof Matrix
+- **Goal**: Implement Sprint 8.5.2 complete adversarial proof remediations based on Manus's review ([`docs/MANUS_SPRINT851_REVIEW.md`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/docs/MANUS_SPRINT851_REVIEW.md)):
+  - Expanded [`tests/test_comparative_reconciler.py`](file:///Users/benjamin/Desktop/GEO_AEO_AIOS_Platform/tests/test_comparative_reconciler.py) to cover all 13 required adversarial negative and positive test functions:
+    1. `test_forged_execution_digest_rejected`: Proves forged execution digest is rejected by `verify_integrity()`.
+    2. `test_same_evidence_id_foreign_execution_rejected`: Proves foreign execution with valid own digest is rejected when observation/profile context mismatches.
+    3. `test_execution_url_mismatch_rejected`: Proves execution `cited_url` mismatch with evidence `url` raises `ValueError`.
+    4. `test_execution_verifier_run_mismatch_rejected`: Proves execution `verifier_run_id` mismatch with artifact `verifier_run_id` raises `ValueError`.
+    5. `test_execution_snapshot_mismatch_rejected`: Proves execution `snapshot_sha256` mismatch with artifact `snapshot_sha256` raises `ValueError`.
+    6. `test_execution_ledger_hash_mismatch_rejected`: Proves execution `source_ledger_sha256` mismatch with raw ledger digest raises `ValueError`.
+    7. `test_gap_record_ledger_hash_mismatch_rejected`: Proves gap record `source_ledger_sha256` mismatch with raw ledger bytes raises `ValueError`.
+    8. `test_missing_mandatory_quote_fields_fail_validation`: Proves Pydantic `ValidationError` when constructing `QuotedEvidencePassage` missing required binding fields.
+    9. `test_mismatched_quote_evidence_url_prevents_promotion`: Proves quote `evidence_url` mismatch leaves assessment status non-promoted.
+    10. `test_mismatched_quote_snapshot_prevents_promotion`: Proves quote `snapshot_sha256` mismatch leaves assessment status non-promoted.
+    11. `test_mismatched_quote_verifier_run_prevents_promotion`: Proves quote `verifier_run_id` mismatch leaves assessment status non-promoted.
+    12. `test_mismatched_quote_execution_id_prevents_promotion`: Proves quote `collection_execution_id` mismatch leaves assessment status non-promoted.
+    13. `test_authentic_sprint851_comparative_promotion_succeeds`: Proves authentic decision matching all 6 quote fields promotes claim assessment to `SUPPORTED`.
+- **Status**: COMPLETED (99 unit tests passing, 82% total code coverage, 100% coverage on `domain/comparative.py` and `domain/human_decision.py`, 0 Mypy static type errors).
