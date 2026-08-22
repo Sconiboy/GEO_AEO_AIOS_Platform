@@ -1,0 +1,49 @@
+{
+  "manifest_id": "manifest-panel-bq01-natural-v1",
+  "description": "Six public pages visibly cited by Claude’s discovery-only natural buyer answer. Each candidate is approved for collection only; publisher claims remain attributed to the page.",
+  "is_non_client_spike": true,
+  "candidates": [
+    {
+      "query_id": "bq01",
+      "url": "https://cuttingedgepr.com/articles/6-best-b2b-saas-seo-agencies-in-2026-a-brief-overview/",
+      "candidate_excerpt": "MADX Digital is a revenue-first B2B SaaS SEO agency that delivers custom services spanning technical SEO, content writing, digital PR, link building, and Generative Engine Optimization (GEO) for AI search platforms, including ChatGPT, Perplexity, and Google AI Overviews.",
+      "source_type": "independent_editorial",
+      "is_independent": true
+    },
+    {
+      "query_id": "bq01",
+      "url": "https://www.uprawmedia.com/blog/best-saas-seo-agencies",
+      "candidate_excerpt": "Skale most closely matches what an MRR-focused SaaS marketing lead wants from an SEO partner.",
+      "source_type": "vendor_marketing",
+      "is_independent": false
+    },
+    {
+      "query_id": "bq01",
+      "url": "https://firstpagesage.com/seo-blog/top-b2b-saas-seo-agencies/",
+      "candidate_excerpt": "Animalz has been producing content for B2B SaaS companies since 2015, earning a strong reputation among software brands that need rigorous, senior-level writing rather than content-at-scale.",
+      "source_type": "vendor_marketing",
+      "is_independent": false
+    },
+    {
+      "query_id": "bq01",
+      "url": "https://newmedia.com/blog/best-b2b-saas-seo-agencies",
+      "candidate_excerpt": "Siege Media is a content-driven SEO agency that focuses on creative storytelling and technical performance.",
+      "source_type": "vendor_marketing",
+      "is_independent": false
+    },
+    {
+      "query_id": "bq01",
+      "url": "https://www.yesoptimist.com/best-b2b-seo-agencies/",
+      "candidate_excerpt": "Stratabeat is a B2B SEO agency that earned a 5.0/5 rating on Clutch and won First Place at the 2025 U.S. Search Awards for Best Use of Data in SEO.",
+      "source_type": "vendor_marketing",
+      "is_independent": false
+    },
+    {
+      "query_id": "bq01",
+      "url": "https://www.saas-hackers.com/top/b2b-saas-seo-agencies",
+      "candidate_excerpt": "SimpleTiger has been working exclusively with SaaS companies for over 15 years, which gives their SEO work a degree of category focus that generalist agencies cannot easily replicate.",
+      "source_type": "review_aggregator",
+      "is_independent": true
+    }
+  ]
+}
