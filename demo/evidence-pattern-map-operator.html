@@ -183,6 +183,23 @@
       .check { color: #5e8873; font-weight: 700; }
       .pending { color: #a4752b; }
 
+      .live-signals { margin-top: 24px; display: grid; grid-template-columns: 1.22fr .78fr; background: #f8f7f2; border: 1px solid var(--line); }
+      .signals-copy { padding: 25px 23px; border-right: 1px solid var(--line); }
+      .signals-copy h2 { margin: 8px 0 8px; font: 600 34px/.92 var(--serif); letter-spacing: -.035em; }
+      .signals-copy p { max-width: 590px; margin: 0; color: #677278; font-size: 12px; line-height: 1.6; }
+      .signals-list { margin-top: 21px; border-top: 1px solid var(--line); }
+      .signal-row { display: grid; grid-template-columns: 12px minmax(145px,.67fr) minmax(0,1.65fr) auto; align-items: center; gap: 9px; padding: 11px 0; border-bottom: 1px solid #e1e2dc; }
+      .signal-row:last-child { border-bottom: 0; }
+      .signal-row i { width: 7px; height: 7px; border-radius: 50%; background: #b4bab6; }
+      .signal-row strong { color: #263138; font-size: 11px; }
+      .signal-row span { color: #778186; font-size: 10px; line-height: 1.4; }
+      .signal-row em { color: #8b9396; font: 9px var(--mono); font-style: normal; text-transform: uppercase; white-space: nowrap; }
+      .connect-panel { display: flex; flex-direction: column; justify-content: space-between; padding: 25px 23px; background: var(--ink); color: #f3f5f1; }
+      .connect-panel h3 { margin: 7px 0 9px; color: #fff; font: 600 27px/.95 var(--serif); letter-spacing: -.026em; }
+      .connect-panel p { margin: 0; color: #abb8bc; font-size: 11px; line-height: 1.55; }
+      .connect-panel small { display: block; margin-top: 20px; color: #80919a; font: 9px var(--mono); line-height: 1.5; }
+      .connect { width: 100%; color: #091116; background: var(--blue); border: 0; padding: 11px 12px; font-weight: 700; text-align: left; }
+
       .toast { position: fixed; left: 50%; bottom: 26px; z-index: 4; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; color: #eaf3ef; background: var(--ink); padding: 12px 15px; border-left: 2px solid var(--blue); box-shadow: 0 12px 35px rgba(3,8,13,.22); font-size: 12px; transition: opacity 180ms var(--ease), transform 180ms var(--ease); }
       .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
@@ -221,6 +238,10 @@
         .buyer-question { font-size: 18px; }
         .map-lanes { grid-template-columns: 1fr; }
         .map-node { min-height: 0; }
+        .live-signals { grid-template-columns: 1fr; }
+        .signals-copy { border-right: 0; border-bottom: 1px solid var(--line); }
+        .signal-row { grid-template-columns: 10px minmax(105px,.75fr) minmax(0,1.35fr); }
+        .signal-row em { display: none; }
       }
       @media (prefers-reduced-motion: no-preference) {
         .panel { animation: settle .45s var(--ease) both; }
@@ -314,6 +335,23 @@
               <p>Site-management AI receives an evidence-linked work order. It can draft and validate a change, but a qualified reviewer still controls publication.</p>
               <ul class="checklist"><li><span class="check">✓</span><span>Source URLs and boundaries preserved</span></li><li><span class="check">✓</span><span>Work order has acceptance tests and rollback reference</span></li><li><span class="pending">○</span><span>Legal reviewer approval required before publish</span></li></ul>
             </aside>
+          </section>
+
+          <section class="live-signals" aria-label="Live site signals">
+            <div class="signals-copy">
+              <div class="eyebrow">Live site signals</div>
+              <h2>Evidence gets a traffic reality check.</h2>
+              <p>Connect read-only GA4 and Search Console data to prioritize the next work order. This workspace keeps observed referrals, direct/unknown movement, and Google Search demand separate on purpose.</p>
+              <div class="signals-list">
+                <div class="signal-row"><i></i><strong>Observed AI referral</strong><span>Sessions with identifiable answer-engine referrers, by landing page.</span><em>Awaiting GA4</em></div>
+                <div class="signal-row"><i></i><strong>Unattributed movement</strong><span>Direct/(none) movement after a documented release; never labeled LLM traffic.</span><em>Needs release record</em></div>
+                <div class="signal-row"><i></i><strong>Google search demand</strong><span>Query, page, impressions, clicks, and indexability signals from Search Console.</span><em>Awaiting GSC</em></div>
+              </div>
+            </div>
+            <div class="connect-panel">
+              <div><div class="wo-kicker">Data connection</div><h3>Bring the live signal in.</h3><p>The client chooses the GA4 and Search Console properties. The first connection is read-only and data remains tied to this workspace.</p><small>NO SYNTHETIC TRAFFIC · NO ATTRIBUTION GUARANTEE</small></div>
+              <button class="connect" data-toast="Connection design is ready. GA4 and Search Console need client-consented read-only OAuth before any live data appears.">Connect client data →</button>
+            </div>
           </section>
         </div>
       </main>
