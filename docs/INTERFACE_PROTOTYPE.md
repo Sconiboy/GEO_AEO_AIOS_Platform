@@ -16,7 +16,14 @@ The tested interactions are:
 | Operator input | Stores a draft-note acknowledgement in the interface without pretending to answer from unverified evidence. |
 | Work-order button | Confirms that the proposed work order is routed for review rather than published automatically. |
 | External source links | Open the exact URLs preserved from the observed answer capture. |
+| Google connection call to action | States that commercial GA4/Search Console access requires client-consented read-only OAuth and property selection. |
 
 ## Next Implementation Layer
 
 The prototype should become the application shell after the following data-backed features are connected: workspace authentication; buyer-question intake; capture paste/upload with immutable transcript reference; source review and evidence storage; work-order approval state; and a report view. The visual model is already designed for these objects.
+
+## Live Metrics and Engineering Status
+
+The current interface now contains an explicit no-data state for three commercial API panels: observed AI referral, unattributed post-release movement, and Google search demand. Each uses an em dash and a connection-status label until the API returns an actual value; it does not use illustrative traffic numbers.
+
+The interface also displays the `AG-GOOGLE-1` delivery lane, assigning Antigravity the OAuth, encrypted-token, adapter, refresh, and test work. Manus remains responsible for the evidence contract, customer workflow, and release-review boundary.
