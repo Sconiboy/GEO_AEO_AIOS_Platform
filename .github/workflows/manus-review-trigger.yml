@@ -1,0 +1,51 @@
+name: Dispatch Manus provenance review
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/MANUS_SPRINT*_REVIEW.md"
+      - "docs/MANUS_REVIEW_AUTOMATION.md"
+      - ".github/workflows/manus-review-trigger.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manus-review-dispatch-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch-review:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[manus-review]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Create isolated Manus review task
+        shell: bash
+        env:
+          MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
+          REPOSITORY: ${{ github.repository }}
+          REVIEWED_COMMIT: ${{ github.sha }}
+          REVIEWED_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test -n "$MANUS_API_KEY"
+          mkdir -p dispatch
+          git archive --format=tar.gz --prefix=GEO_AEO_AIOS_Platform/ "$GITHUB_SHA" > dispatch/review-context.tgz
+          test "$(wc -c < dispatch/review-context.tgz)" -le 15728640
+          base64 --wrap=0 dispatch/review-context.tgz > dispatch/review-context.b64
+
+          review_prompt="Review the attached exact Git archive as an independent, evidence-governed reviewer. Repository: $REPOSITORY. Branch: $REVIEWED_REF. Commit: $REVIEWED_COMMIT. Extract the archive and run its stated tests and static type checks. Read docs/MANUS_SPRINT84_REVIEW.md. Approve only if raw ledger bytes are parsed into an AuditRun or proven canonically equivalent to the supplied model; both selected records require OPENED_VERIFIED, retained snapshot, verifier-run, and immutable collection-execution provenance; and every human-promoted quote binds exact evidence ID, URL, snapshot SHA-256, verifier run ID, collection execution ID, and quote text. Try to falsify each control, including raw/model mismatch, absent provenance, optional snapshots, and altered quote provenance. If GitHub write access is available, create only docs/MANUS_SPRINT85_REVIEW.md with the verdict, observed commands, findings, and next action; commit it as Manus Review Bot using docs(review): Manus Sprint 8.5 provenance review [manus-review], then push. Never modify code, workflows, settings, or secrets. Never push when validation is incomplete."
+          jq -n --arg content "$review_prompt" --arg title "Forensic provenance review $REVIEWED_COMMIT" --rawfile archive dispatch/review-context.b64 '{message:{content:[{type:"text",text:$content},{type:"file",filename:"review-context.tgz",mime_type:"application/gzip",file_data:("data:application/gzip;base64,"+$archive)}]},title:$title,interactive_mode:false,share_visibility:"private",agent_profile:"manus-1.6"}' > dispatch/request.json
+          status="$(curl --silent --show-error --output dispatch/response.json --write-out '%{http_code}' --request POST https://api.manus.ai/v2/task.create --header "x-manus-api-key: $MANUS_API_KEY" --header 'Content-Type: application/json' --data @dispatch/request.json)"
+          test "$status" = 200
+          jq -e '.ok == true and (.task_id|type == "string") and (.task_url|type == "string")' dispatch/response.json
+          jq -r '"Created Manus review task: "+.task_url' dispatch/response.json
